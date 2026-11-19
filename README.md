@@ -28,10 +28,10 @@ Providers plug into one contract (session, usage client, poller, panel), so supp
 | **Cursor** | Monthly billing cycle (usage-summary %) | Last 7 days of the billing cycle |
 | **Grokbot** | Weekly Bot allowance, anchored to the plan's own reset instant | Weekly window |
 | **OpenCode Go** | 5-hour + weekly + monthly limits (console); local estimate when signed out | Weekly + subscription-month sections |
-| **OpenRouter** | Account credits (management key) or per-key spending cap with provider-declared reset window | — |
+| **OpenRouter** | Account credits (management key) or per-key spending cap with provider-declared reset window | Key reset window, or a UTC week of the balance |
 | **SuperGrok** | Rolling weekly pool ending at the provider's reset instant; per-product breakdown (Chat, Build, API, Imagine, …) | Billing-period week (`100/7` per day) |
 
-Every window is anchored to the provider's own reset metadata (`resetsAt`, billing-cycle dates, or declared reset period). When a payload lacks that metadata, the affected section waits for the next complete refresh.
+Every window is anchored to the provider's own reset metadata (`resetsAt`, billing-cycle dates, or declared reset period). When a payload lacks that metadata, the affected section waits for the next complete refresh. OpenRouter credits and a key cap that never resets have no such window: the bars are the UTC week as shares of the balance, and the pace line stays off.
 
 ## Features
 

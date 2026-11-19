@@ -61,6 +61,7 @@
 		3FA0201E20A8FD38C5BBAA2D /* OpenRouterUsageClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFC4A6E057A9B10E5B3B451F /* OpenRouterUsageClient.swift */; };
 		406F65FD1B8508F76952A5F8 /* GrokUsageBreakdownCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 252128BCE6BBA208886DCEB5 /* GrokUsageBreakdownCard.swift */; };
 		40EC04A94B76F68252C94E9E /* AppModelPollingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 029654B77047E3B766095470 /* AppModelPollingTests.swift */; };
+		41515038EAA0CF7BB54D6B50 /* OpenRouterDailyBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06896C00C3F6770C9E6E39A0 /* OpenRouterDailyBudget.swift */; };
 		440F0FD6B4942548127BC790 /* TokenMonApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D78FE8D9B9D2534DD07FB991 /* TokenMonApp.swift */; };
 		444BA2F34EE2C04F332F3CEA /* OpenCodeMonthBudgetWeekTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FAE417F56CAB34C320EB40F /* OpenCodeMonthBudgetWeekTests.swift */; };
 		449806D07B2C9554748C14FD /* OpenRouterPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E316C0E9333D1931BE2482FD /* OpenRouterPanelView.swift */; };
@@ -201,6 +202,7 @@
 		DA5D1F0358D6F37F36458012 /* CursorModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C6515EC3A0659E622400DB /* CursorModels.swift */; };
 		DC0761C7CD76DA5559B1432C /* ProviderHourlyUsageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29A70ECCF9E72CB23C94ADBF /* ProviderHourlyUsageTests.swift */; };
 		DD15D0690AD26260AA35CEE7 /* AppInstallerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED51EA8ED28DE1DDA20CF97D /* AppInstallerTests.swift */; };
+		DD3CD2279D41B869174A0AC1 /* OpenRouterDailyBudgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5892356272356D5A030CE9C /* OpenRouterDailyBudgetTests.swift */; };
 		DDF76CDF7500077A27FDB468 /* ColorPaletteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B25E3A1F565258F2287527 /* ColorPaletteTests.swift */; };
 		DE6D0A7365E90E2BBCF5804B /* OpenCodeModelNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A17550B220ADFC13EB666DED /* OpenCodeModelNameTests.swift */; };
 		E034A31E376D3E03047EDF44 /* ProviderRefreshTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22CDEB40CD2C6229C53B7B4B /* ProviderRefreshTests.swift */; };
@@ -248,6 +250,7 @@
 		0539AEEA8B8FA035190BB0AD /* GrokbotUsageBreakdownCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokbotUsageBreakdownCard.swift; sourceTree = "<group>"; };
 		054C36F279715DBD2D9A7D0F /* MonthlyUsageChange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlyUsageChange.swift; sourceTree = "<group>"; };
 		061C3C9D175027F5C518C502 /* ChatGPTUsagePoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTUsagePoller.swift; sourceTree = "<group>"; };
+		06896C00C3F6770C9E6E39A0 /* OpenRouterDailyBudget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterDailyBudget.swift; sourceTree = "<group>"; };
 		06C0BAFB2DDDF57C66DF9D2E /* ProviderSwitcherLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSwitcherLayoutTests.swift; sourceTree = "<group>"; };
 		0A45C7CA17EAD20109ECFE5E /* DailyBudgetBarsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyBudgetBarsView.swift; sourceTree = "<group>"; };
 		0AA285B3C7E5EDE242B14533 /* GrokExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokExportService.swift; sourceTree = "<group>"; };
@@ -451,6 +454,7 @@
 		F35DC558D3B83BCDF5570A43 /* OpenRouterAuthSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterAuthSession.swift; sourceTree = "<group>"; };
 		F430FF7C5A3558077DD46EA1 /* SignInBrowserNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInBrowserNavigation.swift; sourceTree = "<group>"; };
 		F4BDA550A83633C5A4301FF7 /* ProviderRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderRegistry.swift; sourceTree = "<group>"; };
+		F5892356272356D5A030CE9C /* OpenRouterDailyBudgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterDailyBudgetTests.swift; sourceTree = "<group>"; };
 		F69D8EE1005CB6E65C0D5459 /* DailyTokenUsage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTokenUsage.swift; sourceTree = "<group>"; };
 		F6C0354565D378468D97357D /* ProviderColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderColors.swift; sourceTree = "<group>"; };
 		F727FF0E3AAB4DA6D1CBA072 /* CursorUsageEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorUsageEvents.swift; sourceTree = "<group>"; };
@@ -529,6 +533,7 @@
 			isa = PBXGroup;
 			children = (
 				F35DC558D3B83BCDF5570A43 /* OpenRouterAuthSession.swift */,
+				06896C00C3F6770C9E6E39A0 /* OpenRouterDailyBudget.swift */,
 				8EAE66EC189024EDE1B52B77 /* OpenRouterModels.swift */,
 				E316C0E9333D1931BE2482FD /* OpenRouterPanelView.swift */,
 				FFC4A6E057A9B10E5B3B451F /* OpenRouterUsageClient.swift */,
@@ -737,6 +742,7 @@
 			isa = PBXGroup;
 			children = (
 				A9CB4ABDEB60519571F690BA /* OpenRouterAuthSessionTests.swift */,
+				F5892356272356D5A030CE9C /* OpenRouterDailyBudgetTests.swift */,
 				16CC7EA776901FE9698D44AB /* OpenRouterModelsTests.swift */,
 				D43CC15D24492EB03CA2FF7D /* OpenRouterUsageClientTests.swift */,
 			);
@@ -1296,6 +1302,7 @@
 				D35E38E41FF91B2819CBDBCA /* OpenCodePriceTableTests.swift in Sources */,
 				FD494ED4BBD4A5A3FD3B26E2 /* OpenCodeStatsTests.swift in Sources */,
 				D255FBF015712CBBB06E1DA6 /* OpenRouterAuthSessionTests.swift in Sources */,
+				DD3CD2279D41B869174A0AC1 /* OpenRouterDailyBudgetTests.swift in Sources */,
 				A4FA015CCCF03CA853E66728 /* OpenRouterModelsTests.swift in Sources */,
 				A7A4418B39480F513CF2D52D /* OpenRouterUsageClientTests.swift in Sources */,
 				794664BDA04B15365D88BF49 /* OverviewHourlyHistoryTests.swift in Sources */,
@@ -1420,6 +1427,7 @@
 				8B55A24D72BF071CD3201ED7 /* OpenCodeUsagePoller.swift in Sources */,
 				2C9A81B0E389C33AD009717F /* OpenCodeZenCostEstimate.swift in Sources */,
 				BFCF4AEC1FB1146A288AAAAF /* OpenRouterAuthSession.swift in Sources */,
+				41515038EAA0CF7BB54D6B50 /* OpenRouterDailyBudget.swift in Sources */,
 				654B5A9A5F4A515604F2A095 /* OpenRouterModels.swift in Sources */,
 				449806D07B2C9554748C14FD /* OpenRouterPanelView.swift in Sources */,
 				3FA0201E20A8FD38C5BBAA2D /* OpenRouterUsageClient.swift in Sources */,
