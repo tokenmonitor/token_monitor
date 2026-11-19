@@ -1,12 +1,10 @@
 import SwiftUI
 
 /// Grokbot "Usage Breakdown" card: who spent the allowance (You, Routines,
-/// Bot to Bot, …), most used first. Percent slices are percents of the weekly
-/// pool. Dollar slices split `consumedPercent` of the usage bar.
+/// Bot to Bot, …), most used first. Percent figures are percents of the weekly
+/// pool. Dollar figures are the spend. Either way the slices fill the bar.
 struct GrokbotUsageBreakdownCard: View {
     let breakdown: GrokbotUsageBreakdown
-    /// Usage-bar percent filled by dollar slices. Percent slices ignore it.
-    var consumedPercent: Double?
 
     var body: some View {
         UsageBreakdownCard(
@@ -19,8 +17,7 @@ struct GrokbotUsageBreakdownCard: View {
                     // On-demand accounts read better in dollars than as shares.
                     valueText: breakdown.unit == .usd ? Format.usd(slice.value) : nil
                 )
-            },
-            consumedPercent: breakdown.unit == .usd ? consumedPercent : nil
+            }
         )
     }
 }

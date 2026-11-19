@@ -3,18 +3,17 @@ import SwiftUI
 /// "Usage Breakdown" card shared by the provider panels: one bar split by what
 /// spent the pool, then a legend of the same items, most used first.
 ///
-/// An item with no `valueText` is already a percent of the usage bar. Those
-/// slices keep that percent, so they sum to the consumed part of the bar and
-/// the unused pool stays grey. An item with `valueText` is a quantity (dollars);
-/// its slice is its share of the quantities, filling `consumedPercent` of the
-/// bar when that is the usage bar's percent, or the whole bar when it is nil.
+/// The slices fill the bar. An item with no `valueText` is a percent of the
+/// usage pool, and the legend shows that percent, so the figures add up to
+/// what was used. An item with `valueText` is a quantity (dollars); the bar
+/// splits by those quantities and the legend shows the quantity.
 struct UsageBreakdownCard: View {
     /// One slice of the breakdown.
     struct Item: Identifiable {
         var id: String
         var label: String
         var color: Color
-        /// Percent of the usage bar, or a quantity when `valueText` is set.
+        /// Percent of the usage pool, or a quantity when `valueText` is set.
         var amount: Double
         /// The legend's figure (e.g. "$1.25"); nil shows `amount` as a percent of the pool.
         var valueText: String?
@@ -22,14 +21,11 @@ struct UsageBreakdownCard: View {
 
     /// Items in display order (most used first).
     let items: [Item]
-    /// Usage-bar percent that dollar quantities fill. Ignored when every item
-    /// is already a percent of the pool.
-    var consumedPercent: Double?
 
     var body: some View {
         let amounts = items.map { max(0, $0.amount) }
         let poolPercents = items.allSatisfy { $0.valueText == nil } ? Self.poolPercents(amounts) : nil
-        let segmentPercents = Self.segmentPercents(amounts, poolPercents: poolPercents, consumedPercent: consumedPercent)
+        let segmentPercents = Self.segmentPercents(amounts)
         let segments = zip(items, segmentPercents).map { item, percent in
             SegmentedUsageBar.Segment(id: item.id, percent: percent, color: item.color)
         }
@@ -49,18 +45,12 @@ struct UsageBreakdownCard: View {
         }
     }
 
-    /// Bar widths. Pool percents pass through. Quantities become shares of
-    /// `consumedPercent`, or of the whole bar when that percent is absent.
-    static func segmentPercents(
-        _ amounts: [Double],
-        poolPercents: [Int]?,
-        consumedPercent: Double?
-    ) -> [Double] {
-        if poolPercents != nil { return amounts }
+    /// Width of each slice as a percent of the breakdown bar. The slices fill
+    /// the bar. A zero total leaves it empty.
+    static func segmentPercents(_ amounts: [Double]) -> [Double] {
         let total = amounts.reduce(0, +)
         guard total > 0 else { return amounts.map { _ in 0 } }
-        let scale = consumedPercent ?? 100
-        return amounts.map { $0 / total * max(0, scale) }
+        return amounts.map { $0 / total * 100 }
     }
 
     /// Whole-number percents of the pool that add up to the rounded sum of

@@ -30,12 +30,17 @@ final class UsageBreakdownCardTests: XCTestCase {
         XCTAssertEqual(UsageBreakdownCard.poolPercents([-5, 10]), [0, 10])
     }
 
-    /// Dollar slices fill the usage bar's consumed percent, split by spend.
-    func testDollarSlicesFillTheConsumedPercent() {
-        let dollars = UsageBreakdownCard.segmentPercents([2, 1], poolPercents: nil, consumedPercent: 70)
-        XCTAssertEqual(dollars[0], 140.0 / 3, accuracy: 0.001)
-        XCTAssertEqual(dollars[1], 70.0 / 3, accuracy: 0.001)
-        let pool = UsageBreakdownCard.segmentPercents([25, 12], poolPercents: [25, 12], consumedPercent: 100)
-        XCTAssertEqual(pool, [25, 12])
+    /// The breakdown bar is the consumed use filling its full width. 25 / 12 of
+    /// the pool become about 67.6 / 32.4 of that bar. Dollars split the same way.
+    func testSlicesFillTheWholeBar() {
+        let slices = UsageBreakdownCard.segmentPercents([25, 12, 6, 4])
+        XCTAssertEqual(slices.reduce(0, +), 100, accuracy: 0.001)
+        XCTAssertEqual(slices[0], 25.0 / 47 * 100, accuracy: 0.001)
+        XCTAssertEqual(slices[3], 4.0 / 47 * 100, accuracy: 0.001)
+        let dollars = UsageBreakdownCard.segmentPercents([2, 1])
+        XCTAssertEqual(dollars[0], 200.0 / 3, accuracy: 0.001)
+        XCTAssertEqual(dollars[1], 100.0 / 3, accuracy: 0.001)
+        XCTAssertEqual(UsageBreakdownCard.segmentPercents([0, 0]), [0, 0])
+        XCTAssertEqual(UsageBreakdownCard.segmentPercents([]), [])
     }
 }
