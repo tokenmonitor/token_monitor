@@ -35,7 +35,10 @@ struct GrokbotPanelView: View {
                 }
 
                 if let breakdown = poller.breakdown, breakdown.isShown(at: Date()) {
-                    GrokbotUsageBreakdownCard(breakdown: breakdown)
+                    GrokbotUsageBreakdownCard(
+                        breakdown: breakdown,
+                        consumedPercent: snapshot.hasIncludedAllowance ? snapshot.usedPercent : nil
+                    )
                 }
 
                 if snapshot.hasIncludedAllowance {
