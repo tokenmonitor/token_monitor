@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// OpenRouter panel with credit budget, stats, and model spend.
+/// OpenRouter panel with credit budget, daily bars, stats, and model spend.
 struct OpenRouterPanelView: View {
     let poller: OpenRouterUsagePoller
     let auth: OpenRouterAuthSession
@@ -37,6 +37,17 @@ struct OpenRouterPanelView: View {
                             .font(PanelTypography.caption)
                             .foregroundStyle(.secondary)
                     }
+                }
+
+                if let chart = OpenRouterDailyChart.make(for: snapshot) {
+                    NavigableDailyBudgetCard(
+                        style: chart.kind == .monthly ? .monthly : .weekly,
+                        accent: MonitorProvider.openrouter.accentColor,
+                        periodUsedPercent: chart.periodUsedPercent,
+                        periodStart: chart.periodStart,
+                        resetsAt: chart.resetsAt,
+                        daysForWeek: { chart.days(weekOffset: $0) }
+                    )
                 }
 
                 VStack(alignment: .leading, spacing: 0) {
