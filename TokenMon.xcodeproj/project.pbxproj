@@ -15,6 +15,7 @@
 		056EE3C301AA3C6719A2ACD6 /* GRPCWebParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614FC01D640C95963A8C2B0D /* GRPCWebParser.swift */; };
 		094CD3B206EA8FAFBBA580FD /* PollingLoopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5375F025FD64E1086E59BBD7 /* PollingLoopTests.swift */; };
 		0A36C66775D03F67F873E630 /* ChatGPTAuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91DFEA8DE139942660A1CE20 /* ChatGPTAuthSession.swift */; };
+		0CF7BC8B5018ACCDBCE87978 /* PanelPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 195C2F8C394F732F998DF509 /* PanelPill.swift */; };
 		0EE338537755EF3BDDCA6291 /* UsageErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9604EE2956CF38B9890E8646 /* UsageErrorTests.swift */; };
 		0F4B29F57DC82A008117C9B1 /* ProviderSwitcherLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C0BAFB2DDDF57C66DF9D2E /* ProviderSwitcherLayoutTests.swift */; };
 		0FBD1B945D843FE741A7BF7F /* CollapsibleSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2FEDDDEE343A8D475344F9 /* CollapsibleSectionHeader.swift */; };
@@ -217,7 +218,6 @@
 		ECF4D935AA82598C077C7045 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0D256F75FC792D8E73069426 /* PrivacyInfo.xcprivacy */; };
 		EFD7EAF3204F95C041943281 /* DailyBudgetHoverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C99FBA1A90AF70D29D9E8CEA /* DailyBudgetHoverTests.swift */; };
 		F2186CCA3A8B314321E937F1 /* DailyBudgetResetBoundaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55564038BBB5A4CFF17E17CA /* DailyBudgetResetBoundaryTests.swift */; };
-		F2C2904C19BD30B1A44F1D0A /* SavedResetsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF5C6262508F64603F69247 /* SavedResetsCard.swift */; };
 		F2CF6110673988888DE51EE0 /* ReleaseFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9720EBF79E217B63CE39BE16 /* ReleaseFeed.swift */; };
 		F51039AD97900C7D346CFEC7 /* ProviderSignOutButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 167B7F651A40E82E8DF084B0 /* ProviderSignOutButton.swift */; };
 		F5982E0B139D711442DE68DE /* ChatGPTUsagePoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 061C3C9D175027F5C518C502 /* ChatGPTUsagePoller.swift */; };
@@ -260,7 +260,6 @@
 		0D22D6EEACD62BFA89A36B71 /* ChatGPTAccessTokenCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTAccessTokenCacheTests.swift; sourceTree = "<group>"; };
 		0D256F75FC792D8E73069426 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		0DB82058780239EE6F551759 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		0DF5C6262508F64603F69247 /* SavedResetsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedResetsCard.swift; sourceTree = "<group>"; };
 		0F1E36CB5D4F50B6A3432EBF /* ClaudeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModels.swift; sourceTree = "<group>"; };
 		0F31151B54ECEEE84B43FDD8 /* DayKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayKey.swift; sourceTree = "<group>"; };
 		0F443655589536918F93410C /* GrokbotUsageClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokbotUsageClient.swift; sourceTree = "<group>"; };
@@ -278,6 +277,7 @@
 		18896DBCAB63C34E19CF33DE /* OpenCodePanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodePanelView.swift; sourceTree = "<group>"; };
 		18C58EB16225901A8C9B6350 /* CursorUsageClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorUsageClientTests.swift; sourceTree = "<group>"; };
 		18E376C96F9DA3FC6F23C4FB /* OpenCodePriceTableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodePriceTableTests.swift; sourceTree = "<group>"; };
+		195C2F8C394F732F998DF509 /* PanelPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelPill.swift; sourceTree = "<group>"; };
 		1BE037A3E93382D18BF9AF36 /* ProviderLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderLogo.swift; sourceTree = "<group>"; };
 		208DE1472F36E49ECB046CB8 /* GrokHistoryImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokHistoryImport.swift; sourceTree = "<group>"; };
 		2288F22C54AB836EBE566F50 /* ClaudeCodeLocalStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCodeLocalStats.swift; sourceTree = "<group>"; };
@@ -514,9 +514,9 @@
 				951B842C4CF5D532CA0C9799 /* MetricStat.swift */,
 				1225C6D7B43E225CC6DB88C0 /* ModelCompanyLogo.swift */,
 				C477A2D920CDC24E35716C4E /* PanelCard.swift */,
+				195C2F8C394F732F998DF509 /* PanelPill.swift */,
 				9D349E106AF7E3ACD74E9615 /* PanelTypography.swift */,
 				F6C0354565D378468D97357D /* ProviderColors.swift */,
-				0DF5C6262508F64603F69247 /* SavedResetsCard.swift */,
 				64C604AF90630F0DC07F8EFE /* SlimUsageTrack.swift */,
 				3FACC7D56F3A746C8EC99537 /* UsageBreakdownCard.swift */,
 			);
@@ -1446,6 +1446,7 @@
 				99F71EF97E6858B8C96E5B29 /* OverviewHourlyUsageChart.swift in Sources */,
 				D7BFCCBDB7EE7DB8C434B723 /* OverviewPanelView.swift in Sources */,
 				98AE1C5C15D15C03FAADDF36 /* PanelCard.swift in Sources */,
+				0CF7BC8B5018ACCDBCE87978 /* PanelPill.swift in Sources */,
 				622E04ED7326A7D76A034BFD /* PanelTypography.swift in Sources */,
 				ECC86A89EDAED2A82C46525C /* Percent.swift in Sources */,
 				89A45269D8E806AB9C9D352C /* PollingLoop.swift in Sources */,
@@ -1466,7 +1467,6 @@
 				5FB87589309A3202EFC80C5F /* ProviderUsagePoller.swift in Sources */,
 				F2CF6110673988888DE51EE0 /* ReleaseFeed.swift in Sources */,
 				C293A3B6958F459B3892EE10 /* SavedResets.swift in Sources */,
-				F2C2904C19BD30B1A44F1D0A /* SavedResetsCard.swift in Sources */,
 				128EEA35787A2F2B6948304E /* SegmentedUsageBar.swift in Sources */,
 				22DD3F58F039128692D42543 /* SignInBrowserNavigation.swift in Sources */,
 				CDDB7A05567585BA22633DD1 /* SignInBrowserView.swift in Sources */,

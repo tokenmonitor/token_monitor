@@ -34,9 +34,4 @@ struct SavedResets: Hashable, Sendable {
         let live = expirations.filter { expiry in expiry.map { $0 > now } ?? true }
         self.init(count: live.count, nextExpiry: live.compactMap { $0 }.min())
     }
-
-    /// Count shown on the card: "1 available", "3 available".
-    var countLabel: String {
-        "\(count) available"
-    }
 }

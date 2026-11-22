@@ -12,45 +12,49 @@ extension EnvironmentValues {
     }
 }
 
-/// One-line "update available" row for the menu-bar panel. Appears once the
-/// environment's update checker has found a newer release.
+/// "Update available" pill for the bottom of the menu-bar panel. Appears
+/// once the environment's update checker has found a newer release.
 struct UpdateAvailableIndicator: View {
     @Environment(\.updateChecker) private var checker
 
     var body: some View {
         if let checker {
-            UpdateAvailableRow(checker: checker)
+            UpdateAvailablePill(checker: checker)
         }
     }
 }
 
-private struct UpdateAvailableRow: View {
+/// The pill installs the release when pressed; its tooltip names the version.
+/// A status message from the checker shows as a caption beneath it.
+private struct UpdateAvailablePill: View {
     let checker: UpdateChecker
+
     var body: some View {
         if let release = checker.availableRelease {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Button {
                     Task { await checker.performPrimaryAction() }
                 } label: {
-                    Label(
-                        checker.isInstalling
-                            ? "Installing TokenMon \(release.version.description)…"
-                            : "TokenMon \(release.version.description) is available",
+                    PanelPill(
+                        label: checker.isInstalling ? "Installing update…" : "Update available",
                         systemImage: "arrow.down.circle"
                     )
-                    .font(.caption)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.tint)
                 .disabled(!checker.canAct)
-                .help("Download, verify, and install the update")
+                .help(
+                    checker.isInstalling
+                        ? "Installing TokenMon \(release.version.description)"
+                        : "Download, verify, and install TokenMon \(release.version.description)"
+                )
 
                 if let statusMessage = checker.statusMessage {
                     Text(statusMessage)
-                        .font(.caption2)
+                        .font(PanelTypography.caption)
                         .foregroundStyle(.secondary)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 10)
         }
     }

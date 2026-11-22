@@ -32,9 +32,4 @@ final class SavedResetsTests: XCTestCase {
         XCTAssertNil(SavedResets(expirations: [now.addingTimeInterval(-60)], now: now))
         XCTAssertNil(SavedResets(expirations: [], now: now))
     }
-
-    func testCountLabel() {
-        XCTAssertEqual(SavedResets(count: 1)?.countLabel, "1 available")
-        XCTAssertEqual(SavedResets(count: 3)?.countLabel, "3 available")
-    }
 }
