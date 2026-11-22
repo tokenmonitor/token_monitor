@@ -93,6 +93,8 @@ struct GrokPanelView: View {
                 .zIndex(1)
             }
 
+            SavedResetsCard(resets: poller.savedResets)
+
             if let error = poller.lastError {
                 StaleDataCaption(message: error, lastRefreshedAt: poller.lastRefreshedAt)
                     .padding(.top, 2)

@@ -34,6 +34,8 @@ struct GrokUsageClient: Sendable {
 
     /// gRPC-web billing endpoint used by grok.com Settings → Usage.
     static let billingEndpoint = URL(staticString: "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig")
+    /// gRPC-web endpoint listing saved usage-limit reset coupons.
+    static let remainingResetsEndpoint = URL(staticString: "https://grok.com/prod_mc_billing.ConsumerUiSvc/GetRemainingResets")
 
     var cookieHeader: String?
     var accountEmail: String?
@@ -50,10 +52,49 @@ struct GrokUsageClient: Sendable {
         return try await fetchGRPCWebBilling()
     }
 
+    /// Saved reset coupons that have not expired at `now`, or `nil` when
+    /// there are none.
+    ///
+    /// - Throws: `.notSignedIn` without a cookie header, otherwise any
+    ///   request, status or parse error. Callers treat every error as "no
+    ///   new information": this call never decides whether the session is valid.
+    func fetchSavedResets(now: Date = Date()) async throws -> SavedResets? {
+        if cookieHeader == nil {
+            throw ProviderError.notSignedIn(.grok)
+        }
+        let data = try await postGRPCWeb(to: Self.remainingResetsEndpoint)
+        return try SavedResets(expirations: GRPCWebParser.parseResetExpiries(data), now: now)
+    }
+
     // MARK: - gRPC-web
 
     private func fetchGRPCWebBilling() async throws -> WeeklyUsageSnapshot {
-        var request = URLRequest(url: Self.billingEndpoint)
+        let data = try await postGRPCWeb(to: Self.billingEndpoint)
+        try GRPCWebParser.validateTrailers(data)
+        let parsed = try GRPCWebParser.parseUsage(data)
+        let used = parsed.usedPercent
+        let products = parsed.products.isEmpty
+            ? Self.synthesizeProducts(usedPercent: used)
+            : parsed.products
+        let productLog = products.map { "\($0.id):\(String(format: "%.1f", $0.percentOfPool))%" }.joined(separator: ", ")
+        logger.info("gRPC parsed products: \(productLog, privacy: .public)")
+        #if DEBUG
+        logger.debug("gRPC field dump:\n\(GRPCWebParser.debugFieldDump(data), privacy: .public)")
+        #endif
+        return WeeklyUsageSnapshot(
+            usedPercent: used,
+            remainingPercent: max(0, 100 - used),
+            resetsAt: parsed.resetsAt,
+            products: products,
+            accountEmail: accountEmail
+        )
+    }
+
+    /// POSTs an empty gRPC-web message to `url` and returns the body once the
+    /// HTTP status and any header `grpc-status` are clean. Trailer-frame status
+    /// is left to the parser.
+    private func postGRPCWeb(to url: URL) async throws -> Data {
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 15
         // Empty gRPC-web frame (5-byte header + empty message).
@@ -85,24 +126,7 @@ struct GrokUsageClient: Sendable {
 
         // A trailers-only reply carries `grpc-status` in the HTTP headers.
         try GRPCWebParser.validateHeaders(http)
-        try GRPCWebParser.validateTrailers(data)
-        let parsed = try GRPCWebParser.parseUsage(data)
-        let used = parsed.usedPercent
-        let products = parsed.products.isEmpty
-            ? Self.synthesizeProducts(usedPercent: used)
-            : parsed.products
-        let productLog = products.map { "\($0.id):\(String(format: "%.1f", $0.percentOfPool))%" }.joined(separator: ", ")
-        logger.info("gRPC parsed products: \(productLog, privacy: .public)")
-        #if DEBUG
-        logger.debug("gRPC field dump:\n\(GRPCWebParser.debugFieldDump(data), privacy: .public)")
-        #endif
-        return WeeklyUsageSnapshot(
-            usedPercent: used,
-            remainingPercent: max(0, 100 - used),
-            resetsAt: parsed.resetsAt,
-            products: products,
-            accountEmail: accountEmail
-        )
+        return data
     }
 
     private func applyAuth(to request: inout URLRequest) {
