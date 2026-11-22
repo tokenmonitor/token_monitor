@@ -99,6 +99,22 @@ struct ChatGPTSnapshot: Identifiable, Hashable, Sendable {
 
     var resetsAt: Date? { (primary ?? secondary)?.resetsAt }
 
+    /// Length of the Codex weekly window, in seconds.
+    static let weekSeconds = 7 * 86_400
+
+    /// The window that spans a week, which the daily budget bars divide into
+    /// days: the one reporting a seven-day length, else the secondary window
+    /// when it reports no length. `nil` when neither applies.
+    var weeklyWindow: ChatGPTUsageWindow? {
+        if let week = [primary, secondary].compactMap({ $0 }).first(where: { $0.windowSeconds == Self.weekSeconds }) {
+            return week
+        }
+        if let secondary, secondary.windowSeconds == nil {
+            return secondary
+        }
+        return nil
+    }
+
     /// The account-wide flag doesn't identify a window. Only a full window
     /// can use its own reset clock as the time when that limit will be lifted.
     var hasUnattributedLimit: Bool {

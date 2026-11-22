@@ -285,6 +285,7 @@ final class PollerSessionGuardTests: XCTestCase {
         let poller = ChatGPTUsagePoller(
             settings: settings(.chatgpt),
             auth: auth,
+            daily: dailyStore("chatgpt"),
             fetchUsage: { _, _ in
                 auth.signOut()
                 auth.save(cookieHeader: "__Secure-next-auth.session-token=new")
@@ -302,6 +303,7 @@ final class PollerSessionGuardTests: XCTestCase {
         let poller = ChatGPTUsagePoller(
             settings: settings(.chatgpt),
             auth: auth,
+            daily: dailyStore("chatgpt"),
             fetchUsage: { _, _ in throw ProviderError.unauthorized(.chatGPT) }
         )
         await pollUntilInvalidated(poller, auth: auth)
@@ -318,6 +320,7 @@ final class PollerSessionGuardTests: XCTestCase {
         let poller = ChatGPTUsagePoller(
             settings: settings(.chatgpt),
             auth: auth,
+            daily: dailyStore("chatgpt"),
             fetchUsage: { _, _ in
                 if attempts.next() == 1 { throw ProviderError.unauthorized(.chatGPT) }
                 return self.chatGPTFetch()
@@ -342,6 +345,7 @@ final class PollerSessionGuardTests: XCTestCase {
         let poller = ChatGPTUsagePoller(
             settings: settings(.chatgpt),
             auth: auth,
+            daily: dailyStore("chatgpt"),
             fetchUsage: { _, _ in
                 if attempts.next() == 2 { throw ProviderError.network(.chatGPT, "offline") }
                 return self.chatGPTFetch()
@@ -364,6 +368,7 @@ final class PollerSessionGuardTests: XCTestCase {
         let poller = ChatGPTUsagePoller(
             settings: settings(.chatgpt),
             auth: auth,
+            daily: dailyStore("chatgpt"),
             fetchUsage: { _, _ in
                 ChatGPTUsageClient.Fetch(
                     response: self.chatGPTResponse(),

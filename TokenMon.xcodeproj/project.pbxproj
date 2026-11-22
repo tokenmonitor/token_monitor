@@ -43,6 +43,7 @@
 		280BCF1923E8768B3B5A28E4 /* GrokbotPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 128B083D5F66A4B86258C392 /* GrokbotPanelView.swift */; };
 		28C7D215ECCA6ECAD81C99C3 /* DailyTokenUsage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F69D8EE1005CB6E65C0D5459 /* DailyTokenUsage.swift */; };
 		298C863AB7E62E9D5CB3CC99 /* UpdateCheckerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB537762C8DFD0F0A4108A10 /* UpdateCheckerTests.swift */; };
+		2AB0FABADA87E4DE2A5E9A0F /* ChatGPTUsagePollerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7879DA76CC6E538136EABF42 /* ChatGPTUsagePollerTests.swift */; };
 		2BEB233FB9952B848CC40070 /* DailyBudgetHoverLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A2479978DF223C5A3FB032 /* DailyBudgetHoverLabel.swift */; };
 		2C9A81B0E389C33AD009717F /* OpenCodeZenCostEstimate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A87B8D8414E03E5B888599ED /* OpenCodeZenCostEstimate.swift */; };
 		2CF14F3F7EDE7A31413484BC /* DailyQuotaDeltaStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766215037C3630BB8DEC6764 /* DailyQuotaDeltaStoreTests.swift */; };
@@ -351,6 +352,7 @@
 		7763D7F7D60BD912EDB9AEC2 /* UsageBreakdownCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageBreakdownCardTests.swift; sourceTree = "<group>"; };
 		782349AA9FC5243305136053 /* OpenCodeStatsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeStatsTests.swift; sourceTree = "<group>"; };
 		785C7B006125B70D5F857E1D /* ClaudeUsageClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeUsageClient.swift; sourceTree = "<group>"; };
+		7879DA76CC6E538136EABF42 /* ChatGPTUsagePollerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTUsagePollerTests.swift; sourceTree = "<group>"; };
 		79A2E60147414792A12FB1BD /* ClaudeCodeUsageLedgerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCodeUsageLedgerTests.swift; sourceTree = "<group>"; };
 		7AE08EDFE3129FCC1A481EC9 /* ProviderUsagePoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderUsagePoller.swift; sourceTree = "<group>"; };
 		7BF9D23574F1B2B95F95A02E /* GrokbotUsageClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokbotUsageClientTests.swift; sourceTree = "<group>"; };
@@ -552,6 +554,7 @@
 			children = (
 				0D22D6EEACD62BFA89A36B71 /* ChatGPTAccessTokenCacheTests.swift */,
 				035D5817CDF2B39ABB3D7C99 /* ChatGPTUsageClientTests.swift */,
+				7879DA76CC6E538136EABF42 /* ChatGPTUsagePollerTests.swift */,
 			);
 			path = ChatGPT;
 			sourceTree = "<group>";
@@ -1263,6 +1266,7 @@
 				8C77765336CA361A4E18C3D8 /* BillingPeriodWindowTests.swift in Sources */,
 				18E25EA4F0173604E6813A3A /* ChatGPTAccessTokenCacheTests.swift in Sources */,
 				36184DD589D91241A2D881FD /* ChatGPTUsageClientTests.swift in Sources */,
+				2AB0FABADA87E4DE2A5E9A0F /* ChatGPTUsagePollerTests.swift in Sources */,
 				9B3652C1E9161B9D35718AF1 /* ClaudeCodeLocalStatsTests.swift in Sources */,
 				F965079D799BDD329B04A168 /* ClaudeCodeUsageLedgerTests.swift in Sources */,
 				39595560EBACEBC55F86B3F4 /* ClaudeModelHoverDetailTests.swift in Sources */,
