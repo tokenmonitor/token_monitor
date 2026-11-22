@@ -122,11 +122,11 @@ final class ClaudeUsagePollerTests: XCTestCase {
 
     func testProjectWeeklyResetCarriesPastInstantForwardByWholeWeeks() {
         let reset = date(2026, 9, 13, hour: 8)
-        let projected = ClaudeUsagePoller.projectWeeklyReset(reset, now: date(2026, 10, 10, hour: 9))
+        let projected = DailyBudget.projectWeeklyReset(reset, now: date(2026, 10, 10, hour: 9))
         XCTAssertEqual(projected, date(2026, 10, 11, hour: 8))
         let future = date(2026, 10, 12, hour: 8)
-        XCTAssertEqual(ClaudeUsagePoller.projectWeeklyReset(future, now: date(2026, 10, 10)), future)
-        XCTAssertNil(ClaudeUsagePoller.projectWeeklyReset(nil, now: date(2026, 10, 10)))
+        XCTAssertEqual(DailyBudget.projectWeeklyReset(future, now: date(2026, 10, 10)), future)
+        XCTAssertNil(DailyBudget.projectWeeklyReset(nil, now: date(2026, 10, 10)))
     }
 
     /// `seven_day: null` with the weekly pool in `limits` records the daily
