@@ -296,15 +296,6 @@ final class ClaudeUsagePoller: ProviderUsagePoller {
         if let live = snapshot?.sevenDay?.resetsAt {
             return live
         }
-        return Self.projectWeeklyReset(weeklyResetsAt ?? daily.windowResetsAt, now: now)
-    }
-
-    /// Advances `resetsAt` by whole weeks until it is after `now`.
-    static func projectWeeklyReset(_ resetsAt: Date?, now: Date) -> Date? {
-        guard let resetsAt else { return nil }
-        guard resetsAt <= now else { return resetsAt }
-        let week: TimeInterval = 7 * 86_400
-        let weeks = (now.timeIntervalSince(resetsAt) / week).rounded(.down) + 1
-        return resetsAt.addingTimeInterval(weeks * week)
+        return DailyBudget.projectWeeklyReset(weeklyResetsAt ?? daily.windowResetsAt, now: now)
     }
 }

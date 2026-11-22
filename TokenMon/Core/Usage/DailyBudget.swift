@@ -43,6 +43,17 @@ enum WeekOffset {
 
 /// Calendar-day budget math shared by the daily-budget charts.
 enum DailyBudget {
+    /// Advances `resetsAt` by whole weeks until it is after `now`, so a weekly
+    /// reset instant remembered from an earlier payload still estimates the
+    /// current window. Returns `resetsAt` unchanged when it is still ahead.
+    static func projectWeeklyReset(_ resetsAt: Date?, now: Date) -> Date? {
+        guard let resetsAt else { return nil }
+        guard resetsAt <= now else { return resetsAt }
+        let week: TimeInterval = 7 * 86_400
+        let weeks = (now.timeIntervalSince(resetsAt) / week).rounded(.down) + 1
+        return resetsAt.addingTimeInterval(weeks * week)
+    }
+
     /// Daily allowance from monthly limit (same units as `limit`).
     static func budgetPerDay(limitUSD: Double, daysInPeriod: Int) -> Double {
         guard limitUSD > 0, daysInPeriod > 0 else { return 0 }
