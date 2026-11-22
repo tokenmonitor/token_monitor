@@ -23,7 +23,7 @@ Providers plug into one contract (session, usage client, poller, panel), so supp
 
 | Provider | Usage pools surfaced | Daily Budget chart |
 |----------|----------------------|--------------------|
-| **ChatGPT (Codex)** | 5-hour primary + weekly secondary pool | — |
+| **ChatGPT (Codex)** | 5-hour primary + weekly secondary pool | Weekly window |
 | **Claude** | 5-hour session + weekly (7-day) pool; Claude Code tokens and API-rate spend for this month and all time, by model, read from local logs (shown signed in or not) | Weekly window |
 | **Cursor** | Monthly billing cycle (usage-summary %) | Last 7 days of the billing cycle |
 | **Grokbot** | Weekly Bot allowance, anchored to the plan's own reset instant | Weekly window |
