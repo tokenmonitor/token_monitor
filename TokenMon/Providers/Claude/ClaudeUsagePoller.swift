@@ -166,7 +166,8 @@ final class ClaudeUsagePoller: ProviderUsagePoller {
                     fetchedAt: fetchedAt,
                     fiveHour: response.fiveHour,
                     sevenDay: response.sevenDay,
-                    accountEmail: auth.accountEmail
+                    accountEmail: auth.accountEmail,
+                    savedResets: response.savedResets
                 )
                 lastError = nil
                 lastRefreshedAt = Date()

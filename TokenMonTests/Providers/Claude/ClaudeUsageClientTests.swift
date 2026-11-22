@@ -123,4 +123,70 @@ final class ClaudeUsageClientTests: XCTestCase {
         """.utf8)
         XCTAssertEqual(try ClaudeUsageResponse.parse(data).sevenDay?.usedPercent ?? -1, 40, accuracy: 0.001)
     }
+
+    // MARK: - Saved resets (cedar_ember)
+
+    private let resetNow = ISO8601DateFormatter().date(from: "2026-11-22T12:00:00Z")!
+
+    private func savedResets(_ block: String) throws -> SavedResets? {
+        try ClaudeUsageResponse.parse(Data(#"{"cedar_ember": \#(block)}"#.utf8), now: resetNow).savedResets
+    }
+
+    func testSavedResetsSumAvailableGrants() throws {
+        let resets = try XCTUnwrap(savedResets("""
+        {"eligible": true, "grants": [
+          {"id": "g1", "resets_left": 1, "resets_total": 1, "paused": false,
+           "starts_at": "2026-11-01T00:00:00Z", "ends_at": "2026-12-20T00:00:00Z"},
+          {"id": "g2", "resets_left": 2, "resets_total": 2, "paused": false,
+           "starts_at": null, "ends_at": "2026-12-05T00:00:00Z"},
+          {"id": "g3", "resets_left": 1, "paused": false}
+        ]}
+        """))
+        XCTAssertEqual(resets.count, 4)
+        XCTAssertEqual(resets.nextExpiry, ISO8601DateFormatter().date(from: "2026-12-05T00:00:00Z"))
+    }
+
+    func testSavedResetsSkipUnavailableGrants() throws {
+        XCTAssertNil(try savedResets("""
+        {"eligible": true, "grants": [
+          {"resets_left": 1, "paused": true},
+          {"resets_left": 0, "resets_total": 1, "paused": false},
+          {"resets_left": 1, "paused": false, "starts_at": "2026-12-01T00:00:00Z"},
+          {"resets_left": 1, "paused": false, "ends_at": "2026-11-22T12:00:00Z"}
+        ]}
+        """))
+    }
+
+    /// A malformed grant is dropped; the well-formed one still counts.
+    func testSavedResetsDropMalformedGrants() throws {
+        let resets = try XCTUnwrap(savedResets("""
+        {"eligible": true, "grants": [
+          {"resets_left": "many", "paused": false},
+          {"resets_left": 2, "resets_total": 1, "paused": false},
+          {"resets_left": -1, "paused": false},
+          {"resets_left": 1},
+          {"resets_left": 1, "paused": null},
+          {"resets_left": 1, "paused": false, "ends_at": "next tuesday"},
+          {"resets_left": 1, "paused": false, "starts_at": 5},
+          {"resets_left": 1, "resets_total": 1, "paused": false}
+        ]}
+        """))
+        XCTAssertEqual(resets.count, 1)
+        XCTAssertNil(resets.nextExpiry)
+    }
+
+    func testSavedResetsNeedEligibleBlock() throws {
+        let grant = #"{"resets_left": 1, "paused": false}"#
+        XCTAssertNil(try savedResets(#"{"eligible": false, "grants": [\#(grant)]}"#))
+        XCTAssertNil(try savedResets(#"{"grants": [\#(grant)]}"#))
+        XCTAssertNil(try savedResets(#"{"eligible": true}"#))
+        XCTAssertNil(try savedResets("null"))
+        XCTAssertNil(try ClaudeUsageResponse.parse(fixture).savedResets)
+    }
+
+    func testSavedResetsImplausibleInventoryShowsNothing() throws {
+        XCTAssertNil(try savedResets("""
+        {"eligible": true, "grants": [{"resets_left": 5000, "paused": false}]}
+        """))
+    }
 }
