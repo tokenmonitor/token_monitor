@@ -93,15 +93,16 @@ struct GrokPanelView: View {
                 .zIndex(1)
             }
 
-            SavedResetsCard(resets: poller.savedResets)
-
             if let error = poller.lastError {
                 StaleDataCaption(message: error, lastRefreshedAt: poller.lastRefreshedAt)
                     .padding(.top, 2)
             }
 
-            ProviderSignOutButton(provider: .grok) {
-                auth.signOut()
+            HStack {
+                SavedResetsPill(resets: poller.savedResets, tint: MonitorProvider.grok.accentColor)
+                ProviderSignOutButton(provider: .grok) {
+                    auth.signOut()
+                }
             }
         }
     }

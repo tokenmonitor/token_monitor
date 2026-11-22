@@ -49,8 +49,6 @@ struct ChatGPTPanelView: View {
                     daysForWeek: { poller.dailyBudgetDays(weekOffset: $0) }
                 )
 
-                SavedResetsCard(resets: snapshot.savedResets)
-
                 if let err = poller.lastError {
                     StaleDataCaption(message: err, lastRefreshedAt: poller.lastRefreshedAt)
                         .padding(.top, 8)
@@ -62,8 +60,11 @@ struct ChatGPTPanelView: View {
                         .padding(.top, 8)
                 }
 
-                ProviderSignOutButton(provider: .chatgpt) {
-                    auth.signOut()
+                HStack {
+                    SavedResetsPill(resets: snapshot.savedResets, tint: MonitorProvider.chatgpt.accentColor)
+                    ProviderSignOutButton(provider: .chatgpt) {
+                        auth.signOut()
+                    }
                 }
             }
         } else {
