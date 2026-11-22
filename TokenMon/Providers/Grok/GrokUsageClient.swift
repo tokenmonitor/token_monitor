@@ -27,78 +27,27 @@ extension ProviderError {
     }
 }
 
-/// Fetches SuperGrok weekly usage via authenticated grok.com endpoints.
-///
-/// The gRPC-web billing endpoint behind grok.com Settings → Usage is the
-/// source of truth and is called first. The REST paths are guesses, probed
-/// only when that call fails for a reason other than a rejected session; only
-/// the billing endpoint decides whether the session is valid.
+/// Fetches SuperGrok weekly usage from the gRPC-web billing endpoint behind
+/// grok.com Settings → Usage.
 struct GrokUsageClient: Sendable {
     private let logger = Logger(category: "GrokUsageClient")
 
-    /// Primary gRPC-web billing endpoint used by grok.com Settings → Usage.
+    /// gRPC-web billing endpoint used by grok.com Settings → Usage.
     static let billingEndpoint = URL(staticString: "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig")
-
-    /// Candidate REST paths probed for product breakdown JSON.
-    static let restCandidates: [URL] = [
-        URL(staticString: "https://grok.com/rest/subscriptions"),
-        URL(staticString: "https://grok.com/rest/user"),
-        URL(staticString: "https://grok.com/rest/billing/usage"),
-        URL(staticString: "https://grok.com/rest/usage")
-    ]
 
     var cookieHeader: String?
     var accountEmail: String?
     var session: URLSession = ProviderURLSession.shared
 
-    /// Fetches usage from gRPC-web billing, falling back to the REST probes
-    /// when billing fails transiently.
+    /// Fetches usage from the gRPC-web billing endpoint.
     ///
-    /// - Throws: `.unauthorized` only when the billing endpoint rejects the
-    ///   session; otherwise the billing error when no probe yields usage.
+    /// - Throws: `.notSignedIn` without a cookie header, `.unauthorized` when
+    ///   the endpoint rejects the session, otherwise the request or parse error.
     func fetchUsage() async throws -> WeeklyUsageSnapshot {
         if cookieHeader == nil {
             throw ProviderError.notSignedIn(.grok)
         }
-        do {
-            return try await fetchGRPCWebBilling()
-        } catch let error as ProviderError where error.usageError == .unauthorized {
-            throw error
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            logger.warning("gRPC-web billing failed: \(error.localizedDescription, privacy: .public)")
-            if let rest = await fetchRESTBreakdown() {
-                return rest
-            }
-            throw error
-        }
-    }
-
-    // MARK: - REST
-
-    /// First REST probe that returns parseable usage, or `nil`. Every failure,
-    /// including 401/403, only moves on to the next path.
-    private func fetchRESTBreakdown() async -> WeeklyUsageSnapshot? {
-        for url in Self.restCandidates where !Task.isCancelled {
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
-            request.timeoutInterval = 15
-            applyAuth(to: &request)
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
-            request.setValue("https://grok.com", forHTTPHeaderField: "Origin")
-            request.setValue("https://grok.com/?_s=usage", forHTTPHeaderField: "Referer")
-            request.setValue(AppIdentity.userAgent, forHTTPHeaderField: "User-Agent")
-
-            guard let result = try? await session.data(for: request),
-                  let http = result.1 as? HTTPURLResponse,
-                  http.statusCode == 200, !result.0.isEmpty else { continue }
-            if let snapshot = GrokUsageResponseParser.parseJSON(result.0, accountEmail: accountEmail) {
-                logger.info("Parsed usage from \(url.path, privacy: .public)")
-                return snapshot
-            }
-        }
-        return nil
+        return try await fetchGRPCWebBilling()
     }
 
     // MARK: - gRPC-web

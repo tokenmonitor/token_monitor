@@ -138,7 +138,7 @@ The engineer's in-the-moment awareness so code is born fast instead of fixed lat
 - **Menu bar render** — `MenuBarStatusRenderer` (NSCache-bounded; keep the key complete, keep colors resolved against the live appearance).
 - **Polling** — `PollingLoop`, one per provider: a full-interval sleep between refreshes (no ticking timer), parked with no timer while `interval()` returns nil, re-armed by `wake()`; failures back off 30 s → 10 min with ±10% jitter and honour `Retry-After`.
 - **OpenCode SQLite reads** — `OpenCodeLocalStats` (one read-only connection per scan, `json_extract` in SQL so rows arrive as plain columns, `busy_timeout`, re-read only when the database changes).
-- **Grok payload parsing** — `GRPCWebParser` (manual protobuf scan) and `UsageResponseParser` (multi-shape `JSONSerialization`); don't "upgrade" them to a framework.
+- **Grok payload parsing** — `GRPCWebParser` (manual protobuf scan); don't "upgrade" it to a framework.
 
 **Workflow hook (quality gate):** before claiming done, also sanity-check the hot paths above for the smells in the Deep Audits quick checklist — no Instruments run required for the obvious ones (formatter-per-call, per-row full-JSON, `[UInt8]` copies, eager log strings).
 
@@ -407,7 +407,7 @@ See also `@MainActor`/actor guidance above and the repo's `PollingLoop` + `AppMo
 Heavy schema frameworks are convenient and **expensive**. In Swift the tiers are:
 
 1. **`Codable`/`JSONDecoder`** — cleanest, but slowest per byte; synthesized decoding builds dictionaries and does key lookup with overhead. Keep each `JSONDecoder` instance confined to one actor or thread. Use for cold/rarely-called decoding and for *stable* shapes.
-2. **`JSONSerialization`** — faster for ad-hoc `[String: Any]` probing when the shape is unstable or multi-shaped (this repo's `UsageResponseParser` is a legitimate use — it must accept many server shapes).
+2. **`JSONSerialization`** — faster for ad-hoc `[String: Any]` probing when the shape is unstable or multi-shaped.
 3. **Manual scanning** — fastest. When the wire format is unstable but the fields you need are few, scan the bytes directly: `data.range(of:)` for ASCII keys + index math, `String` slicing, or a tiny state machine. The repo's `GRPCWebParser` (raw protobuf scan) is exactly right — keep that instinct, but cut the per-call `[UInt8](data)` copies (see Lens 3).
 
 General rules:
@@ -486,8 +486,7 @@ The repo is a poll-driven menu bar app. Cadence multiplies waste.
 
 Checklist:
 - [ ] **Order work cheapest → dearest**: settings/throttle/`isSignedIn` gates before network I/O; the `PollingLoop` checks `Task.isCancelled` — keep that
-- [ ] **Fail fast on auth**: `401/403` → surface re-auth immediately, don't fall through 4 candidate endpoints (Grok's billing call does this for `.unauthorized`)
-- [ ] **Candidate probing**: Grok calls the gRPC-web billing endpoint first and probes its 4 REST candidates (sequential, 15 s timeouts) only when billing fails transiently — keep the probes off the common path, and bound their total time if they ever move onto it
+- [ ] **Fail fast on auth**: `401/403` → surface re-auth immediately, don't fall through to other endpoints
 - [ ] **Don't pay N× external I/O over the whole queue when one poll advances one item**
 - [ ] **Never poll hot against a throttling server** — a refresh returns `PollOutcome`; `.failure` grows the wait through `BackoffTimer` (30 s → 10 min) and a 429's `Retry-After` (`UsageError.rateLimited`) sets the earliest next refresh. Report `.failure` for real fetch errors and `.skipped` for cancellation or nothing-to-do, or the backoff never engages
 - [ ] **Don't wake parked loops for nothing** — a provider that is not needed returns a nil interval (`PollInterval.seconds(menuIsOpen:settings:needed:)`) and its loop holds no timer; `AppModel` calls `wake()` only when an input to `interval()` changes (menu opened, polling settings edited)

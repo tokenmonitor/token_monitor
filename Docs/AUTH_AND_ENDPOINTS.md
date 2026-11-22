@@ -4,7 +4,7 @@ TokenMon reads usage from seven providers. None of them publishes a stable consu
 
 | Provider | Credential | Sent as | Endpoints |
 |----------|------------|---------|-----------|
-| Grok (SuperGrok) | grok.com session cookies | `Cookie` | `grok.com` gRPC-web billing, then REST probes |
+| Grok (SuperGrok) | grok.com session cookies | `Cookie` | `grok.com` gRPC-web billing |
 | Grokbot | Cursor session cookie (shared with Cursor) | `Cookie`; the breakdown sends the cookie's JWT as `Authorization: Bearer` | `cursor.com/api/dashboard/get-sand-usage-status`, `api2.cursor.sh/aiserver.v1.DashboardService/GetGrokBotUsageBreakdown` |
 | Cursor | Cursor session cookie | `Cookie` | `cursor.com/api/usage-summary`, `/api/auth/me`, `/api/dashboard/get-filtered-usage-events` |
 | OpenCode | OpenCode console cookies | `Cookie` + `x-org-id` | `opencode.ai/console/...`; plus the local `opencode.db` |
@@ -74,15 +74,11 @@ The XCTest host uses `InMemoryCredentialStore` and never reads, migrates, or wri
 
 Sign-in starts at `https://accounts.x.ai/sign-in?redirect=https://grok.com/?_s=usage`; capture runs once the flow returns to `grok.com`.
 
-| Order | Method | URL | Notes |
-|------:|--------|-----|-------|
-| 1 | POST | `https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig` | gRPC-web+proto, empty frame body. Source of truth: used %, period start, reset, product mix |
-| 2 | GET | `https://grok.com/rest/subscriptions` | Probed only when billing fails for a reason other than a rejected session |
-| 2 | GET | `https://grok.com/rest/user` | Same |
-| 2 | GET | `https://grok.com/rest/billing/usage` | Same |
-| 2 | GET | `https://grok.com/rest/usage` | Same |
+| Method | URL | Notes |
+|--------|-----|-------|
+| POST | `https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig` | gRPC-web+proto, empty frame body. Used %, period start, reset, product mix |
 
-Only the billing endpoint decides whether the session is valid: a 401/403 from it is `.unauthorized`; every REST probe failure, including 401/403, just moves on to the next path. A gRPC status in the HTTP headers (trailers-only reply) or in the trailer frame is checked before parsing.
+A 401/403 from it is `.unauthorized`. A gRPC status in the HTTP headers (trailers-only reply) or in the trailer frame is checked before parsing.
 
 ### gRPC-web request shape
 
@@ -121,7 +117,7 @@ The billing API returns no per-day series:
 |----------|--------|
 | `GetGrokCreditsConfig` | Cumulative weekly `%` + product mix + period start/end only |
 | `GetGrokUsageInfo` / `GetGrokBuildBillingHistory` | HTTP 200, **empty body** (even with period params) |
-| `GetUsage` / `GetDailyUsage` / REST `/usage/daily` | Empty or 404 |
+| `GetUsage` / `GetDailyUsage` | Empty or 404 |
 
 The daily chart is therefore built from local samples (`GrokDailyUsageBuilder`):
 
@@ -130,28 +126,7 @@ The daily chart is therefore built from local samples (`GrokDailyUsageBuilder`):
 3. A period rollover advances the whole window; two periods never share a bar.
 4. Past weeks (chevron left) anchor to that week's own reset from local samples, so last week's bars remain after the weekly reset.
 
-### Expected JSON fields (defensive)
-
-```json
-{
-  "usedPercent": 35,
-  "remainingPercent": 65,
-  "resetsAt": "2026-07-16T20:25:00Z",
-  "products": [
-    { "id": "build", "displayName": "Grok Build", "percentOfPool": 25 },
-    { "id": "api", "displayName": "API", "percentOfPool": 9 },
-    { "id": "chat", "displayName": "Chat", "percentOfPool": 1 }
-  ],
-  "extraCredits": 0
-}
-```
-
-Also accepted:
-
-- Nested wrappers (`usage`, `data`, `billing`, …)
-- `byProduct` / `productUsage` maps
-
-When only an overall percent is available, the UI synthesizes a single **Other** segment so the segmented bar still renders.
+When the billing payload carries no product breakdown, the UI synthesizes a single **Other** segment so the segmented bar still renders.
 
 ## Grokbot (Grok Bot)
 

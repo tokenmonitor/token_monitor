@@ -18,14 +18,13 @@ enum GrokExportService {
             let payload = snapshots.map { ExportRow(from: $0) }
             return try encoder.encode(payload)
         case .csv:
-            var lines = ["fetchedAt,usedPercent,remainingPercent,resetsAt,products,extraCredits,accountEmail"]
+            var lines = ["fetchedAt,usedPercent,remainingPercent,resetsAt,products,accountEmail"]
             let iso = ISO8601DateFormatter()
             for snap in snapshots {
                 let products = snap.products
                     .map { "\($0.id):\($0.percentOfPool)" }
                     .joined(separator: "|")
                 let resets = snap.resetsAt.map { iso.string(from: $0) } ?? ""
-                let credits = snap.extraCreditsBalance.map { "\($0)" } ?? ""
                 let email = snap.accountEmail ?? ""
                 lines.append([
                     iso.string(from: snap.fetchedAt),
@@ -33,7 +32,6 @@ enum GrokExportService {
                     String(format: "%.2f", snap.remainingPercent),
                     csvEscape(resets),
                     csvEscape(products),
-                    csvEscape(credits),
                     csvEscape(email)
                 ].joined(separator: ","))
             }
@@ -67,7 +65,6 @@ enum GrokExportService {
         var remainingPercent: Double
         var resetsAt: Date?
         var products: [ProductUsage]
-        var extraCreditsBalance: Decimal?
         var accountEmail: String?
 
         init(from snap: WeeklyUsageSnapshot) {
@@ -76,7 +73,6 @@ enum GrokExportService {
             remainingPercent = snap.remainingPercent
             resetsAt = snap.resetsAt
             products = snap.products
-            extraCreditsBalance = snap.extraCreditsBalance
             accountEmail = snap.accountEmail
         }
     }
