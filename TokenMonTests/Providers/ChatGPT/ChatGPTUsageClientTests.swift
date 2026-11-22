@@ -78,6 +78,29 @@ final class ChatGPTUsageClientTests: XCTestCase {
         XCTAssertEqual(response.primary?.usedPercent, 100)
     }
 
+    func testParseSavedResetsCount() throws {
+        let data = Data(#"""
+        {"rate_limit": {"primary_window": {"used_percent": 100}},
+         "rate_limit_reset_credits": {"available_count": 3}}
+        """#.utf8)
+        let response = try ChatGPTUsageResponse.parse(data)
+        XCTAssertEqual(response.savedResets?.count, 3)
+        XCTAssertNil(response.savedResets?.nextExpiry)
+    }
+
+    func testSavedResetsAbsentZeroOrMalformedIsNil() throws {
+        for body in [
+            #"{"plan_type": "plus"}"#,
+            #"{"rate_limit_reset_credits": {"available_count": 0}}"#,
+            #"{"rate_limit_reset_credits": {"available_count": 1.5}}"#,
+            #"{"rate_limit_reset_credits": {"available_count": true}}"#,
+            #"{"rate_limit_reset_credits": {"available_count": 5000}}"#,
+            #"{"rate_limit_reset_credits": 2}"#
+        ] {
+            XCTAssertNil(try ChatGPTUsageResponse.parse(Data(body.utf8)).savedResets, body)
+        }
+    }
+
     func testParseInvalidPayloadThrows() {
         XCTAssertThrowsError(try ChatGPTUsageResponse.parse(Data("nope".utf8)))
     }

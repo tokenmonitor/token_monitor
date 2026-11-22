@@ -114,7 +114,8 @@ final class ChatGPTUsagePoller: ProviderUsagePoller {
             allowed: response.allowed,
             limitReached: response.limitReached,
             primary: response.primary,
-            secondary: response.secondary
+            secondary: response.secondary,
+            savedResets: response.savedResets
         )
         lastError = nil
         lastRefreshedAt = Date()
