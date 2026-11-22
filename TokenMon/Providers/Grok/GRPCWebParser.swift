@@ -222,6 +222,30 @@ enum GRPCWebParser {
     }
 
     /// Throws `.unauthorized` on gRPC auth trailers, else maps `grpc-status` to an error.
+    /// Protobuf path of a reset token's expiry in a `GetRemainingResets`
+    /// reply: token (field 10) → `expires_at` Timestamp (field 30) → seconds
+    /// (field 1).
+    private static let resetExpiryPath: [UInt64] = [10, 30, 1]
+    /// Plausible Unix seconds for a reset expiry (2023 to 2036).
+    private static let resetExpiryRange: ClosedRange<UInt64> = 1_700_000_000...2_100_000_000
+
+    /// Expiry of every reset token in a `GetRemainingResets` reply. Only the
+    /// expiry is read; token ids (field 10 inside each token) are not.
+    ///
+    /// An empty reply (no data frame, or an empty one) holds no tokens.
+    /// - Throws: The `grpc-status` error from the trailer frame.
+    static func parseResetExpiries(_ data: Data) throws -> [Date] {
+        try validateTrailers(data)
+        var payloads = dataFrames(from: data)
+        if payloads.isEmpty, looksLikeProtobuf(data) {
+            payloads = [data]
+        }
+        return payloads
+            .flatMap { scanProtobuf($0, depth: 0, path: [], order: 0).varints }
+            .filter { $0.path == resetExpiryPath && resetExpiryRange.contains($0.value) }
+            .map { Date(timeIntervalSince1970: TimeInterval($0.value)) }
+    }
+
     static func validateTrailers(_ data: Data) throws {
         let fields = trailerFields(from: data)
         try validateStatus(fields["grpc-status"], message: fields["grpc-message"])

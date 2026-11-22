@@ -11,6 +11,10 @@ final class GrokUsagePoller: ProviderUsagePoller {
     private(set) var isRefreshing = false
     private(set) var lastError: String?
     private(set) var lastRefreshedAt: Date?
+    /// Saved reset coupons, refreshed at most every ``savedResetsRefreshInterval``.
+    private(set) var savedResets: SavedResets?
+    /// When the coupons were last requested, successfully or not.
+    @ObservationIgnored private var savedResetsRequestedAt: Date?
     /// The current week's bars and the inputs they were built from.
     @ObservationIgnored private var weekCache: (key: WeekKey, week: DailyUsageWeek?)?
 
@@ -46,6 +50,11 @@ final class GrokUsagePoller: ProviderUsagePoller {
     private let grokHourly: HourlyDeltaActivityStore
     /// Injected fetch seam (tests supply a fake); defaults to the live client.
     private let fetchUsage: (String?, String?) async throws -> WeeklyUsageSnapshot
+    /// Injected saved-resets seam; defaults to the live client.
+    private let fetchSavedResets: (String?) async throws -> SavedResets?
+    /// Shortest wait between saved-reset requests. Coupons change rarely, so
+    /// this is far longer than the usage poll.
+    static let savedResetsRefreshInterval: TimeInterval = 30 * 60
     private let logger = Logger(category: "Grok")
 
     @ObservationIgnored private(set) lazy var pollingLoop = PollingLoop(
@@ -59,7 +68,8 @@ final class GrokUsagePoller: ProviderUsagePoller {
         history: GrokHistoryStore,
         settings: AppSettings,
         grokHourly: HourlyDeltaActivityStore,
-        fetchUsage: ((String?, String?) async throws -> WeeklyUsageSnapshot)? = nil
+        fetchUsage: ((String?, String?) async throws -> WeeklyUsageSnapshot)? = nil,
+        fetchSavedResets: ((String?) async throws -> SavedResets?)? = nil
     ) {
         self.auth = auth
         self.history = history
@@ -67,6 +77,9 @@ final class GrokUsagePoller: ProviderUsagePoller {
         self.grokHourly = grokHourly
         self.fetchUsage = fetchUsage ?? { cookieHeader, accountEmail in
             try await GrokUsageClient(cookieHeader: cookieHeader, accountEmail: accountEmail).fetchUsage()
+        }
+        self.fetchSavedResets = fetchSavedResets ?? { cookieHeader in
+            try await GrokUsageClient(cookieHeader: cookieHeader).fetchSavedResets()
         }
         history.setActiveAccount(auth.accountEmail)
         // Signing out drops the snapshot; the account-scoped hourly deltas are
@@ -98,6 +111,8 @@ final class GrokUsagePoller: ProviderUsagePoller {
         snapshot = nil
         lastError = nil
         lastRefreshedAt = nil
+        savedResets = nil
+        savedResetsRequestedAt = nil
     }
 
     /// Clears the previous account's hourly deltas.
@@ -145,7 +160,7 @@ final class GrokUsagePoller: ProviderUsagePoller {
 
         let cookieHeader = auth.loadCookieHeader()
         let accountEmail = auth.accountEmail
-        return await ProviderRefresh.run(
+        let outcome = await ProviderRefresh.run(
             auth: auth,
             logger: logger,
             label: "Grok",
@@ -165,6 +180,30 @@ final class GrokUsagePoller: ProviderUsagePoller {
             },
             reportError: { lastError = $0 }
         )
+        if outcome == .success {
+            await refreshSavedResets(cookieHeader: cookieHeader)
+        }
+        return outcome
+    }
+
+    /// Requests the saved reset coupons when the last request is older than
+    /// ``savedResetsRefreshInterval``. Runs only after a successful usage
+    /// fetch. Any error keeps the previous value and never counts against the
+    /// session; a result that lands after a sign-out or account switch is dropped.
+    private func refreshSavedResets(cookieHeader: String?, now: Date = Date()) async {
+        if let savedResetsRequestedAt,
+           now.timeIntervalSince(savedResetsRequestedAt) < Self.savedResetsRefreshInterval {
+            return
+        }
+        savedResetsRequestedAt = now
+        let generation = auth.sessionGeneration
+        do {
+            let resets = try await fetchSavedResets(cookieHeader)
+            guard !Task.isCancelled, auth.isCurrent(generation) else { return }
+            savedResets = resets
+        } catch {
+            logger.info("Grok saved resets unavailable: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     private func pollInterval() -> TimeInterval? {

@@ -132,4 +132,101 @@ final class GrokUsageClientTests: XCTestCase {
         }
         XCTAssertEqual(GrokStubProtocol.requestedPaths, [billingPath])
     }
+
+    // MARK: - Saved resets (GetRemainingResets)
+
+    private let resetsPath = GrokUsageClient.remainingResetsEndpoint.path
+
+    private static func varint(_ value: UInt64) -> [UInt8] {
+        var value = value
+        var bytes: [UInt8] = []
+        repeat {
+            let low = UInt8(value & 0x7F)
+            value >>= 7
+            bytes.append(value == 0 ? low : low | 0x80)
+        } while value != 0
+        return bytes
+    }
+
+    /// Length-delimited protobuf field.
+    private static func field(_ number: UInt64, _ payload: [UInt8]) -> [UInt8] {
+        varint(number << 3 | 2) + varint(UInt64(payload.count)) + payload
+    }
+
+    /// Timestamp message: field 1 = seconds.
+    private static func timestamp(_ seconds: UInt64) -> [UInt8] {
+        [0x08] + varint(seconds)
+    }
+
+    /// One reset token: id (10), granted_at (20), expires_at (30).
+    private static func token(id: String, expires: UInt64) -> [UInt8] {
+        field(10, Array(id.utf8)) + field(20, timestamp(1_780_000_000)) + field(30, timestamp(expires))
+    }
+
+    /// gRPC-web body: one data frame, then an OK trailer frame.
+    private static func grpcWebBody(_ message: [UInt8], status: Int = 0) -> Data {
+        let trailer = Array("grpc-status:\(status)\r\n".utf8)
+        func frame(_ flags: UInt8, _ payload: [UInt8]) -> [UInt8] {
+            let count = UInt32(payload.count)
+            return [flags, UInt8(count >> 24), UInt8(count >> 16 & 0xFF), UInt8(count >> 8 & 0xFF), UInt8(count & 0xFF)]
+                + payload
+        }
+        return Data(frame(0x00, message) + frame(0x80, trailer))
+    }
+
+    func testParseResetExpiriesReadsEachToken() throws {
+        let body = Self.grpcWebBody(
+            Self.field(10, Self.token(id: "tok_a", expires: 1_800_000_000))
+                + Self.field(10, Self.token(id: "tok_b", expires: 1_790_000_000))
+        )
+        let expiries = try GRPCWebParser.parseResetExpiries(body)
+        XCTAssertEqual(
+            expiries.map(\.timeIntervalSince1970).sorted(),
+            [1_790_000_000, 1_800_000_000]
+        )
+    }
+
+    func testParseResetExpiriesEmptyReplyHasNoTokens() throws {
+        XCTAssertEqual(try GRPCWebParser.parseResetExpiries(Self.grpcWebBody([])), [])
+        XCTAssertEqual(try GRPCWebParser.parseResetExpiries(Data()), [])
+    }
+
+    /// A token whose expiry is not a plausible timestamp is not counted.
+    func testParseResetExpiriesIgnoresImplausibleTimestamps() throws {
+        let body = Self.grpcWebBody(Self.field(10, Self.token(id: "tok_a", expires: 42)))
+        XCTAssertEqual(try GRPCWebParser.parseResetExpiries(body), [])
+    }
+
+    func testParseResetExpiriesThrowsOnTrailerError() {
+        XCTAssertThrowsError(try GRPCWebParser.parseResetExpiries(Self.grpcWebBody([], status: 13)))
+    }
+
+    func testFetchSavedResetsCountsUnexpiredTokens() async throws {
+        let now = Date(timeIntervalSince1970: 1_795_000_000)
+        let body = Self.grpcWebBody(
+            Self.field(10, Self.token(id: "tok_a", expires: 1_800_000_000))
+                + Self.field(10, Self.token(id: "tok_old", expires: 1_790_000_000))
+        )
+        GrokStubProtocol.reset([resetsPath: (200, ["Content-Type": "application/grpc-web+proto"], body)])
+
+        let resets = try await client().fetchSavedResets(now: now)
+
+        XCTAssertEqual(resets?.count, 1)
+        XCTAssertEqual(resets?.nextExpiry?.timeIntervalSince1970, 1_800_000_000)
+        XCTAssertEqual(GrokStubProtocol.requestedPaths, [resetsPath])
+    }
+
+    /// A Cloudflare challenge on the resets path is an error the poller
+    /// ignores, not a rejected session.
+    func testFetchSavedResetsChallengeIsNotUnauthorized() async {
+        let html = Data("<html><title>Just a moment...</title></html>".utf8)
+        GrokStubProtocol.reset([resetsPath: (403, ["Content-Type": "text/html"], html)])
+
+        do {
+            _ = try await client().fetchSavedResets()
+            XCTFail("expected an error")
+        } catch {
+            XCTAssertNotEqual((error as? ProviderError)?.usageError, .unauthorized)
+        }
+    }
 }
