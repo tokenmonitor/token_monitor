@@ -41,6 +41,8 @@ struct ClaudePanelView: View {
 
                 codeUsageSection
 
+                SavedResetsCard(resets: snapshot.savedResets)
+
                 if let err = poller.lastError {
                     StaleDataCaption(message: err, lastRefreshedAt: poller.lastRefreshedAt)
                         .padding(.top, 8)

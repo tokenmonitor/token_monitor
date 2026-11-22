@@ -11,6 +11,7 @@ struct ClaudeUsageClient: Sendable {
     }
 
     /// Fetches usage for the org in the cookie header; throws `.notSignedIn` without one.
+    /// `cedar_ember=1` asks the endpoint to include the saved-reset grants.
     func fetchUsage(now: Date = Date()) async throws -> (ClaudeUsageResponse, Date) {
         guard let organizationID = Self.organizationID(fromCookieHeader: cookieHeader) else {
             throw ProviderError.custom(
@@ -19,13 +20,13 @@ struct ClaudeUsageClient: Sendable {
             )
         }
         let data = try await ProviderHTTP.get(
-            "/api/organizations/\(organizationID)/usage",
+            "/api/organizations/\(organizationID)/usage?cedar_ember=1",
             baseURL: Self.baseURL,
             context: .claude,
             cookieHeader: cookieHeader,
             referer: "https://claude.ai/"
         )
-        let response = try ClaudeUsageResponse.parse(data)
+        let response = try ClaudeUsageResponse.parse(data, now: now)
         return (response, now)
     }
 
