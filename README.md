@@ -41,6 +41,7 @@ Every window is anchored to the provider's own reset metadata (`resetsAt`, billi
 | **Dropdown** | Per-provider panel headed by its usage pool (hourly, weekly, monthly or mixed), with used / remaining, breakdown by product, window or model, a daily chart and the reset time |
 | **Overview tab** | Every connected provider on one hourly chart; arrows step back through the last 30 days |
 | **Daily Budget** | Per-pool daily charts (weekly windows, subscription months) paced against the provider's own consumed % |
+| **Saved resets** | ChatGPT (Codex), Claude and SuperGrok let an account save usage-limit resets to spend later. When the account has any, the bottom of that provider's panel shows how many, and for Claude and SuperGrok when the next one expires. Resets are spent in the provider's own app, never from TokenMon |
 | **Auth** | Guided sign-in per provider in an isolated web view that closes itself once you're signed in; API-key providers connect in Settings. Credentials are kept in the macOS Keychain. Signing out keeps the local history for when the same account signs back in |
 | **Polling** | Faster refresh while the menu is open, slower when idle; providers that are hidden and unwatched do not poll; failed refreshes back off and retry |
 | **History** | Daily usage kept on this Mac for the charts; SuperGrok snapshots export as CSV or JSON |
