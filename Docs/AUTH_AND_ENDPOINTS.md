@@ -77,8 +77,9 @@ Sign-in starts at `https://accounts.x.ai/sign-in?redirect=https://grok.com/?_s=u
 | Method | URL | Notes |
 |--------|-----|-------|
 | POST | `https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig` | gRPC-web+proto, empty frame body. Used %, period start, reset, product mix |
+| POST | `https://grok.com/prod_mc_billing.ConsumerUiSvc/GetRemainingResets` | Same request shape. Saved reset coupons; requested after a successful billing call, at most every 30 minutes |
 
-A 401/403 from it is `.unauthorized`. A gRPC status in the HTTP headers (trailers-only reply) or in the trailer frame is checked before parsing.
+A 401/403 from the billing endpoint is `.unauthorized`. A gRPC status in the HTTP headers (trailers-only reply) or in the trailer frame is checked before parsing.
 
 ### gRPC-web request shape
 
@@ -127,6 +128,10 @@ The daily chart is therefore built from local samples (`GrokDailyUsageBuilder`):
 4. Past weeks (chevron left) anchor to that week's own reset from local samples, so last week's bars remain after the weekly reset.
 
 When the billing payload carries no product breakdown, the UI synthesizes a single **Other** segment so the segmented bar still renders.
+
+### Saved resets
+
+`GetRemainingResets` returns one field-10 message per unused coupon: token id (field 10), granted-at Timestamp (field 20), expires-at Timestamp (field 30, seconds in its field 1). Only the expiry is read; the token id is never decoded. Coupons that have not expired are counted. The call is best-effort: any error (including a Cloudflare challenge or 401) keeps the last count, shows nothing, and never counts toward the session's strikes. An empty reply means no coupons.
 
 ## Grokbot (Grok Bot)
 
@@ -225,7 +230,9 @@ Sign-in starts at `https://claude.ai/new`.
 
 | Method | URL | Notes |
 |--------|-----|-------|
-| GET | `https://claude.ai/api/organizations/{org}/usage` | `{org}` is the `lastActiveOrg` cookie value; `Referer: https://claude.ai/`. Five-hour and weekly pools (`five_hour`, `seven_day`, or the `limits` list) with `utilization` and `resets_at` |
+| GET | `https://claude.ai/api/organizations/{org}/usage?cedar_ember=1` | `{org}` is the `lastActiveOrg` cookie value; `Referer: https://claude.ai/`. Five-hour and weekly pools (`five_hour`, `seven_day`, or the `limits` list) with `utilization` and `resets_at`, plus saved resets in `cedar_ember` |
+
+`cedar_ember` holds the "Reset for free" grants from Claude Settings → Usage: `{"eligible": true, "grants": [{"resets_left", "resets_total", "paused", "starts_at", "ends_at", …}]}`. A grant counts while it is not paused, has started and has not expired; `resets_left` of each such grant is summed, and the soonest `ends_at` is the next expiry. A grant with an unreadable count, pause state or bound is dropped without hiding the others. Grant ids are not read.
 
 `lastActiveOrg` also identifies the account, so a capture for a different org fires `accountReset`.
 
@@ -236,7 +243,7 @@ Sign-in starts at `https://chatgpt.com/`.
 | Order | Method | URL | Notes |
 |------:|--------|-----|-------|
 | 1 | GET | `https://chatgpt.com/api/auth/session` | Cookie only. Returns the web `accessToken` and renews the rolling session cookie |
-| 2 | GET | `https://chatgpt.com/backend-api/wham/usage` | Cookie + `Authorization: Bearer <accessToken>` + `ChatGPT-Account-Id` (from the token's `https://api.openai.com/auth` claim) |
+| 2 | GET | `https://chatgpt.com/backend-api/wham/usage` | Cookie + `Authorization: Bearer <accessToken>` + `ChatGPT-Account-Id` (from the token's `https://api.openai.com/auth` claim). `rate_limit` windows, plus saved Codex resets in `rate_limit_reset_credits.available_count` |
 
 The access token is cached in memory (`ChatGPTAccessTokenCache`) until five minutes before its JWT `exp`, and never longer than 30 minutes, so the session exchange still runs regularly and keeps the cookie fresh. A rejection clears the cached token. A sign-in page returned instead of the session JSON is reported as a bad response.
 
