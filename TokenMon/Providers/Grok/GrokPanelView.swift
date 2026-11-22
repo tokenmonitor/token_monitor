@@ -76,18 +76,6 @@ struct GrokPanelView: View {
                 GrokUsageBreakdownCard(products: breakdownProducts)
             }
 
-            if let credits = snapshot.extraCreditsBalance, credits > 0 {
-                PanelCard {
-                    HStack {
-                        Text("Extra credits")
-                        Spacer()
-                        Text(credits as NSDecimalNumber, formatter: Format.usdCurrency)
-                    }
-                    .font(PanelTypography.body)
-                    .foregroundStyle(.primary)
-                }
-            }
-
             // The chart renders only when a provider reset defines a billing window.
             if let week {
                 PanelCard {

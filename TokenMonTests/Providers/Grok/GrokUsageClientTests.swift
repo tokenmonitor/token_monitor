@@ -70,12 +70,8 @@ final class GrokUsageClientTests: XCTestCase {
         super.tearDown()
     }
 
-    private var restPaths: [String] {
-        GrokUsageClient.restCandidates.map(\.path)
-    }
-
-    /// gRPC billing answers first; the guessed REST paths are never requested.
-    func testBillingSuccessSkipsRESTProbes() async throws {
+    /// A refresh requests the billing endpoint and nothing else.
+    func testBillingSuccessRequestsOnlyBilling() async throws {
         let body = try XCTUnwrap(Data(hexString: grpcHex))
         GrokStubProtocol.reset([billingPath: (200, ["Content-Type": "application/grpc-web+proto"], body)])
 
@@ -85,7 +81,7 @@ final class GrokUsageClientTests: XCTestCase {
         XCTAssertEqual(GrokStubProtocol.requestedPaths, [billingPath])
     }
 
-    func testBillingUnauthorizedRejectsWithoutProbing() async {
+    func testBillingUnauthorizedIsUnauthorized() async {
         GrokStubProtocol.reset([billingPath: (401, [:], Data())])
 
         do {
@@ -123,13 +119,10 @@ final class GrokUsageClientTests: XCTestCase {
         }
     }
 
-    /// A REST 401 while billing is down never signs the user out.
-    func testRESTProbeRejectionNeverInvalidates() async {
-        var replies: [String: GrokStubProtocol.Reply] = [billingPath: (500, [:], Data())]
-        for path in restPaths {
-            replies[path] = (401, [:], Data())
-        }
-        GrokStubProtocol.reset(replies)
+    /// A billing server error is reported without requesting any other path,
+    /// and never counts against the session.
+    func testBillingServerErrorRequestsNothingElse() async {
+        GrokStubProtocol.reset([billingPath: (500, [:], Data())])
 
         do {
             _ = try await client().fetchUsage()
@@ -137,36 +130,6 @@ final class GrokUsageClientTests: XCTestCase {
         } catch {
             XCTAssertNotEqual((error as? ProviderError)?.usageError, .unauthorized)
         }
-        XCTAssertEqual(GrokStubProtocol.requestedPaths, [billingPath] + restPaths)
-    }
-
-    func testRESTProbeSuppliesUsageWhenBillingFails() async throws {
-        GrokStubProtocol.reset([
-            billingPath: (503, [:], Data()),
-            restPaths[2]: (200, ["Content-Type": "application/json"], Data(#"{"usage":{"usedPercent":42}}"#.utf8))
-        ])
-
-        let snapshot = try await client().fetchUsage()
-
-        XCTAssertEqual(snapshot.usedPercent, 42, accuracy: 0.01)
-    }
-
-    // MARK: - REST JSON strictness
-
-    /// An unrelated 200 with a bare `percent` is not usage.
-    func testUnrelatedPercentKeyIsNotUsage() {
-        let json = Data(#"{"data":{"percent":50,"name":"profile completion"}}"#.utf8)
-        XCTAssertNil(GrokUsageResponseParser.parseJSON(json, accountEmail: nil))
-    }
-
-    func testOutOfRangeUsageIsRejected() {
-        XCTAssertNil(GrokUsageResponseParser.parseJSON(Data(#"{"usedPercent":1500}"#.utf8), accountEmail: nil))
-        XCTAssertNil(GrokUsageResponseParser.parseJSON(Data(#"{"usedPercent":-3}"#.utf8), accountEmail: nil))
-    }
-
-    /// Product rows count only with a usage-specific percent key.
-    func testProductsWithoutUsageKeysAreIgnored() {
-        let json = Data(#"{"products":[{"id":"chat","value":30},{"id":"build","percent":20}]}"#.utf8)
-        XCTAssertNil(GrokUsageResponseParser.parseJSON(json, accountEmail: nil))
+        XCTAssertEqual(GrokStubProtocol.requestedPaths, [billingPath])
     }
 }

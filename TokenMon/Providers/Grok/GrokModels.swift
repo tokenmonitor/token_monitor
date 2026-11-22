@@ -214,7 +214,6 @@ struct WeeklyUsageSnapshot: Codable, Identifiable, Hashable, Sendable {
     var remainingPercent: Double
     var resetsAt: Date?
     var products: [ProductUsage]
-    var extraCreditsBalance: Decimal?
     var accountEmail: String?
 
     init(
@@ -224,7 +223,6 @@ struct WeeklyUsageSnapshot: Codable, Identifiable, Hashable, Sendable {
         remainingPercent: Double? = nil,
         resetsAt: Date? = nil,
         products: [ProductUsage] = [],
-        extraCreditsBalance: Decimal? = nil,
         accountEmail: String? = nil
     ) {
         self.id = id
@@ -237,7 +235,6 @@ struct WeeklyUsageSnapshot: Codable, Identifiable, Hashable, Sendable {
         )
         self.resetsAt = resetsAt
         self.products = products
-        self.extraCreditsBalance = extraCreditsBalance
         self.accountEmail = accountEmail
     }
 
@@ -250,7 +247,6 @@ struct WeeklyUsageSnapshot: Codable, Identifiable, Hashable, Sendable {
             ProductUsage(id: "api", displayName: "API", percentOfPool: 9),
             ProductUsage(id: "chat", displayName: "Chat", percentOfPool: 1)
         ],
-        extraCreditsBalance: nil,
         accountEmail: "user@example.com"
     )
 }

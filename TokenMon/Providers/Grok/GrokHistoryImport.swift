@@ -39,9 +39,8 @@ final class UsageSnapshotRecord {
     var remainingPercent: Double
     var resetsAt: Date?
     var productsJSON: Data
-    /// Stored as Double for SwiftData schema stability; domain model uses Decimal.
-    /// The conversion is lossy (a display-only balance), so `4.10` may read
-    /// back as `4.0999…`.
+    /// Unused column, always nil; it stays in the model so the existing
+    /// SwiftData store opens without a schema migration.
     var extraCredits: Double?
     var accountEmail: String?
 
@@ -61,7 +60,7 @@ final class UsageSnapshotRecord {
             Self.logger.error("Failed to encode products for snapshot \(snapshot.id)")
             self.productsJSON = Data()
         }
-        self.extraCredits = snapshot.extraCreditsBalance.map { NSDecimalNumber(decimal: $0).doubleValue }
+        self.extraCredits = nil
         self.accountEmail = snapshot.accountEmail
     }
 
@@ -75,7 +74,6 @@ final class UsageSnapshotRecord {
         } else {
             Self.logger.error("Failed to encode products on apply for \(snapshot.id)")
         }
-        extraCredits = snapshot.extraCreditsBalance.map { NSDecimalNumber(decimal: $0).doubleValue }
         accountEmail = snapshot.accountEmail
     }
 
@@ -94,7 +92,6 @@ final class UsageSnapshotRecord {
             remainingPercent: remainingPercent,
             resetsAt: resetsAt,
             products: products,
-            extraCreditsBalance: extraCredits.map { Decimal($0) },
             accountEmail: accountEmail
         )
     }

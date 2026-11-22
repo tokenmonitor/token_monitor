@@ -2,28 +2,6 @@
 import XCTest
 
 final class GrokUsageParsingTests: XCTestCase {
-    func testParseFixtureJSON() throws {
-        let json = Data("""
-        {
-          "usedPercent": 35,
-          "remainingPercent": 65,
-          "resetsAt": "2026-07-16T20:25:00Z",
-          "products": [
-            { "id": "build", "displayName": "Grok Build", "percentOfPool": 25 },
-            { "id": "api", "displayName": "API", "percentOfPool": 9 },
-            { "id": "chat", "displayName": "Chat", "percentOfPool": 1 }
-          ]
-        }
-        """.utf8)
-
-        let snap = try XCTUnwrap(GrokUsageResponseParser.parseJSON(json, accountEmail: nil))
-        XCTAssertEqual(snap.usedPercent, 35, accuracy: 0.01)
-        XCTAssertEqual(snap.remainingPercent, 65, accuracy: 0.01)
-        XCTAssertEqual(snap.products.count, 3)
-        XCTAssertEqual(snap.products[0].id, "build")
-        XCTAssertEqual(snap.products[0].colorToken, .build)
-    }
-
     func testRemainingDefaultsFromUsed() {
         let snap = WeeklyUsageSnapshot(usedPercent: 40)
         XCTAssertEqual(snap.remainingPercent, 60, accuracy: 0.01)
@@ -91,17 +69,6 @@ final class GrokUsageParsingTests: XCTestCase {
         let data = try GrokExportService.export([.preview], format: .json)
         let obj = try JSONSerialization.jsonObject(with: data)
         XCTAssertTrue(obj is [Any])
-    }
-
-    func testByProductMapParse() throws {
-        let json = Data("""
-        {
-          "usedPercent": 35,
-          "byProduct": { "build": 25, "api": 9, "chat": 1 }
-        }
-        """.utf8)
-        let snap = try XCTUnwrap(GrokUsageResponseParser.parseJSON(json, accountEmail: nil))
-        XCTAssertEqual(snap.products.count, 3)
     }
 
     func testGRPCProductBreakdown() throws {

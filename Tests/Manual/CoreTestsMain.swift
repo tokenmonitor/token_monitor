@@ -11,27 +11,6 @@ struct CoreTestsMain {
             print("PASS: \(msg)")
         }
 
-        let json = Data("""
-        {
-          "usedPercent": 35,
-          "remainingPercent": 65,
-          "resetsAt": "2026-07-16T20:25:00Z",
-          "products": [
-            { "id": "build", "displayName": "Grok Build", "percentOfPool": 25 },
-            { "id": "api", "displayName": "API", "percentOfPool": 9 },
-            { "id": "chat", "displayName": "Chat", "percentOfPool": 1 }
-          ]
-        }
-        """.utf8)
-
-        guard let snap = GrokUsageResponseParser.parseJSON(json, accountEmail: nil) else {
-            throw TestFailure("parse fixture")
-        }
-        try assertTrue(abs(snap.usedPercent - 35) < 0.01, "usedPercent")
-        try assertTrue(abs(snap.remainingPercent - 65) < 0.01, "remainingPercent")
-        try assertTrue(snap.products.count == 3, "product count")
-        try assertTrue(snap.products[0].colorToken == .build, "build color")
-
         let rem = WeeklyUsageSnapshot(usedPercent: 40)
         try assertTrue(abs(rem.remainingPercent - 60) < 0.01, "remaining default")
 
@@ -45,14 +24,6 @@ struct CoreTestsMain {
 
         try assertTrue(ProductColor.from(productID: "build") == .build, "color map build")
         try assertTrue(ProductColor.from(productID: "API") == .api, "color map api")
-
-        let byProduct = Data("""
-        { "usedPercent": 35, "byProduct": { "build": 25, "api": 9, "chat": 1 } }
-        """.utf8)
-        guard let mapped = GrokUsageResponseParser.parseJSON(byProduct, accountEmail: nil) else {
-            throw TestFailure("byProduct parse")
-        }
-        try assertTrue(mapped.products.count == 3, "byProduct count")
 
         // Live GetGrokCreditsConfig sample (Chat 23% + Build 13% = 36% used).
         let grpcHex = "000000005f0a5d0d0000104212001a00220b08b1debfd20610b8efb07f2a0b08b1d3e4d20610b8efb07f" +
