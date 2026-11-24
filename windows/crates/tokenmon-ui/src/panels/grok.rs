@@ -6,10 +6,10 @@ use tokenmon_core::{ProviderId, Srgb};
 
 use super::common::{
     DailyBudgetInput, DailyBudgetVm, FooterVm, HeaderVm, PanelContext, PanelKind, PanelVm,
-    ProviderStatus, SignInAction, build_daily_budget, geometry, waiting_message,
+    ProviderStatus, SignInAction, TrackVm, build_daily_budget, geometry, waiting_message,
 };
 use super::format;
-use crate::kit::segments::{ProductShare, SEGMENT_GAP, layout_segments};
+use crate::kit::breakdown::{BreakdownCardVm, BreakdownItem, build_card};
 
 /// A Grok product percentage (already filtered by the visibility settings).
 #[derive(Debug, Clone, PartialEq)]
@@ -29,10 +29,9 @@ pub struct GrokSnapshotInput {
     pub used_percent: f64,
     /// Reset instant.
     pub resets_at: Option<DateTime<Utc>>,
-    /// `panelProducts(...)` for the segmented bar.
-    pub pool_products: Vec<ProductInput>,
-    /// `categoryProducts(...)` chips (Chat, Build, Imagine, Voice order).
-    pub category_products: Vec<ProductInput>,
+    /// `breakdownProducts(...)`: the Usage Breakdown card's products, most
+    /// used first; empty hides the card.
+    pub breakdown_products: Vec<ProductInput>,
     /// Daily chart for the selected week, if any.
     pub week: Option<DailyBudgetInput>,
     /// Saved SuperGrok limit resets (loaded by the poller, not the snapshot).
@@ -50,28 +49,6 @@ pub struct GrokInput {
     pub snapshot: Option<GrokSnapshotInput>,
 }
 
-/// One laid-out segment of the pool bar.
-#[derive(Debug, Clone, PartialEq)]
-pub struct SegmentVm {
-    /// Left edge in px.
-    pub x: f64,
-    /// Width in px.
-    pub width: f64,
-    /// Color; `None` is the grey remainder slot.
-    pub color: Option<Srgb>,
-}
-
-/// Category chip.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ChipVm {
-    /// Short name.
-    pub name: String,
-    /// `N%`.
-    pub percent_text: String,
-    /// Product color.
-    pub color: Srgb,
-}
-
 /// Grok usage body.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GrokUsage {
@@ -79,47 +56,15 @@ pub struct GrokUsage {
     pub pool_title: String,
     /// `N% Used`.
     pub pool_used_text: String,
-    /// Segmented bar layout.
-    pub segments: Vec<SegmentVm>,
-    /// Reset caption.
-    pub reset_caption: Option<String>,
-    /// Category chips; `None` when the card is hidden.
-    pub categories: Option<Vec<ChipVm>>,
+    /// The weekly used % as one filled bar in the Grok accent (label hidden),
+    /// with the reset caption.
+    pub track: TrackVm,
+    /// Usage Breakdown card; `None` when there is nothing to split.
+    pub breakdown: Option<BreakdownCardVm>,
     /// Daily chart.
     pub daily: Option<DailyBudgetVm>,
     /// Footer controls.
     pub footer: FooterVm,
-}
-
-/// `segmentWidths(percents, usable, minWidth)`: shared with the kit's `SegmentedUsageBar`.
-pub use crate::kit::segments::segment_widths;
-
-/// Lays out the pool bar for `width` px (visible products > 0.05, remainder > 0.5).
-///
-/// Delegates to [`layout_segments`]; `x` is the running left edge including the 2px gaps.
-pub fn pool_segments(products: &[ProductInput], width: f64) -> Vec<SegmentVm> {
-    let shares: Vec<ProductShare> = products
-        .iter()
-        .map(|p| ProductShare {
-            name: p.short_name.clone(),
-            percent_of_pool: p.percent,
-            color: p.color,
-        })
-        .collect();
-    let specs = layout_segments(&shares, width, Srgb::rgb(0.5, 0.5, 0.5));
-    let mut x = 0.0;
-    specs
-        .iter()
-        .map(|s| {
-            let seg = SegmentVm {
-                x,
-                width: s.width,
-                color: (!s.remainder).then_some(s.color),
-            };
-            x += s.width + SEGMENT_GAP;
-            seg
-        })
-        .collect()
 }
 
 /// Builds the Grok panel.
@@ -158,24 +103,31 @@ pub fn build(input: &GrokInput, ctx: &PanelContext) -> PanelVm<GrokUsage> {
                 .then(|| SignInAction::again(ProviderId::Grok)),
         );
     };
-    let categories = (!snap.category_products.is_empty()).then(|| {
-        snap.category_products
-            .iter()
-            .map(|p| super::grok::ChipVm {
-                name: p.short_name.clone(),
-                percent_text: format!("{}%", p.percent.round() as i64),
-                color: p.color,
-            })
-            .collect()
-    });
+    let items: Vec<BreakdownItem> = snap
+        .breakdown_products
+        .iter()
+        .map(|p| BreakdownItem {
+            id: p.short_name.clone(),
+            label: p.short_name.clone(),
+            color: p.color,
+            amount: p.percent,
+            value_text: None,
+        })
+        .collect();
+    let track = TrackVm::new(
+        "",
+        snap.used_percent,
+        ProviderId::Grok.panel_accent(),
+        ctx.limit_reset_caption(snap.resets_at, snap.used_percent),
+    )
+    .without_label();
     PanelVm::with_usage(
         header,
         GrokUsage {
             pool_title: "Usage Pool Weekly".to_owned(),
             pool_used_text: format::percent_used(snap.used_percent),
-            segments: pool_segments(&snap.pool_products, geometry::CARD_INNER_WIDTH),
-            reset_caption: ctx.limit_reset_caption(snap.resets_at, snap.used_percent),
-            categories,
+            track,
+            breakdown: (!items.is_empty()).then(|| build_card(&items, geometry::CARD_INNER_WIDTH)),
             daily: snap.week.as_ref().and_then(|w| build_daily_budget(w, ctx)),
             footer: FooterVm::standard(s, ctx, ProviderId::Grok, ProviderId::Grok)
                 .with_saved_resets(snap.saved_resets, ProviderId::Grok, ctx),

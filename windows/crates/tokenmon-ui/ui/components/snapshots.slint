@@ -2,7 +2,7 @@
 // gallery. Each is 420px wide like the real panel (396 inside the 12px
 // window padding) so the rendered geometry matches production.
 import {
-    Theme, Typo, PanelCard, MetricStatGrid, SlimUsageTrack, SegmentedUsageBar, CategoryRow,
+    Theme, Typo, PanelCard, MetricStatGrid, SlimUsageTrack, SegmentedUsageBar, UsageLegendChip,
     StaleDataCaption, CollapsibleSectionHeader, ProviderHeaderRow, DailyBudgetBars,
     DailyUsageChart, PanelSectionHeader, BarSegment, CategoryItem, DayBar, MetricItem, LabelValue,
     HoverOverlayHost
@@ -56,7 +56,7 @@ export component SnapUsage inherits Host {
         HorizontalLayout {
             spacing: 12px;
             alignment: start;
-            for c in root.categories: CategoryRow { name: c.name; percent-text: c.percent-text; dot: c.color; }
+            for c in root.categories: UsageLegendChip { name: c.name; value: c.percent-text; dot: c.color; }
         }
     }
 }
@@ -170,7 +170,7 @@ export component Gallery inherits Host {
             HorizontalLayout {
                 spacing: 12px;
                 alignment: start;
-                for c in root.categories: CategoryRow { name: c.name; percent-text: c.percent-text; dot: c.color; }
+                for c in root.categories: UsageLegendChip { name: c.name; value: c.percent-text; dot: c.color; }
             }
         }
         MetricStatGrid {

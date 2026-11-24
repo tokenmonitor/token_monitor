@@ -33,9 +33,8 @@ fn test_grok_from_snapshot_honours_visible_set() {
     ]);
     let visible: HashSet<String> = ["chat".to_owned()].into();
     let input = GrokSnapshotInput::from_snapshot(&snap, &visible, None);
-    assert_eq!(input.pool_products.len(), 1);
-    assert_eq!(input.pool_products[0].percent, 30.0);
-    assert_eq!(input.category_products.len(), 1);
+    assert_eq!(input.breakdown_products.len(), 1);
+    assert_eq!(input.breakdown_products[0].percent, 30.0);
 }
 
 /// An empty visible set hides every product.
@@ -44,8 +43,7 @@ fn test_grok_from_snapshot_with_empty_visible_set_shows_nothing() {
     let snap = WeeklyUsageSnapshot::new(now(), 10.0)
         .with_products(vec![ProductUsage::new("chat", "Chat", 10.0)]);
     let input = GrokSnapshotInput::from_snapshot(&snap, &HashSet::new(), None);
-    assert_eq!(input.pool_products.len(), 0);
-    assert_eq!(input.category_products.len(), 0);
+    assert_eq!(input.breakdown_products.len(), 0);
 }
 
 /// Claude Code totals convert i64 tokens; negatives become 0.

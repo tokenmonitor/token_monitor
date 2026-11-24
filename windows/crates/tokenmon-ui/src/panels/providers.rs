@@ -67,11 +67,7 @@ impl GrokSnapshotInput {
         Self {
             used_percent: s.used_percent,
             resets_at: s.resets_at,
-            pool_products: ProductCatalog::panel_products(&s.products, visible)
-                .iter()
-                .map(product)
-                .collect(),
-            category_products: ProductCatalog::category_products(&s.products, visible)
+            breakdown_products: ProductCatalog::breakdown_products(&s.products, visible)
                 .iter()
                 .map(product)
                 .collect(),

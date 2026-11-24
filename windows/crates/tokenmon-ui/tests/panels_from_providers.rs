@@ -27,9 +27,8 @@ fn test_grok_snapshot_maps_products_and_credits() {
     ]);
     let input = GrokSnapshotInput::from(&snap);
     assert_eq!(input.used_percent, 36.0);
-    assert_eq!(input.pool_products.len(), 2);
-    assert_eq!(input.pool_products[0].percent, 23.0);
-    assert!(input.category_products.len() >= 2);
+    assert_eq!(input.breakdown_products.len(), 2);
+    assert_eq!(input.breakdown_products[0].percent, 23.0);
     assert!(input.week.is_none());
 }
 

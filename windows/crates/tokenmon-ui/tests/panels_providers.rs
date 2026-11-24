@@ -29,11 +29,9 @@ fn grok_snap() -> GrokSnapshotInput {
         saved_resets: None,
         used_percent: 36.4,
         resets_at: Some(at(2026, 7, 16, 20, 25)),
-        pool_products: vec![product("Chat", 23.0), product("Build", 13.0)],
-        category_products: vec![
+        breakdown_products: vec![
             product("Chat", 23.0),
             product("Build", 12.6),
-            product("Imagine", 0.0),
             product("Voice", 0.4),
         ],
         week: Some(daily(week([1.0; 7]))),
@@ -108,32 +106,37 @@ fn test_grok_usage_body() {
     let u = p.usage.unwrap();
     assert_eq!(u.pool_title, "Usage Pool Weekly");
     assert_eq!(u.pool_used_text, "36% Used");
+    // The weekly used % is one filled bar in the Grok accent, label hidden.
+    assert!(!u.track.show_label);
+    assert!((u.track.fraction - 0.364).abs() < 1e-9);
     assert_eq!(
-        u.reset_caption.as_deref(),
+        u.track.caption.as_deref(),
         Some("Resets Thu 16 July 8:25pm")
     );
+    // The breakdown is the products in the bar; its legend shares add up.
     let chips: Vec<String> = u
-        .categories
+        .breakdown
         .unwrap()
+        .chips
         .iter()
-        .map(|c| format!("{} {}", c.name, c.percent_text))
+        .map(|c| format!("{} {}", c.name, c.value_text))
         .collect();
-    assert_eq!(chips, ["Chat 23%", "Build 13%", "Imagine 0%", "Voice 0%"]);
+    assert_eq!(chips, ["Chat 23%", "Build 13%", "Voice 0%"]);
     assert!(u.daily.is_some());
     assert_eq!(u.footer.sign_out.unwrap().confirm_text, "Sign out of Grok?");
 }
 
-/// Hidden cards: no categories, no week.
+/// Hidden cards: no breakdown, no week, no reset caption.
 #[test]
 fn test_grok_optional_cards_hidden() {
     let mut snap = grok_snap();
-    snap.category_products.clear();
+    snap.breakdown_products.clear();
     snap.week = None;
     snap.resets_at = None;
     let u = grok::build(&grok_input(Some(snap), status(), true), &ctx())
         .usage
         .unwrap();
-    assert!(u.categories.is_none() && u.daily.is_none() && u.reset_caption.is_none());
+    assert!(u.breakdown.is_none() && u.daily.is_none() && u.track.caption.is_none());
 }
 
 /// Stale caption appears under the usage body.
@@ -150,38 +153,6 @@ fn test_grok_stale_footer() {
         stale.age_line.as_deref(),
         Some("Showing data from 3 hr ago.")
     );
-}
-
-/// SegmentedUsageBarTests plus layout of the pool bar.
-#[test]
-fn test_segment_widths_and_layout() {
-    assert_eq!(
-        segment_widths(&[50.0, 25.0, 25.0], 100.0, 3.0),
-        vec![50.0, 25.0, 25.0]
-    );
-    let w = segment_widths(&[0.1, 0.1, 0.1], 5.0, 3.0);
-    assert!((w.iter().sum::<f64>() - 5.0).abs() < 1e-4);
-    assert_eq!(segment_widths(&[50.0, 50.0], 0.0, 3.0), vec![3.0, 3.0]);
-
-    let segs = pool_segments(
-        &[
-            product("Chat", 23.0),
-            product("Build", 13.0),
-            product("Tiny", 0.04),
-        ],
-        372.0,
-    );
-    assert_eq!(segs.len(), 3, "two visible + grey remainder");
-    assert!(segs[2].color.is_none());
-    assert_eq!(segs[0].x, 0.0);
-    assert!((segs[1].x - (segs[0].width + 2.0)).abs() < 1e-9);
-    let last = segs.last().unwrap();
-    assert!((last.x + last.width - 372.0).abs() < 1e-6);
-    assert!(
-        pool_segments(&[product("A", 100.0)], 372.0).len() == 1,
-        "no remainder at 100%"
-    );
-    assert!(pool_segments(&[], 372.0).is_empty() || pool_segments(&[], 372.0).len() == 1);
 }
 
 // --------------------------------- Grokbot ---------------------------------
@@ -925,7 +896,7 @@ fn test_exhausted_provider_panels_keep_their_own_reset() {
     let u = grok::build(&grok_input(Some(grok), status(), true), &ctx)
         .usage
         .unwrap();
-    assert_eq!(u.reset_caption.as_deref(), expected);
+    assert_eq!(u.track.caption.as_deref(), expected);
 
     let grokbot = GrokbotSnapshotInput {
         used_percent: 100.0,

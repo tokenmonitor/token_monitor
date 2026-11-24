@@ -91,8 +91,6 @@ impl ProductCatalog {
     /// Visual priority for bars, chips and legends.
     pub const DISPLAY_ORDER: [&'static str; 6] =
         ["chat", "build", "imagine", "voice", "api", "other"];
-    /// Ids of the Categories card (API and Other never appear there).
-    pub const CATEGORY_IDS: [&'static str; 4] = ["chat", "build", "imagine", "voice"];
 
     /// Index of `id` (lowercased) in [`Self::DISPLAY_ORDER`]; `99` when unknown.
     pub fn display_index(id: &str) -> usize {
@@ -196,25 +194,29 @@ impl ProductCatalog {
         Self::sorted_by_usage(&Self::filtered(products, visible, 0.0))
     }
 
-    /// One row per visible canonical category, most used first, with a 0%
-    /// placeholder when the product is absent.
-    pub fn category_products(
+    /// Products for the panel's Usage Breakdown card: the bar's products
+    /// ([`Self::panel_products`]), or none when the only one is the
+    /// synthesized `other` slice of a breakdown-less snapshot, which would say
+    /// nothing the weekly bar does not.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::HashSet;
+    /// use tokenmon_provider_grok::models::{ProductCatalog, ProductUsage, synthesize_products};
+    /// let all: HashSet<String> = ProductCatalog::KNOWN_IDS.iter().map(|s| (*s).to_owned()).collect();
+    /// assert!(ProductCatalog::breakdown_products(&synthesize_products(64.0), &all).is_empty());
+    /// ```
+    pub fn breakdown_products(
         products: &[ProductUsage],
         visible: &HashSet<String>,
     ) -> Vec<ProductUsage> {
-        let rows: Vec<ProductUsage> = Self::CATEGORY_IDS
-            .iter()
-            .filter(|id| visible.contains(**id))
-            .map(|id| {
-                products
-                    .iter()
-                    .rev()
-                    .find(|p| p.id.to_lowercase() == *id)
-                    .cloned()
-                    .unwrap_or_else(|| ProductUsage::new(id, Self::display_name(id), 0.0))
-            })
-            .collect();
-        Self::sorted_by_usage(&rows)
+        let shown = Self::panel_products(products, visible);
+        if shown.iter().all(|p| p.color_token == ProductColor::Other) {
+            Vec::new()
+        } else {
+            shown
+        }
     }
 
     /// The persisted visible-product set after normalization: lowercased and

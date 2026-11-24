@@ -147,29 +147,42 @@ fn test_sorted_by_usage_breaks_ties_by_display_order() {
     );
 }
 
-/// The category chips run from most to least used; unused ones come last in
-/// display order.
+/// The Usage Breakdown card lists the bar's products, most used first, API
+/// and Other included, and unused products left out.
 #[test]
-fn test_category_products_orders_most_used_first() {
+fn test_breakdown_products_match_the_bar() {
     let all = visible(&ProductCatalog::KNOWN_IDS);
-    let products = [p("chat", 3.0), p("voice", 9.0), p("build", 30.0)];
+    let products = [
+        p("chat", 30.0),
+        p("api", 8.0),
+        p("other", 12.0),
+        p("voice", 0.0),
+    ];
     assert_eq!(
-        ids(&ProductCatalog::category_products(&products, &all)),
-        ["build", "voice", "chat", "imagine"]
+        ids(&ProductCatalog::breakdown_products(&products, &all)),
+        ["chat", "other", "api"]
     );
 }
 
-/// Category rows always include the four categories, with 0% placeholders.
+/// A breakdown-less snapshot's synthesized `other` slice gets no card: the
+/// weekly bar already shows that total.
 #[test]
-fn test_category_products() {
+fn test_breakdown_products_skip_a_synthesized_other_slice() {
     let all = visible(&ProductCatalog::KNOWN_IDS);
-    let products = [p("chat", 40.0), p("api", 8.0), p("other", 7.0)];
-    let rows = ProductCatalog::category_products(&products, &all);
-    assert_eq!(ids(&rows), ["chat", "build", "imagine", "voice"]);
-    let values: Vec<f64> = rows.iter().map(|r| r.percent_of_pool).collect();
-    assert_eq!(values, [40.0, 0.0, 0.0, 0.0]);
-    let some = ProductCatalog::category_products(&products, &visible(&["chat", "voice"]));
-    assert_eq!(ids(&some), ["chat", "voice"]);
+    assert!(ProductCatalog::breakdown_products(&synthesize_products(64.0), &all).is_empty());
+}
+
+/// Hidden products stay out of the breakdown.
+#[test]
+fn test_breakdown_products_respect_visibility() {
+    let products = [p("chat", 30.0), p("build", 20.0)];
+    assert_eq!(
+        ids(&ProductCatalog::breakdown_products(
+            &products,
+            &visible(&["build"])
+        )),
+        ["build"]
+    );
 }
 
 /// Persisted visible ids normalize as the spec says.

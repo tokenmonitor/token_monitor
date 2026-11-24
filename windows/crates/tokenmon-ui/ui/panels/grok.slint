@@ -1,6 +1,5 @@
-import { PanelHeader, PoolCard, DailyCard, ModelsCard, FooterBlock, MessageBlock, Caption, ActionButton } from "parts.slint";
-import { Theme, Typo, PanelCard, PanelSectionHeader, DigitText, ResetCaption, SegmentedUsageBar, CategoryRow, MetricStatGrid } from "../components/kit.slint";
-import { TrackData, ModelsData, DailyData, FooterData, HeaderData, TabRowData, BarSegment, CategoryItem, MetricItem } from "types.slint";
+import { PanelHeader, PoolCard, DailyCard, BreakdownCard, FooterBlock, MessageBlock } from "parts.slint";
+import { TrackData, DailyData, FooterData, HeaderData, BreakdownData } from "types.slint";
 
 /// State and actions of the Grok panel body; the host sets and connects these once.
 export global GrokVm {
@@ -16,15 +15,14 @@ export global GrokVm {
     callback next-week();
     in property <string> pool-title;
     in property <string> pool-used;
-    in property <[BarSegment]> segments;
-    in property <string> reset-caption;
-    in property <bool> has-categories;
-    in property <[CategoryItem]> chips;
+    in property <[TrackData]> tracks;
+    in property <BreakdownData> breakdown;
     in property <DailyData> daily;
     in property <FooterData> footer;
 }
 
-// Grok panel (spec 02 section 1.7).
+// Grok panel (spec 02 section 1.7): the weekly bar, the usage breakdown, then
+// the daily chart, as in the Grokbot panel.
 export component GrokBody inherits VerticalLayout {
     spacing: 10px;
     PanelHeader { data: GrokVm.header; open-settings => { GrokVm.open-settings(); } }
@@ -33,27 +31,12 @@ export component GrokBody inherits VerticalLayout {
         button: GrokVm.button;
         clicked => { GrokVm.sign-in(); }
     }
-    if GrokVm.has-usage: PanelCard {
-        HorizontalLayout {
-            spacing: 8px;
-            PanelSectionHeader { title: GrokVm.pool-title; horizontal-stretch: 1; }
-            DigitText { text: GrokVm.pool-used; }
-        }
-        SegmentedUsageBar { segments: GrokVm.segments; }
-        if GrokVm.reset-caption != "": ResetCaption { text: GrokVm.reset-caption; }
+    if GrokVm.has-usage: PoolCard {
+        title: GrokVm.pool-title;
+        trailing: GrokVm.pool-used;
+        tracks: GrokVm.tracks;
     }
-    if GrokVm.has-usage && GrokVm.has-categories: PanelCard {
-        PanelSectionHeader { title: "Categories"; }
-        HorizontalLayout {
-            spacing: 12px;
-            alignment: start;
-            for chip in GrokVm.chips: CategoryRow {
-                name: chip.name;
-                percent-text: chip.percent-text;
-                dot: chip.color;
-            }
-        }
-    }
+    if GrokVm.has-usage && GrokVm.breakdown.present: BreakdownCard { data: GrokVm.breakdown; }
     if GrokVm.has-usage && GrokVm.daily.present: DailyCard {
         data: GrokVm.daily;
         previous-week => { GrokVm.previous-week(); }

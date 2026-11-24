@@ -224,13 +224,7 @@ fn render_all_states(last: &Rc<RefCell<Option<Rc<MinimalSoftwareWindow>>>>) {
         saved_resets: None,
         used_percent: 36.0,
         resets_at: Some(at(2026, 7, 16, 20, 25)),
-        pool_products: vec![product("Chat", 23.0), product("Build", 13.0)],
-        category_products: vec![
-            product("Chat", 23.0),
-            product("Build", 13.0),
-            product("Imagine", 0.0),
-            product("Voice", 0.0),
-        ],
+        breakdown_products: vec![product("Chat", 23.0), product("Build", 13.0)],
         week: days(),
     };
     let mut expired = signed_out();

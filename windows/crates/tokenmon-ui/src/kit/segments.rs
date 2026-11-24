@@ -18,7 +18,7 @@ pub const MIN_REMAINDER_PERCENT: f64 = 0.5;
 /// One product's share of a usage pool.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProductShare {
-    /// Display name (used by [`CategoryRow`](crate::kit::ui::CategoryItem) legends).
+    /// Display name (used by [`UsageLegendChip`](crate::kit::ui::CategoryItem) legends).
     pub name: String,
     /// Percentage of the pool, 0...100.
     pub percent_of_pool: f64,

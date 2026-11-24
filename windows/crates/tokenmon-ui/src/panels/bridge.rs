@@ -337,29 +337,8 @@ pub fn apply_grok(w: &ui::GrokVm<'_>, p: &PanelVm<GrokUsage>) {
     if let Some(u) = &p.usage {
         w.set_pool_title(upper(&u.pool_title));
         w.set_pool_used(text(&u.pool_used_text));
-        w.set_segments(model(
-            u.segments
-                .iter()
-                .map(|s| ui::BarSegment {
-                    width: s.width as f32,
-                    color: s.color.map_or(Color::default(), color),
-                    remainder: s.color.is_none(),
-                })
-                .collect(),
-        ));
-        w.set_reset_caption(opt(u.reset_caption.as_deref()));
-        w.set_has_categories(u.categories.is_some());
-        w.set_chips(model(
-            u.categories
-                .iter()
-                .flatten()
-                .map(|c| ui::CategoryItem {
-                    name: text(&c.name),
-                    percent_text: text(&c.percent_text),
-                    color: color(c.color),
-                })
-                .collect(),
-        ));
+        w.set_tracks(model(vec![track(&u.track)]));
+        w.set_breakdown(breakdown(u.breakdown.as_ref()));
         w.set_daily(daily(u.daily.as_ref()));
         w.set_footer(footer(&u.footer, None));
     }

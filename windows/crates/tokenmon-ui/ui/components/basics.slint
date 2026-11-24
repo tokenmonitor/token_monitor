@@ -221,31 +221,6 @@ export component UsageLegendChip inherits HorizontalLayout {
     DigitText { text: root.value; }
 }
 
-/// Legend entry: 7px dot, product name and rounded percentage.
-export component CategoryRow inherits HorizontalLayout {
-    in property <string> name;
-    in property <string> percent-text;
-    in property <color> dot: Theme.product-other;
-    spacing: 5px;
-    alignment: start;
-    Rectangle {
-        width: 7px;
-        height: 7px;
-        y: (parent.height - 7px) / 2;
-        border-radius: 3.5px;
-        background: root.dot;
-    }
-    Text {
-        text: root.name;
-        font-family: Typo.family;
-        font-size: Typo.body-size;
-        font-weight: Typo.semibold;
-        color: Theme.primary;
-        overflow: elide;
-    }
-    DigitText { text: root.percent-text; }
-}
-
 /// Caption shown when data could not be refreshed: the message, then
 /// "Showing data from 5 min ago." (`detail`, built by the view model).
 export component StaleDataCaption inherits VerticalLayout {
