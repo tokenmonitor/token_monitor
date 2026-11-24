@@ -22,7 +22,7 @@ use tokenmon_platform::install::{
     ProcessLauncher, SignatureVerifier, SystemVersionReader, WindowsUpdateInstaller,
 };
 
-const URL: &str = "https://github.com/gubatron/token_monitor/releases/download/windows-v1.6.0/tokenmon-windows-x64.zip";
+const URL: &str = "https://github.com/tokenmonitor/token_monitor/releases/download/windows-v1.6.0/tokenmon-windows-x64.zip";
 
 struct FakeDownloader {
     body: Vec<u8>,
@@ -235,7 +235,7 @@ async fn test_download_outside_repository_is_refused_without_request() {
     for url in [
         "https://evil.example/tokenmon-windows-x64.zip",
         "https://github.com/other/repo/releases/download/t/f.zip",
-        "https://github.com/gubatron/token_monitor/releases/download/../x/y/f.zip",
+        "https://github.com/tokenmonitor/token_monitor/releases/download/../x/y/f.zip",
     ] {
         let e = r
             .installer

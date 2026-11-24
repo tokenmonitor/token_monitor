@@ -38,7 +38,7 @@ pub struct ReleaseSource {
 }
 
 /// Repository used when no build-time override is given.
-pub const DEFAULT_REPOSITORY: &str = "gubatron/token_monitor";
+pub const DEFAULT_REPOSITORY: &str = "tokenmonitor/token_monitor";
 
 /// Splits an `owner/repository` string, rejecting anything that is not a
 /// plain GitHub slug (so a bad build-time value can never smuggle a path or
@@ -73,7 +73,7 @@ pub fn configured_repository() -> (&'static str, &'static str) {
     option_env!("TOKENMON_UPDATE_REPO")
         .and_then(parse_repository)
         .or_else(|| parse_repository(DEFAULT_REPOSITORY))
-        .unwrap_or(("gubatron", "token_monitor"))
+        .unwrap_or(("tokenmonitor", "token_monitor"))
 }
 
 impl Default for ReleaseSource {

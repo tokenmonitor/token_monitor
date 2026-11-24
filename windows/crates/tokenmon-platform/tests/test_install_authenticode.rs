@@ -22,7 +22,7 @@ use tokenmon_platform::install::{
     CommandSpec, DownloadedFile, Downloader, ProcessLauncher, WindowsUpdateInstaller,
 };
 
-const URL: &str = "https://github.com/gubatron/token_monitor/releases/download/windows-v1.6.0/tokenmon-windows-x64.zip";
+const URL: &str = "https://github.com/tokenmonitor/token_monitor/releases/download/windows-v1.6.0/tokenmon-windows-x64.zip";
 #[cfg(windows)]
 const NOT_TRUSTED: &str = "The download is not signed by a trusted publisher.";
 

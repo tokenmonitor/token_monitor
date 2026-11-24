@@ -278,13 +278,13 @@ fn test_refresh_time_format() {
 }
 
 const RELEASE_URL: &str =
-    "https://github.com/gubatron/token_monitor/releases/download/windows-v1.6.0";
+    "https://github.com/tokenmonitor/token_monitor/releases/download/windows-v1.6.0";
 
 struct OneRelease;
 impl ReleaseFeedFetcher for OneRelease {
     fn fetch(&self) -> BoxFuture<'_, Result<Vec<u8>, UpdateError>> {
         let body = format!(
-            r#"{{"tag_name":"windows-v1.6.0","html_url":"https://github.com/gubatron/token_monitor/releases/tag/windows-v1.6.0","assets":[{{"name":"tokenmon-windows-x64.zip","browser_download_url":"{RELEASE_URL}/tokenmon-windows-x64.zip","digest":"sha256:{}"}}]}}"#,
+            r#"{{"tag_name":"windows-v1.6.0","html_url":"https://github.com/tokenmonitor/token_monitor/releases/tag/windows-v1.6.0","assets":[{{"name":"tokenmon-windows-x64.zip","browser_download_url":"{RELEASE_URL}/tokenmon-windows-x64.zip","digest":"sha256:{}"}}]}}"#,
             "c".repeat(64)
         );
         Box::pin(async move { Ok(body.into_bytes()) })

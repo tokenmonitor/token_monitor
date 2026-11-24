@@ -8,7 +8,7 @@ fn asset(name: &str) -> ReleaseAsset {
     ReleaseAsset {
         name: name.to_owned(),
         url: format!(
-            "https://github.com/gubatron/token_monitor/releases/download/windows-v1.6.0/{name}"
+            "https://github.com/tokenmonitor/token_monitor/releases/download/windows-v1.6.0/{name}"
         ),
         sha256: Some("0".repeat(64)),
     }

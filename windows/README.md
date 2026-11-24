@@ -12,7 +12,7 @@ Rust system-tray app for Windows 10 and 11 (x64). Behavior is specified in `docs
    Git for Windows provides the bash the Makefile runs its recipes in; the Build Tools provide the MSVC linker. `choco install make` works too. rustup installs the pinned toolchain on first use.
 2. Build and run, or install:
    ```sh
-   git clone https://github.com/gubatron/token_monitor.git
+   git clone https://github.com/tokenmonitor/token_monitor.git
    cd token_monitor/windows
    make run        # release build, then start TokenMon (look for the tray icon)
    make install    # build the MSI and install it for this user, no admin
@@ -107,7 +107,7 @@ The lint job runs `python3 scripts/ci/coverage_excludes.py check`, which fails w
 
 ## Updates: repository and signature policy
 
-* **Release repository.** The update feed repository is chosen in one place, `tokenmon_core::update::feed::configured_repository`. It reads the build-time environment variable `TOKENMON_UPDATE_REPO` (`owner/repo`, validated as a plain GitHub slug; invalid values fall back) and defaults to `gubatron/token_monitor`. Example: `TOKENMON_UPDATE_REPO=owner/fork cargo build --release`.
+* **Release repository.** The update feed repository is chosen in one place, `tokenmon_core::update::feed::configured_repository`. It reads the build-time environment variable `TOKENMON_UPDATE_REPO` (`owner/repo`, validated as a plain GitHub slug; invalid values fall back) and defaults to `tokenmonitor/token_monitor`, the repository the macOS app reads too. Example: `TOKENMON_UPDATE_REPO=owner/fork cargo build --release`.
 * **Signature policy.** `tokenmon_platform::install::SignaturePolicy` has `AcceptUnsignedWithDigest` (default: SHA-256 from the same GitHub release plus PE/MSI structure and Mark-of-the-Web checks) and `RequireAuthenticode` (additionally `WinVerifyTrust`, fails closed off Windows). The app picks one with `verifier_for_policy(policy)`; switching is a one-line change.
 * **Startup helpers for the app.** Call `tokenmon_platform::install::handle_startup_args(std::env::args(), &current_exe)` first thing in `main`: it honours `--wait-for-pid <pid>` (bounded 30 s wait for the old process) and then runs `swap::cleanup_leftovers`.
 

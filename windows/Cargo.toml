@@ -20,7 +20,7 @@ version = "1.13.2"
 edition = "2024"
 rust-version = "1.99"
 license = "MIT"
-repository = "https://github.com/gubatron/token_monitor"
+repository = "https://github.com/tokenmonitor/token_monitor"
 publish = false
 
 # Shared dependency versions. Member crates reference these with

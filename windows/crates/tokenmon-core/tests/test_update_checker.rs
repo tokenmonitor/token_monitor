@@ -10,7 +10,7 @@ use tokenmon_core::update::{
     UpdateChecker, UpdateError, UpdateInstaller, UpdateSettings, UrlOpener,
 };
 
-const DL: &str = "https://github.com/gubatron/token_monitor/releases/download/windows-v1.6.0";
+const DL: &str = "https://github.com/tokenmonitor/token_monitor/releases/download/windows-v1.6.0";
 
 struct Feed {
     response: Mutex<Result<Vec<u8>, UpdateError>>,
@@ -100,7 +100,7 @@ fn make(
 
 fn release(assets: &str) -> String {
     format!(
-        r#"{{"tag_name":"windows-v1.6.0","html_url":"https://github.com/gubatron/token_monitor/releases/tag/windows-v1.6.0","assets":[{assets}]}}"#
+        r#"{{"tag_name":"windows-v1.6.0","html_url":"https://github.com/tokenmonitor/token_monitor/releases/tag/windows-v1.6.0","assets":[{assets}]}}"#
     )
 }
 
@@ -285,7 +285,7 @@ async fn test_no_asset_opens_release_page() {
     assert!(inst.requests.lock().unwrap().is_empty());
     assert_eq!(
         opener.0.lock().unwrap()[0],
-        "https://github.com/gubatron/token_monitor/releases/tag/windows-v1.6.0"
+        "https://github.com/tokenmonitor/token_monitor/releases/tag/windows-v1.6.0"
     );
     assert_eq!(
         c.state().status_message.as_deref(),
@@ -344,7 +344,7 @@ async fn test_manual_restart_message() {
     );
 }
 
-const FALLBACK_PAGE: &str = "https://github.com/gubatron/token_monitor/releases/latest";
+const FALLBACK_PAGE: &str = "https://github.com/tokenmonitor/token_monitor/releases/latest";
 
 /// #40: a hostile `html_url` never reaches the opener, only the fallback page.
 #[tokio::test]
@@ -352,13 +352,13 @@ async fn test_hostile_html_url_never_reaches_the_opener() {
     for bad in [
         "file:///C:/Windows/System32/calc.exe",
         "ms-msdt:/id PCWDiagnostic",
-        "http://github.com/gubatron/token_monitor/releases/tag/x",
+        "http://github.com/tokenmonitor/token_monitor/releases/tag/x",
         "https://evil.example/gubatron/token_monitor/releases/tag/x",
         "https://github.com.evil.example/gubatron/token_monitor/releases",
         "https://github.com/evil/token_monitor/releases/tag/x",
-        "https://github.com/gubatron/token_monitor/issues/1",
-        "https://github.com/gubatron/token_monitor/releases/../../../evil/x",
-        "https://github.com/gubatron/token_monitor/releases/tag/x?next=//evil",
+        "https://github.com/tokenmonitor/token_monitor/issues/1",
+        "https://github.com/tokenmonitor/token_monitor/releases/../../../evil/x",
+        "https://github.com/tokenmonitor/token_monitor/releases/tag/x?next=//evil",
     ] {
         let body = format!(r#"{{"tag_name":"windows-v1.6.0","html_url":"{bad}","assets":[]}}"#);
         let feed = Feed::ok(&body);

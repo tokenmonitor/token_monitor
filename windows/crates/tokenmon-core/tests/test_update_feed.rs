@@ -6,7 +6,7 @@ use tokenmon_core::update::{
     AppVersion, MAX_FEED_BYTES, ReleaseSource, UpdateError, newer_release, sha256_from_digest,
 };
 
-const DL: &str = "https://github.com/gubatron/token_monitor/releases/download";
+const DL: &str = "https://github.com/tokenmonitor/token_monitor/releases/download";
 
 fn cur(s: &str) -> AppVersion {
     AppVersion::parse(s).expect("version")
@@ -22,7 +22,7 @@ fn check(
 fn release_with_assets(tag: &str, assets: &str) -> String {
     format!(
         r#"{{"tag_name":"{tag}","draft":false,"prerelease":false,
-        "html_url":"https://github.com/gubatron/token_monitor/releases/tag/{tag}",
+        "html_url":"https://github.com/tokenmonitor/token_monitor/releases/tag/{tag}",
         "published_at":"2026-11-01T12:00:00Z","assets":[{assets}]}}"#
     )
 }
@@ -79,7 +79,7 @@ fn test_missing_page_url_falls_back_to_releases_page() {
         .unwrap();
     assert_eq!(
         r.page_url,
-        "https://github.com/gubatron/token_monitor/releases/latest"
+        "https://github.com/tokenmonitor/token_monitor/releases/latest"
     );
 }
 
@@ -182,7 +182,7 @@ fn test_only_macos_assets_yield_no_asset() {
 fn test_untrusted_asset_is_ignored() {
     let body = r#"{"tag_name":"windows-v1.6.0","assets":[
       {"name":"tokenmon-windows-x64.zip","browser_download_url":"https://evil.example/tokenmon-windows-x64.zip"},
-      {"name":"tokenmon-windows-arm64.zip","browser_download_url":"https://github.com/gubatron/token_monitor/releases/download/../../x/y/z"},
+      {"name":"tokenmon-windows-arm64.zip","browser_download_url":"https://github.com/tokenmonitor/token_monitor/releases/download/../../x/y/z"},
       {"name":"tokenmon-windows-x64.msi","browser_download_url":"https://github.com/other/token_monitor/releases/download/t/tokenmon-windows-x64.msi"}]}"#;
     let r = check(body, "1.5.0").unwrap().unwrap();
     assert!(r.archive.is_none() && r.installer.is_none());
