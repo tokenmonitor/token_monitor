@@ -90,6 +90,25 @@ fn bar(
     DailyBudgetDay::new(key, spent.get(&key).copied().unwrap_or(0.0), per_day)
 }
 
+/// Bars a window opening on `start` gets before the day of a `resets_at` still
+/// ahead of `now`, between 1 and `count`. A past `resets_at` gives `count`.
+///
+/// An early reset can leave the old reset instant in place: the new window then
+/// ends at that instant's day rather than running a full period past it.
+fn days_before_reset(
+    cal: &Calendar<'_>,
+    start: DateTime<Utc>,
+    resets_at: DateTime<Utc>,
+    count: i64,
+    now: DateTime<Utc>,
+) -> i64 {
+    if resets_at <= now {
+        return count;
+    }
+    let days = cal.day_diff(start, cal.start_of_day(resets_at));
+    days.clamp(1, count)
+}
+
 impl DailyBudget {
     /// Advances `resets_at` by whole weeks until it is after `now`, so a weekly
     /// reset instant remembered from an earlier payload still estimates the
@@ -247,7 +266,12 @@ impl DailyBudget {
                 ..bar(cal, first, o, spent_by_day, per_day)
             }));
         }
-        days.extend((0..count).map(|o| bar(cal, week_start, o, spent_by_day, per_day)));
+        let window_days = if anchored {
+            days_before_reset(cal, week_start, resets_at, count, now)
+        } else {
+            count
+        };
+        days.extend((0..window_days).map(|o| bar(cal, week_start, o, spent_by_day, per_day)));
         days
     }
 
