@@ -16,26 +16,6 @@ pub enum GrokbotEntitlement {
     SuperGrok(String),
 }
 
-impl GrokbotEntitlement {
-    /// `captionText`: `via Cursor`, `via <label>`, or `via SuperGrok`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use tokenmon_provider_grokbot::GrokbotEntitlement as E;
-    /// assert_eq!(E::Cursor.caption_text(), "via Cursor");
-    /// assert_eq!(E::SuperGrok("SuperGrok Heavy".into()).caption_text(), "via SuperGrok Heavy");
-    /// assert_eq!(E::SuperGrok(String::new()).caption_text(), "via SuperGrok");
-    /// ```
-    pub fn caption_text(&self) -> String {
-        match self {
-            Self::Cursor => "via Cursor".to_owned(),
-            Self::SuperGrok(label) if label.is_empty() => "via SuperGrok".to_owned(),
-            Self::SuperGrok(label) => format!("via {label}"),
-        }
-    }
-}
-
 /// One successful Grokbot refresh.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GrokbotSnapshot {

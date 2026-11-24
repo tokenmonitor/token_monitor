@@ -32,6 +32,7 @@ use tokenmon_ui::panels::claude_chatgpt::{
 use tokenmon_ui::panels::grok::GrokSnapshotInput;
 use tokenmon_ui::panels::grokbot_cursor::{CursorSnapshotInput, GrokbotSnapshotInput};
 use tokenmon_ui::panels::opencode_openrouter::{OpenCodeSnapshotInput, OpenRouterSnapshotInput};
+use tokenmon_ui::panels::providers::grokbot_breakdown_items;
 
 use tokenmon_core::Clock;
 use tokenmon_provider_grok::models::ProductCatalog;
@@ -195,9 +196,11 @@ pub fn grokbot_source(poller: &Arc<GrokbotUsagePoller>) -> ViewSource {
         );
         let days = poller.daily_budget_days(WeekOffset::new(q.week_offset));
         let daily = daily_input(&days, &ctx);
-        SnapshotView::Grokbot(Some(GrokbotSnapshotInput::from_snapshot(
-            &snapshot, &calendar, daily,
-        )))
+        let mut input = GrokbotSnapshotInput::from_snapshot(&snapshot, &calendar, daily);
+        input.breakdown = poller
+            .breakdown()
+            .and_then(|b| grokbot_breakdown_items(&b, q.clock.now()));
+        SnapshotView::Grokbot(Some(input))
     })
 }
 

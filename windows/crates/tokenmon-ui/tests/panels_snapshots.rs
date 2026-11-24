@@ -146,6 +146,24 @@ fn product(n: &str, p: f64) -> ProductInput {
     }
 }
 
+fn breakdown_items() -> Vec<tokenmon_ui::kit::breakdown::BreakdownItem> {
+    use tokenmon_ui::kit::breakdown::BreakdownItem;
+    let item = |id: &str, label: &str, amount: f64, color: Srgb| BreakdownItem {
+        id: id.into(),
+        label: label.into(),
+        color,
+        amount,
+        value_text: None,
+    };
+    vec![
+        item("automation", "Routines", 30.0, Srgb::rgb(0.40, 0.56, 0.82)),
+        item("user", "You", 25.0, Srgb::rgb(0.30, 0.35, 0.45)),
+        item("agent", "Bot to Bot", 12.0, Srgb::rgb(0.42, 0.68, 0.70)),
+        item("group", "Group chats", 4.0, Srgb::rgb(0.60, 0.52, 0.78)),
+        item("other", "Other", 2.0, Srgb::rgb(0.62, 0.62, 0.64)),
+    ]
+}
+
 fn erroring() -> ProviderStatus {
     ProviderStatus {
         last_error: Some("The network connection was lost.".into()),
@@ -274,9 +292,9 @@ fn render_all_states(last: &Rc<RefCell<Option<Rc<MinimalSoftwareWindow>>>>) {
     let bsnap = GrokbotSnapshotInput {
         pool_name: "Weekly".into(),
         used_percent: 42.0,
-        entitlement_caption: "Included with SuperGrok".into(),
         has_included_allowance: true,
         resets_at: Some(at(2026, 7, 20, 0, 0)),
+        breakdown: Some(breakdown_items()),
         daily: days(),
     };
     let bot_cases = [

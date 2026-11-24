@@ -190,9 +190,9 @@ fn grokbot_snap(allowance: bool) -> GrokbotSnapshotInput {
     GrokbotSnapshotInput {
         pool_name: "Weekly".into(),
         used_percent: 41.6,
-        entitlement_caption: "Included with SuperGrok".into(),
         has_included_allowance: allowance,
         resets_at: Some(at(2026, 7, 20, 0, 0)),
+        breakdown: None,
         daily: Some(daily(week([2.0; 7]))),
     }
 }

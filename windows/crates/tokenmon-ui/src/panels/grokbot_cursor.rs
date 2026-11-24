@@ -10,6 +10,7 @@ use super::common::{
     PanelVm, ProviderStatus, SignInAction, TrackVm, build_daily_budget, standard_frame,
 };
 use super::format;
+use crate::kit::breakdown::{BreakdownCardVm, BreakdownItem, build_card};
 
 // ------------------------------- Grokbot -----------------------------------
 
@@ -20,12 +21,13 @@ pub struct GrokbotSnapshotInput {
     pub pool_name: String,
     /// Used percent.
     pub used_percent: f64,
-    /// `entitlement.captionText`.
-    pub entitlement_caption: String,
     /// Plan has an included allowance.
     pub has_included_allowance: bool,
     /// Reset instant.
     pub resets_at: Option<DateTime<Utc>>,
+    /// Usage Breakdown items, most used first; `None` hides the card (no
+    /// usage, or the period has ended).
+    pub breakdown: Option<Vec<BreakdownItem>>,
     /// Daily bars (hidden when empty or `None`).
     pub daily: Option<DailyBudgetInput>,
 }
@@ -46,12 +48,12 @@ pub struct GrokbotUsage {
     pub pool_title: String,
     /// `N% Used`.
     pub pool_used_text: String,
-    /// Entitlement caption.
-    pub entitlement_caption: String,
     /// Allowance track (label hidden) when included.
     pub track: Option<TrackVm>,
     /// Text when the plan has no included allowance.
     pub no_allowance_text: Option<&'static str>,
+    /// Usage Breakdown card, above the daily budget.
+    pub breakdown: Option<BreakdownCardVm>,
     /// Daily bars.
     pub daily: Option<DailyBudgetVm>,
     /// Footer (sign-out names Cursor).
@@ -93,10 +95,14 @@ pub fn build_grokbot(input: &GrokbotInput, ctx: &PanelContext) -> PanelVm<Grokbo
         GrokbotUsage {
             pool_title: format!("Usage Pool {}", snap.pool_name),
             pool_used_text: format::percent_used(snap.used_percent),
-            entitlement_caption: snap.entitlement_caption.clone(),
             track,
             no_allowance_text: (!snap.has_included_allowance)
                 .then_some("This plan has no included Bot allowance — usage bills on demand."),
+            breakdown: snap
+                .breakdown
+                .as_deref()
+                .filter(|items| !items.is_empty())
+                .map(|items| build_card(items, super::common::geometry::CARD_INNER_WIDTH)),
             daily: snap
                 .has_included_allowance
                 .then(|| snap.daily.as_ref().and_then(|d| build_daily_budget(d, ctx)))

@@ -63,9 +63,9 @@ fn test_cursor_snapshot_maps_plan_and_pools() {
     assert!(input.cost.is_none());
 }
 
-/// Grokbot uses the calendar to pick the pool and the entitlement caption.
+/// Grokbot uses the calendar to pick the pool.
 #[test]
-fn test_grokbot_snapshot_maps_pool_and_entitlement() {
+fn test_grokbot_snapshot_maps_pool() {
     let snap = GrokbotSnapshot {
         fetched_at: now(),
         used_percent: 42.0,
@@ -77,7 +77,7 @@ fn test_grokbot_snapshot_maps_pool_and_entitlement() {
     };
     let input = GrokbotSnapshotInput::from_snapshot(&snap, &Calendar::utc(), None);
     assert_eq!(input.pool_name, "Weekly");
-    assert_eq!(input.entitlement_caption, "via Cursor");
+    assert!(input.breakdown.is_none());
 }
 
 /// Claude windows, weekly label and pool name carry over.

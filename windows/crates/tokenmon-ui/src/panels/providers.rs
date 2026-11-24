@@ -7,6 +7,7 @@
 
 use std::collections::HashSet;
 
+use chrono::{DateTime, Utc};
 use tokenmon_core::Srgb;
 use tokenmon_core::usage::Calendar;
 use tokenmon_provider_chatgpt::{ChatGptSnapshot, UsageWindow};
@@ -16,7 +17,7 @@ use tokenmon_provider_claude::{
 };
 use tokenmon_provider_cursor::{CursorSnapshot, PoolKind};
 use tokenmon_provider_grok::models::{ProductCatalog, ProductUsage, WeeklyUsageSnapshot};
-use tokenmon_provider_grokbot::GrokbotSnapshot;
+use tokenmon_provider_grokbot::{BreakdownUnit, GrokbotSnapshot, GrokbotUsageBreakdown};
 use tokenmon_provider_opencode::snapshot::{
     ModelUsage as OpenCodeModel, OpenCodeSnapshot, WindowKind, WindowUsage,
 };
@@ -29,10 +30,13 @@ use super::claude_chatgpt::{
     WindowInput,
 };
 use super::common::DailyBudgetInput;
+use super::format;
 use super::grok::{GrokSnapshotInput, ProductInput};
 use super::grokbot_cursor::{
     CursorCostInput, CursorPoolInput, CursorSnapshotInput, GrokbotSnapshotInput,
 };
+use crate::kit::breakdown::BreakdownItem;
+
 use super::opencode_openrouter::{
     BudgetSource, ORANGE, OpenCodeLocalStatsInput, OpenCodeModelInput, OpenCodeSnapshotInput,
     OpenCodeWindowInput, OpenCodeWindowKind, OpenRouterModelInput, OpenRouterSnapshotInput,
@@ -102,12 +106,36 @@ impl GrokbotSnapshotInput {
         Self {
             pool_name: s.usage_pool(cal).display_name().to_owned(),
             used_percent: s.used_percent,
-            entitlement_caption: s.entitlement.caption_text(),
             has_included_allowance: s.has_included_allowance,
             resets_at: s.resets_at,
+            breakdown: None,
             daily,
         }
     }
+}
+
+/// The Usage Breakdown items for the Grokbot card: one per source, most used
+/// first, in the source color. Dollar slices carry their own text; percent
+/// slices show their share of the pool. `None` when the breakdown has nothing
+/// to show at `now` (no usage, or the period has ended).
+pub fn grokbot_breakdown_items(
+    breakdown: &GrokbotUsageBreakdown,
+    now: DateTime<Utc>,
+) -> Option<Vec<BreakdownItem>> {
+    breakdown.is_shown(now).then(|| {
+        breakdown
+            .slices
+            .iter()
+            .map(|slice| BreakdownItem {
+                id: slice.source.raw_value().to_owned(),
+                label: slice.source.display_name().to_owned(),
+                color: slice.source.color(),
+                amount: slice.value,
+                value_text: (breakdown.unit == BreakdownUnit::Usd)
+                    .then(|| format::usd(slice.value)),
+            })
+            .collect()
+    })
 }
 
 // --------------------------------- Cursor ----------------------------------

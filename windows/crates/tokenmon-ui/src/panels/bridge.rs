@@ -17,6 +17,7 @@ use super::opencode_openrouter::{OpenCodeUsage, OpenRouterPanelVm};
 use super::overview::OverviewPanelVm;
 use super::switcher::RowVm;
 use super::ui;
+use crate::kit::breakdown::BreakdownCardVm;
 
 fn color(c: Srgb) -> Color {
     let (r, g, b) = c.to_rgb8();
@@ -62,6 +63,45 @@ fn track(t: &TrackVm) -> ui::TrackData {
 
 fn tracks(v: &[TrackVm]) -> ModelRc<ui::TrackData> {
     model(v.iter().map(track).collect())
+}
+
+/// The Usage Breakdown card; `present` is false (and the rest empty) when the
+/// card is hidden.
+fn breakdown(card: Option<&BreakdownCardVm>) -> ui::BreakdownData {
+    let Some(card) = card else {
+        return ui::BreakdownData {
+            present: false,
+            segments: model(Vec::new()),
+            chips: model(Vec::new()),
+            chips_height: 0.0,
+        };
+    };
+    ui::BreakdownData {
+        present: true,
+        segments: model(
+            card.segments
+                .iter()
+                .map(|s| ui::BarSegment {
+                    width: s.width as f32,
+                    color: color(s.color),
+                    remainder: s.remainder,
+                })
+                .collect(),
+        ),
+        chips: model(
+            card.chips
+                .iter()
+                .map(|c| ui::BreakdownChipData {
+                    name: text(&c.name),
+                    value: text(&c.value_text),
+                    color: color(c.color),
+                    x: c.x as f32,
+                    y: c.y as f32,
+                })
+                .collect(),
+        ),
+        chips_height: card.chips_height as f32,
+    }
 }
 
 fn metrics(g: &MetricGridVm) -> ModelRc<ui::MetricItem> {
@@ -335,8 +375,8 @@ pub fn apply_grokbot(w: &ui::GrokbotVm<'_>, p: &PanelVm<GrokbotUsage>) {
     if let Some(u) = &p.usage {
         w.set_pool_title(upper(&u.pool_title));
         w.set_pool_used(text(&u.pool_used_text));
-        w.set_entitlement(text(&u.entitlement_caption));
         w.set_tracks(model(u.track.iter().map(track).collect()));
+        w.set_breakdown(breakdown(u.breakdown.as_ref()));
         w.set_no_allowance(opt(u.no_allowance_text));
         w.set_daily(daily(u.daily.as_ref()));
         w.set_footer(footer(&u.footer, None));

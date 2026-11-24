@@ -58,7 +58,6 @@ fn test_parses_super_grok_funded_allowance() {
         s.entitlement,
         GrokbotEntitlement::SuperGrok("SuperGrok Heavy".into())
     );
-    assert_eq!(s.entitlement.caption_text(), "via SuperGrok Heavy");
 }
 
 /// Without a label the plan identifier is shown.

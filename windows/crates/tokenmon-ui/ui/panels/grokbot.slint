@@ -1,6 +1,6 @@
-import { PanelHeader, PoolCard, DailyCard, ModelsCard, FooterBlock, MessageBlock, Caption, ActionButton } from "parts.slint";
+import { PanelHeader, PoolCard, DailyCard, BreakdownCard, ModelsCard, FooterBlock, MessageBlock, Caption, ActionButton } from "parts.slint";
 import { Theme, Typo, PanelCard, PanelSectionHeader, DigitText, ResetCaption, SegmentedUsageBar, CategoryRow, MetricStatGrid } from "../components/kit.slint";
-import { TrackData, ModelsData, DailyData, FooterData, HeaderData, TabRowData, BarSegment, CategoryItem, MetricItem } from "types.slint";
+import { TrackData, ModelsData, DailyData, FooterData, HeaderData, TabRowData, BarSegment, CategoryItem, MetricItem, BreakdownData } from "types.slint";
 
 /// State and actions of the Grokbot panel body; the host sets and connects these once.
 export global GrokbotVm {
@@ -16,9 +16,9 @@ export global GrokbotVm {
     callback next-week();
     in property <string> pool-title;
     in property <string> pool-used;
-    in property <string> entitlement;
     in property <[TrackData]> tracks;
     in property <string> no-allowance;
+    in property <BreakdownData> breakdown;
     in property <DailyData> daily;
     in property <FooterData> footer;
 }
@@ -36,9 +36,9 @@ export component GrokbotBody inherits VerticalLayout {
         title: GrokbotVm.pool-title;
         trailing: GrokbotVm.pool-used;
         tracks: GrokbotVm.tracks;
-        if GrokbotVm.entitlement != "": Caption { text: GrokbotVm.entitlement; }
         if GrokbotVm.no-allowance != "": Caption { text: GrokbotVm.no-allowance; }
     }
+    if GrokbotVm.has-usage && GrokbotVm.breakdown.present: BreakdownCard { data: GrokbotVm.breakdown; }
     if GrokbotVm.has-usage && GrokbotVm.daily.present: DailyCard {
         data: GrokbotVm.daily;
         previous-week => { GrokbotVm.previous-week(); }

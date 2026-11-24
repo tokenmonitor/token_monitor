@@ -185,20 +185,6 @@ fn test_usage_pool_follows_span() {
     assert_eq!(pool(span(Some((10, 11)), Some((27, 11)))), UsagePool::Mixed);
 }
 
-/// Entitlement captions.
-#[test]
-fn test_entitlement_captions() {
-    assert_eq!(GrokbotEntitlement::Cursor.caption_text(), "via Cursor");
-    assert_eq!(
-        GrokbotEntitlement::SuperGrok("SuperGrok Heavy".into()).caption_text(),
-        "via SuperGrok Heavy"
-    );
-    assert_eq!(
-        GrokbotEntitlement::SuperGrok(String::new()).caption_text(),
-        "via SuperGrok"
-    );
-}
-
 /// Grokbot is a registered usage provider, polled by `grokbot` and `overview`
 /// but not by `cursor`, and it signs in through Cursor.
 #[test]
