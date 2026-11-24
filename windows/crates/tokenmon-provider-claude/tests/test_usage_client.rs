@@ -101,8 +101,12 @@ fn test_usage_request_needs_org() {
         }
     ));
     let r = usage_request("lastActiveOrg=abc; sessionKey=a").unwrap();
-    assert_eq!(r.url, "https://claude.ai/api/organizations/abc/usage");
+    assert_eq!(
+        r.url,
+        "https://claude.ai/api/organizations/abc/usage?cedar_ember=1"
+    );
     assert_eq!(r.referer, "https://claude.ai/");
+    assert_eq!(r.path, "/api/organizations/abc/usage?cedar_ember=1");
 }
 
 const LIMITS: &str = r#"{"five_hour":null,"seven_day":null,"limits":[
@@ -127,6 +131,7 @@ fn test_parse_falls_back_to_weekly_limit_when_seven_day_is_null() {
         five_hour: r.five_hour,
         seven_day: r.seven_day,
         account_email: None,
+        saved_resets: None,
     };
     assert_eq!(snap.weekly_label(), "Weekly \u{b7} Fable");
 }
@@ -200,6 +205,7 @@ fn test_snapshot_headline_resets_and_pool() {
         five_hour: None,
         seven_day: Some(w(30.0, reset)),
         account_email: None,
+        saved_resets: None,
     };
     assert_eq!(
         (s.headline_used_percent(), s.resets_at(), s.weekly_label()),
@@ -226,6 +232,7 @@ fn test_claude_pools() {
         five_hour,
         seven_day,
         account_email: None,
+        saved_resets: None,
     };
     assert_eq!(
         snap(Some(w(10.0)), Some(w(20.0))).usage_pool(),
@@ -233,4 +240,98 @@ fn test_claude_pools() {
     );
     assert_eq!(snap(Some(w(10.0)), None).usage_pool(), UsagePool::Hourly);
     assert_eq!(snap(None, Some(w(20.0))).usage_pool(), UsagePool::Weekly);
+}
+
+// -- Saved resets (cedar_ember) ----------------------------------------------
+
+fn reset_now() -> chrono::DateTime<Utc> {
+    Utc.with_ymd_and_hms(2026, 11, 22, 12, 0, 0).unwrap()
+}
+
+fn saved_resets(block: &str) -> Option<tokenmon_core::usage::SavedResets> {
+    let body = format!(r#"{{"cedar_ember": {block}}}"#);
+    tokenmon_provider_claude::parse_usage_body_at(body.as_bytes(), reset_now())
+        .unwrap()
+        .saved_resets
+}
+
+/// `testSavedResetsSumAvailableGrants`: counts add up across grants and the
+/// soonest `ends_at` is the next expiry.
+#[test]
+fn test_saved_resets_sum_available_grants() {
+    let resets = saved_resets(
+        r#"{"eligible": true, "grants": [
+          {"id": "g1", "resets_left": 1, "resets_total": 1, "paused": false,
+           "starts_at": "2026-11-01T00:00:00Z", "ends_at": "2026-12-20T00:00:00Z"},
+          {"id": "g2", "resets_left": 2, "resets_total": 2, "paused": false,
+           "starts_at": null, "ends_at": "2026-12-05T00:00:00Z"},
+          {"id": "g3", "resets_left": 1, "paused": false}
+        ]}"#,
+    )
+    .unwrap();
+    assert_eq!(resets.count(), 4);
+    assert_eq!(
+        resets.next_expiry(),
+        Some(Utc.with_ymd_and_hms(2026, 12, 5, 0, 0, 0).unwrap())
+    );
+}
+
+/// `testSavedResetsSkipUnavailableGrants`: paused, used-up, not-started and
+/// expired grants offer nothing.
+#[test]
+fn test_saved_resets_skip_unavailable_grants() {
+    assert!(
+        saved_resets(
+            r#"{"eligible": true, "grants": [
+              {"resets_left": 1, "paused": true},
+              {"resets_left": 0, "resets_total": 1, "paused": false},
+              {"resets_left": 1, "paused": false, "starts_at": "2026-12-01T00:00:00Z"},
+              {"resets_left": 1, "paused": false, "ends_at": "2026-11-22T12:00:00Z"}
+            ]}"#
+        )
+        .is_none()
+    );
+}
+
+/// `testSavedResetsDropMalformedGrants`: a malformed grant is dropped; the
+/// well-formed one still counts.
+#[test]
+fn test_saved_resets_drop_malformed_grants() {
+    let resets = saved_resets(
+        r#"{"eligible": true, "grants": [
+          {"resets_left": "many", "paused": false},
+          {"resets_left": 2, "resets_total": 1, "paused": false},
+          {"resets_left": -1, "paused": false},
+          {"resets_left": 1},
+          {"resets_left": 1, "paused": null},
+          {"resets_left": 1, "paused": false, "ends_at": "next tuesday"},
+          {"resets_left": 1, "paused": false, "starts_at": 5},
+          {"resets_left": 1, "resets_total": 1, "paused": false}
+        ]}"#,
+    )
+    .unwrap();
+    assert_eq!(resets.count(), 1);
+    assert!(resets.next_expiry().is_none());
+}
+
+/// `testSavedResetsNeedEligibleBlock`: ineligible, missing, null or
+/// grant-less blocks and the plain fixture show nothing.
+#[test]
+fn test_saved_resets_need_eligible_block() {
+    let grant = r#"{"resets_left": 1, "paused": false}"#;
+    assert!(saved_resets(&format!(r#"{{"eligible": false, "grants": [{grant}]}}"#)).is_none());
+    assert!(saved_resets(&format!(r#"{{"grants": [{grant}]}}"#)).is_none());
+    assert!(saved_resets(r#"{"eligible": true}"#).is_none());
+    assert!(saved_resets("null").is_none());
+    assert!(parse(FIXTURE).saved_resets.is_none());
+}
+
+/// `testSavedResetsImplausibleInventoryShowsNothing`: a payload claiming
+/// 5000 resets is treated as malformed.
+#[test]
+fn test_saved_resets_implausible_inventory_shows_nothing() {
+    assert!(
+        saved_resets(r#"{"eligible": true, "grants": [{"resets_left": 5000, "paused": false}]}"#)
+            .is_none()
+    );
 }

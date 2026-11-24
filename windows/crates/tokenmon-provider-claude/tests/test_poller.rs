@@ -211,6 +211,7 @@ fn response(
     ClaudeUsageResponse {
         five_hour: five.map(|p| window(p, None)),
         seven_day: weekly.map(|(p, r)| window(p, r)),
+        saved_resets: None,
     }
 }
 

@@ -8,7 +8,7 @@ use tokenmon_core::BoxFuture;
 use tokenmon_core::net::{ProviderHttp, RequestOptions};
 use tokenmon_core::{Clock, ProviderError};
 
-use crate::usage::{ClaudeUsageResponse, parse_usage_body, usage_request};
+use crate::usage::{ClaudeUsageResponse, parse_usage_body_at, usage_request};
 
 /// Production origin of the usage endpoint.
 pub const DEFAULT_BASE_URL: &str = "https://claude.ai";
@@ -43,7 +43,7 @@ impl ClaudeUsageClient {
     /// * `NotSignedIn` (custom) when the cookie header has no org id; no
     ///   request is made.
     /// * Transport, status and challenge errors from [`ProviderHttp`].
-    /// * [`parse_usage_body`] errors for a 2xx body that is not usage JSON (a
+    /// * [`parse_usage_body_at`] errors for a 2xx body that is not usage JSON (a
     ///   login page is `Unauthorized`).
     pub async fn fetch_usage(
         &self,
@@ -64,7 +64,7 @@ impl ClaudeUsageClient {
                 },
             )
             .await?;
-        Ok((parse_usage_body(&body)?, now))
+        Ok((parse_usage_body_at(&body, now)?, now))
     }
 
     /// The fetch seam [`crate::poller::ClaudeUsagePoller`] takes, stamping

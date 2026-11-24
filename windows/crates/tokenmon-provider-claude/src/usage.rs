@@ -2,7 +2,8 @@
 
 use chrono::{DateTime, Duration, Utc};
 use serde_json::{Map, Value};
-use tokenmon_core::usage::UsagePool;
+use tokenmon_core::usage::{SavedResets, UsagePool};
+use tokenmon_core::util::parse_flexible;
 use tokenmon_core::{ProviderError, ProviderErrorContext, UsageError};
 
 const CTX: ProviderErrorContext = ProviderErrorContext::Claude;
@@ -38,6 +39,8 @@ pub struct ClaudeUsageResponse {
     pub five_hour: Option<ClaudeUsageWindow>,
     /// The weekly window.
     pub seven_day: Option<ClaudeUsageWindow>,
+    /// Saved "Reset for free" resets, from the `cedar_ember` block.
+    pub saved_resets: Option<SavedResets>,
 }
 
 /// `JSON.number`: a number (not a bool), a numeric string, or an object with
@@ -150,8 +153,88 @@ fn looks_like_login_page(data: &[u8]) -> bool {
     !CHALLENGE.iter().any(|m| contains(&lower, m)) && LOGIN.iter().any(|m| contains(&lower, m))
 }
 
+/// Saved-reset grants in the usage payload's `cedar_ember` block:
+/// `{"eligible": true, "grants": [{"resets_left": 1, "resets_total": 1,
+/// "paused": false, "starts_at": "...", "ends_at": "..."}]}`.
+///
+/// Grant ids are not read. A grant with an unreadable count, pause state or
+/// bound is dropped without hiding the others.
+mod grants {
+    use super::{DateTime, SavedResets, Utc, Value, json_number, parse_flexible};
+
+    /// Resets available at `now`, or `None` when the block is absent, the
+    /// account is not eligible, or no grant offers a reset.
+    pub(super) fn saved_resets(raw: Option<&Value>, now: DateTime<Utc>) -> Option<SavedResets> {
+        let block = raw?.as_object()?;
+        if block.get("eligible") != Some(&Value::Bool(true)) {
+            return None;
+        }
+        let grants = block.get("grants")?.as_array()?;
+        let mut expirations: Vec<Option<DateTime<Utc>>> = Vec::new();
+        for grant in grants.iter().filter_map(Value::as_object) {
+            let Some((count, expiry)) = available_resets(grant, now) else {
+                continue;
+            };
+            if count > SavedResets::MAXIMUM_COUNT as usize - expirations.len() {
+                return None;
+            }
+            expirations.extend(std::iter::repeat_n(expiry, count));
+        }
+        SavedResets::from_expirations(&expirations, now)
+    }
+
+    /// Resets one grant offers at `now` and their expiry; `None` for a
+    /// malformed grant. A paused, used-up, not-yet-started or expired grant
+    /// offers zero.
+    fn available_resets(
+        grant: &serde_json::Map<String, Value>,
+        now: DateTime<Utc>,
+    ) -> Option<(usize, Option<DateTime<Utc>>)> {
+        let left = json_number(grant.get("resets_left"))?;
+        if left.fract() != 0.0 || !(0.0..=f64::from(u32::MAX)).contains(&left) {
+            return None;
+        }
+        let paused = grant.get("paused")?.as_bool()?;
+        let starts_at = bound(grant.get("starts_at")).ok()?;
+        let ends_at = bound(grant.get("ends_at")).ok()?;
+        if json_number(grant.get("resets_total")).is_some_and(|total| left > total) {
+            return None;
+        }
+        if paused || starts_at.is_some_and(|s| s > now) || ends_at.is_some_and(|e| e <= now) {
+            return Some((0, None));
+        }
+        Some((left as usize, ends_at))
+    }
+
+    /// A grant bound that could not be read.
+    struct Malformed;
+
+    /// An absent or null bound is open (`Ok(None)`); an unreadable one is
+    /// malformed.
+    fn bound(raw: Option<&Value>) -> Result<Option<DateTime<Utc>>, Malformed> {
+        match raw {
+            None | Some(Value::Null) => Ok(None),
+            Some(Value::String(s)) => parse_flexible(s).map(Some).ok_or(Malformed),
+            Some(_) => Err(Malformed),
+        }
+    }
+}
+
 /// Parses the raw usage body (`ProviderHTTP.jsonObject` then
-/// `ClaudeUsageResponse.parse`).
+/// `ClaudeUsageResponse.parse`), judging saved-reset grants against the
+/// current time.
+///
+/// See [`parse_usage_body_at`] for the rules and errors.
+///
+/// # Errors
+///
+/// As [`parse_usage_body_at`].
+pub fn parse_usage_body(data: &[u8]) -> Result<ClaudeUsageResponse, ProviderError> {
+    parse_usage_body_at(data, Utc::now())
+}
+
+/// Parses the raw usage body; `now` decides which saved-reset grants are
+/// currently available.
 ///
 /// The top-level `five_hour` / `seven_day` objects win; accounts whose
 /// `seven_day` is `null` report the weekly pool only in `limits`
@@ -171,7 +254,10 @@ fn looks_like_login_page(data: &[u8]) -> bool {
 /// assert_eq!(r.five_hour.unwrap().used_percent, 100.0);
 /// assert!(parse_usage_body(b"not json").is_err());
 /// ```
-pub fn parse_usage_body(data: &[u8]) -> Result<ClaudeUsageResponse, ProviderError> {
+pub fn parse_usage_body_at(
+    data: &[u8],
+    now: DateTime<Utc>,
+) -> Result<ClaudeUsageResponse, ProviderError> {
     let root = match serde_json::from_slice::<Value>(data) {
         Ok(Value::Object(o)) => o,
         _ if looks_like_login_page(data) => return Err(ProviderError::Unauthorized(CTX)),
@@ -195,6 +281,7 @@ pub fn parse_usage_body(data: &[u8]) -> Result<ClaudeUsageResponse, ProviderErro
     Ok(ClaudeUsageResponse {
         five_hour: window(root.get("five_hour")).or_else(|| limit_window(&limits, "session")),
         seven_day: window(root.get("seven_day")).or_else(|| limit_window(&limits, "weekly")),
+        saved_resets: grants::saved_resets(root.get("cedar_ember"), now),
     })
 }
 
@@ -231,7 +318,8 @@ pub fn organization_id_from_cookie_header(header: &str) -> Option<String> {
 /// The usage request, ready for the HTTP wrapper.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClaudeUsageRequest {
-    /// `GET https://claude.ai/api/organizations/{org}/usage`.
+    /// `GET https://claude.ai/api/organizations/{org}/usage?cedar_ember=1`
+    /// (`cedar_ember=1` asks the endpoint to include the saved-reset grants).
     pub url: String,
     /// The same endpoint as a path under [`crate::fetch::DEFAULT_BASE_URL`].
     pub path: String,
@@ -254,8 +342,8 @@ pub fn usage_request(cookie_header: &str) -> Result<ClaudeUsageRequest, Provider
             usage: UsageError::NotSignedIn,
         })?;
     Ok(ClaudeUsageRequest {
-        url: format!("https://claude.ai/api/organizations/{org}/usage"),
-        path: format!("/api/organizations/{org}/usage"),
+        url: format!("https://claude.ai/api/organizations/{org}/usage?cedar_ember=1"),
+        path: format!("/api/organizations/{org}/usage?cedar_ember=1"),
         cookie_header: cookie_header.to_owned(),
         referer: REFERER,
     })
@@ -272,6 +360,8 @@ pub struct ClaudeSnapshot {
     pub seven_day: Option<ClaudeUsageWindow>,
     /// Signed-in account email at publish time.
     pub account_email: Option<String>,
+    /// Saved "Reset for free" resets, when the account has any.
+    pub saved_resets: Option<SavedResets>,
 }
 
 impl ClaudeSnapshot {

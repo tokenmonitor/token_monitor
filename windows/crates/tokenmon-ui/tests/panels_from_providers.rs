@@ -96,6 +96,7 @@ fn test_claude_snapshot_maps_windows_and_labels() {
             scope_name: Some("Opus".into()),
         }),
         account_email: None,
+        saved_resets: None,
     };
     let input = ClaudeSnapshotInput::from(&snap);
     assert_eq!(input.pool_name, "Mixed");

@@ -442,6 +442,7 @@ impl ClaudeUsagePoller {
             five_hour: response.five_hour.clone(),
             seven_day: response.seven_day.clone(),
             account_email: self.auth.state().account_email,
+            saved_resets: response.saved_resets,
         });
         state.last_error = None;
         state.last_refreshed_at = Some(self.clock.now());
