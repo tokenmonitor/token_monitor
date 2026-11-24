@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use chrono::{TimeZone, Utc};
 use tokenmon_core::usage::DayKey;
 use tokenmon_provider_claude::ledger::{LEDGER_FILE_NAME, decode_ledger, encode_ledger};
-use tokenmon_provider_claude::pricing::priced_model_ids;
+use tokenmon_provider_claude::pricing::{RATES_VERIFIED_ON, priced_model_ids};
 use tokenmon_provider_claude::{
     ClaudeCodeUsageLedger, ClaudeCodeUsageSummary, DailyTokens, ModelTokens, UsageTotals,
     base_model_id, cost, display_name, rates,
@@ -74,10 +74,41 @@ fn test_unknown_model_has_no_price() {
     assert!(cost(&tok(1, 1), "claude-unknown-9").is_none());
 }
 
+/// Each model's rates as published on Anthropic's pricing page on
+/// `RATES_VERIFIED_ON`; a price change must update both.
+#[test]
+fn test_rates_match_published_prices() {
+    let published: [(&str, f64, f64, f64); 13] = [
+        ("claude-fable-5-2", 8.0, 40.0, 0.20),
+        ("claude-fable-5-1", 10.0, 50.0, 0.25),
+        ("claude-fable-5", 10.0, 50.0, 1.0),
+        ("claude-opus-5-5", 4.0, 20.0, 0.20),
+        ("claude-opus-5", 5.0, 25.0, 0.50),
+        ("claude-opus-4-8", 5.0, 25.0, 0.50),
+        ("claude-opus-4-7", 5.0, 25.0, 0.50),
+        ("claude-opus-4-6", 5.0, 25.0, 0.50),
+        ("claude-sonnet-5-5", 2.0, 10.0, 0.10),
+        ("claude-sonnet-5", 2.0, 10.0, 0.20),
+        ("claude-sonnet-4-6", 3.0, 15.0, 0.30),
+        ("claude-haiku-5-5", 0.10, 0.50, 0.01),
+        ("claude-haiku-4-5", 1.0, 5.0, 0.10),
+    ];
+    assert_eq!(RATES_VERIFIED_ON, "2026-11-17");
+    for (id, input, output, cache_read) in published {
+        let r = rates(id).unwrap_or_else(|| panic!("missing {id}"));
+        assert_eq!(
+            (r.input, r.output, r.cache_read),
+            (input, output, cache_read),
+            "{id}"
+        );
+    }
+}
+
 /// Pins every row of the API price table (input, output, cache read, derived writes).
 #[test]
 fn test_price_table_matches_spec_rows() {
-    let want: [(&str, f64, f64, f64, f64, f64); 12] = [
+    let want: [(&str, f64, f64, f64, f64, f64); 13] = [
+        ("claude-fable-5-2", 8.0, 40.0, 0.20, 10.0, 16.0),
         ("claude-fable-5-1", 10.0, 50.0, 0.25, 12.5, 20.0),
         ("claude-fable-5", 10.0, 50.0, 1.0, 12.5, 20.0),
         ("claude-opus-5-5", 4.0, 20.0, 0.20, 5.0, 8.0),
@@ -85,7 +116,7 @@ fn test_price_table_matches_spec_rows() {
         ("claude-opus-4-8", 5.0, 25.0, 0.50, 6.25, 10.0),
         ("claude-opus-4-7", 5.0, 25.0, 0.50, 6.25, 10.0),
         ("claude-opus-4-6", 5.0, 25.0, 0.50, 6.25, 10.0),
-        ("claude-sonnet-5-5", 2.0, 10.0, 0.20, 2.5, 4.0),
+        ("claude-sonnet-5-5", 2.0, 10.0, 0.10, 2.5, 4.0),
         ("claude-sonnet-5", 2.0, 10.0, 0.20, 2.5, 4.0),
         ("claude-sonnet-4-6", 3.0, 15.0, 0.30, 3.75, 6.0),
         ("claude-haiku-5-5", 0.10, 0.50, 0.01, 0.125, 0.2),

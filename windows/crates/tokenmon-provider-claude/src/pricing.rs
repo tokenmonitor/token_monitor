@@ -1,13 +1,13 @@
 //! Anthropic API price table and model display names.
 //!
-//! Rates are USD per one million tokens, verified 2026-10-06
+//! Rates are USD per one million tokens, verified 2026-11-17
 //! ([`RATES_VERIFIED_ON`]). Cache writes cost 1.25x input (5 minutes) or 2x
 //! input (1 hour).
 
 use crate::tokens::ModelTokens;
 
 /// Date the table was last checked against Anthropic's price page.
-pub const RATES_VERIFIED_ON: &str = "2026-10-06";
+pub const RATES_VERIFIED_ON: &str = "2026-11-17";
 
 /// Per-million-token rates for one model.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -40,7 +40,8 @@ const fn r(input: f64, output: f64, cache_read: f64) -> ClaudeModelRates {
 }
 
 /// Exact-match table keyed by [`base_model_id`].
-const TABLE: [(&str, ClaudeModelRates); 12] = [
+const TABLE: [(&str, ClaudeModelRates); 13] = [
+    ("claude-fable-5-2", r(8.0, 40.0, 0.20)),
     ("claude-fable-5-1", r(10.0, 50.0, 0.25)),
     ("claude-fable-5", r(10.0, 50.0, 1.0)),
     ("claude-opus-5-5", r(4.0, 20.0, 0.20)),
@@ -48,7 +49,7 @@ const TABLE: [(&str, ClaudeModelRates); 12] = [
     ("claude-opus-4-8", r(5.0, 25.0, 0.50)),
     ("claude-opus-4-7", r(5.0, 25.0, 0.50)),
     ("claude-opus-4-6", r(5.0, 25.0, 0.50)),
-    ("claude-sonnet-5-5", r(2.0, 10.0, 0.20)),
+    ("claude-sonnet-5-5", r(2.0, 10.0, 0.10)),
     ("claude-sonnet-5", r(2.0, 10.0, 0.20)),
     ("claude-sonnet-4-6", r(3.0, 15.0, 0.30)),
     ("claude-haiku-5-5", r(0.10, 0.50, 0.01)),

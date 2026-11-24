@@ -104,7 +104,7 @@ fn test_claude_bar_hover_shows_tokens_dollars_and_top_models() {
     // API-rate value of both models; every model is priced, so no `+`.
     let cost = t.cost_text.as_deref().expect("dollars");
     assert!(cost.starts_with("≈ $") && !cost.ends_with('+'), "{cost}");
-    assert_eq!(cost, "≈ $47.42");
+    assert_eq!(cost, "≈ $46.62");
     assert_eq!(
         t.rows,
         [
