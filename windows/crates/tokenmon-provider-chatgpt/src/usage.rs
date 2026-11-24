@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use serde_json::{Map, Value};
 use tokenmon_core::net::{ProviderError, ProviderErrorContext};
-use tokenmon_core::usage::{Percent, UsagePool};
+use tokenmon_core::usage::{Percent, SavedResets, UsagePool};
 use tokenmon_core::util::json::{first_double, number, string};
 use tokenmon_core::util::parse_flexible;
 
@@ -72,6 +72,19 @@ pub struct UsageResponse {
     pub primary: Option<UsageWindow>,
     /// Weekly window.
     pub secondary: Option<UsageWindow>,
+    /// Saved Codex limit resets, from `rate_limit_reset_credits.available_count`.
+    pub saved_resets: Option<SavedResets>,
+}
+
+/// Count of saved resets. The payload carries only the count; expiries live on
+/// a separate endpoint that is not requested. Absent, zero, fractional,
+/// non-numeric or implausible counts yield `None`.
+fn saved_resets(raw: Option<&Value>) -> Option<SavedResets> {
+    let count = number(raw?.as_object()?.get("available_count"))?;
+    if count.fract() != 0.0 || !(0.0..=f64::from(u32::MAX)).contains(&count) {
+        return None;
+    }
+    SavedResets::new(count as u32, None)
 }
 
 /// Swift `as? Bool` on a JSON value: booleans, and numbers equal to 0 or 1
@@ -136,6 +149,7 @@ pub fn parse_usage(data: &[u8]) -> Result<UsageResponse, ProviderError> {
         limit_reached: bridged_bool(rl.get("limit_reached")).unwrap_or(false),
         primary: window(rl.get("primary_window").or_else(|| rl.get("five_hour"))),
         secondary: window(rl.get("secondary_window").or_else(|| rl.get("weekly"))),
+        saved_resets: saved_resets(root.get("rate_limit_reset_credits")),
     })
 }
 
@@ -154,6 +168,8 @@ pub struct ChatGptSnapshot {
     pub primary: Option<UsageWindow>,
     /// Weekly window.
     pub secondary: Option<UsageWindow>,
+    /// Saved Codex limit resets, when the account has any.
+    pub saved_resets: Option<SavedResets>,
 }
 
 impl ChatGptSnapshot {
@@ -166,6 +182,7 @@ impl ChatGptSnapshot {
             limit_reached: response.limit_reached,
             primary: response.primary,
             secondary: response.secondary,
+            saved_resets: response.saved_resets,
         }
     }
 

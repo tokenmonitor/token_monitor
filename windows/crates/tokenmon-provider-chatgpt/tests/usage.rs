@@ -234,6 +234,7 @@ fn test_chatgpt_pools() {
         limit_reached: false,
         primary,
         secondary,
+        saved_resets: None,
     };
     assert_eq!(
         snap(Some(window(10.0)), Some(window(20.0))).usage_pool(),
@@ -243,4 +244,39 @@ fn test_chatgpt_pools() {
         snap(None, Some(window(20.0))).usage_pool(),
         UsagePool::Weekly
     );
+}
+
+/// `testParseSavedResetsCount`: the count comes from
+/// `rate_limit_reset_credits.available_count`; no expiry is known.
+#[test]
+fn test_parse_saved_resets_count() {
+    let r = parse_usage(
+        br#"{"rate_limit": {"primary_window": {"used_percent": 100}},
+         "rate_limit_reset_credits": {"available_count": 3}}"#,
+    )
+    .unwrap();
+    let saved = r.saved_resets.unwrap();
+    assert_eq!(saved.count(), 3);
+    assert!(saved.next_expiry().is_none());
+    let snap = tokenmon_provider_chatgpt::ChatGptSnapshot::new(r, chrono::Utc::now());
+    assert_eq!(snap.saved_resets.unwrap().count(), 3);
+}
+
+/// `testSavedResetsAbsentZeroOrMalformedIsNil`: absent, zero, fractional,
+/// boolean, implausible and non-object blocks all show nothing.
+#[test]
+fn test_saved_resets_absent_zero_or_malformed_is_none() {
+    for body in [
+        r#"{"plan_type": "plus"}"#,
+        r#"{"rate_limit_reset_credits": {"available_count": 0}}"#,
+        r#"{"rate_limit_reset_credits": {"available_count": 1.5}}"#,
+        r#"{"rate_limit_reset_credits": {"available_count": true}}"#,
+        r#"{"rate_limit_reset_credits": {"available_count": 5000}}"#,
+        r#"{"rate_limit_reset_credits": 2}"#,
+    ] {
+        assert!(
+            parse_usage(body.as_bytes()).unwrap().saved_resets.is_none(),
+            "{body}"
+        );
+    }
 }

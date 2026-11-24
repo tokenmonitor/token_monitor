@@ -119,6 +119,7 @@ fn test_chatgpt_snapshot_maps_plan_and_windows() {
             limit_reached: false,
             primary: Some(window(Some(18_000))),
             secondary: Some(window(Some(604_800))),
+            saved_resets: None,
         },
         now(),
     );
