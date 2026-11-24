@@ -208,8 +208,12 @@ pub fn daily_tokens(
     days
 }
 
-/// `estimatedWeightByDay`: total tokens per local day, restricted to the
-/// subscription month that contains `now`.
+/// `estimatedWeightByDay`: per-day weight for the pool-estimate back-fill,
+/// restricted to the subscription month that contains `now`.
+///
+/// The pool drains by cost, so days are weighted by charged cents when any
+/// event in the cycle has a cost. Only when none does are they weighted by
+/// tokens, which overweight cheap cache reads.
 pub fn estimated_weight_by_day(
     clock: &dyn Clock,
     events: &[CursorUsageEvent],
@@ -221,13 +225,22 @@ pub fn estimated_weight_by_day(
     let bounds = DailyBudget::subscription_month(Some(cycle_start), cycle_end, Some(now), &cal);
     let lower = bounds.map_or(cycle_start, |b| b.start);
     let upper = bounds.map(|b| b.end).or(cycle_end);
+    let in_cycle: Vec<&CursorUsageEvent> = events
+        .iter()
+        .filter(|e| e.date >= lower && upper.is_none_or(|u| e.date < u))
+        .collect();
+    let weighs_by_cost = in_cycle.iter().any(|e| e.charged_cents > 0.0);
     let mut by_day = BTreeMap::new();
-    for event in events.iter().filter(|e| e.total_tokens > 0) {
-        if event.date < lower || upper.is_some_and(|u| event.date >= u) {
-            continue;
+    for event in in_cycle {
+        let weight = if weighs_by_cost {
+            event.charged_cents
+        } else {
+            event.total_tokens as f64
+        };
+        if weight > 0.0 {
+            let slot = by_day.entry(cal.date_of(event.date)).or_insert(0.0);
+            *slot = cap(*slot + weight);
         }
-        let slot = by_day.entry(cal.date_of(event.date)).or_insert(0.0);
-        *slot = cap(*slot + event.total_tokens as f64);
     }
     by_day
 }

@@ -177,7 +177,8 @@ fn test_event_timestamp_string_units() {
     assert_eq!(date_from_epoch_number(1e300), None);
 }
 
-/// Bot events are excluded; estimates clip to the cycle.
+/// Without costs, the estimate is token-weighted; bot events are excluded and
+/// estimates clip to the cycle.
 #[test]
 fn test_daily_estimate_weight_by_day_excludes_bot_and_clips_to_cycle() {
     let mk = |d, h, model: &str, tokens: i64| {
@@ -210,6 +211,32 @@ fn test_daily_estimate_weight_by_day_excludes_bot_and_clips_to_cycle() {
     assert_eq!(by_day.len(), 2);
     assert_eq!(by_day[&day(22)], 300.0);
     assert_eq!(by_day[&day(23)], 1220.0);
+}
+
+/// With costs present, the back-fill weighs days by cost: a day of cheap cache
+/// reads does not outweigh a day of expensive output.
+#[test]
+fn test_daily_estimate_weight_by_day_weighs_by_cost_when_present() {
+    let mk = |d, cents: u32, usage: serde_json::Value| {
+        event(
+            json!({"timestamp": ms(at(2026, 8, d, 12, 0)), "model": "default",
+            "chargedCents": cents, "tokenUsage": usage}),
+        )
+    };
+    let events = [
+        mk(10, 50, json!({"cacheReadTokens": 10_000_000})),
+        mk(11, 1500, json!({"outputTokens": 1_000_000})),
+    ];
+    let by_day = estimated_weight_by_day(
+        &utc(),
+        &events,
+        at(2026, 8, 1, 0, 0),
+        Some(at(2026, 9, 1, 0, 0)),
+        at(2026, 8, 12, 12, 0),
+    );
+    let day = |d| chrono::NaiveDate::from_ymd_opt(2026, 8, d).unwrap();
+    assert!((by_day[&day(10)] - 50.0).abs() < 0.001);
+    assert!((by_day[&day(11)] - 1500.0).abs() < 0.001);
 }
 
 fn event_json_is_none(v: &serde_json::Value) -> bool {
