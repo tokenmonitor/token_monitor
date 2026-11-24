@@ -497,6 +497,7 @@ fn test_claude_missing_windows_and_collapsed_models() {
 
 fn chatgpt_snap() -> ChatGptSnapshotInput {
     ChatGptSnapshotInput {
+        daily: None,
         saved_resets: None,
         plan_name: "ChatGPT Plus".into(),
         pool_name: "Hourly".into(),

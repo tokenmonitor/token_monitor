@@ -513,6 +513,7 @@ fn render_all_states(last: &Rc<RefCell<Option<Rc<MinimalSoftwareWindow>>>>) {
 
     // ChatGPT
     let gpt = ChatGptSnapshotInput {
+        daily: None,
         saved_resets: None,
         plan_name: "ChatGPT Plus".into(),
         pool_name: "Hourly".into(),

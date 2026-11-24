@@ -8,6 +8,9 @@ export global ChatGptVm {
     callback sign-in();
     callback sign-in-again();
     callback sign-out();
+    callback previous-week();
+    callback next-week();
+    in property <DailyData> daily;
     in property <HeaderData> header;
     in property <bool> has-usage;
     in property <string> message;
@@ -19,7 +22,7 @@ export global ChatGptVm {
     in property <FooterData> footer;
 }
 
-// ChatGPT panel (spec 03 section 2.7). No bars, no hover.
+// ChatGPT panel (spec 03 section 2.7), with the weekly window's daily bars.
 export component ChatGptBody inherits VerticalLayout {
     spacing: 10px;
     PanelHeader { data: ChatGptVm.header; open-settings => { ChatGptVm.open-settings(); } }
@@ -31,6 +34,11 @@ export component ChatGptBody inherits VerticalLayout {
     if ChatGptVm.has-usage: PoolCard { title: ChatGptVm.pool-title; tracks: ChatGptVm.tracks; }
     if ChatGptVm.has-usage && ChatGptVm.unattributed-limit != "": Caption { text: ChatGptVm.unattributed-limit; }
     if ChatGptVm.has-usage && ChatGptVm.blocked != "": Caption { text: ChatGptVm.blocked; warning: true; }
+    if ChatGptVm.has-usage && ChatGptVm.daily.present: DailyCard {
+        data: ChatGptVm.daily;
+        previous-week => { ChatGptVm.previous-week(); }
+        next-week => { ChatGptVm.next-week(); }
+    }
     if ChatGptVm.has-usage: FooterBlock {
         data: ChatGptVm.footer;
         sign-in-again => { ChatGptVm.sign-in-again(); }

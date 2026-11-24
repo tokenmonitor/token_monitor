@@ -385,6 +385,11 @@ pub fn build_registry(deps: &ProviderDeps<'_>) -> Result<ProviderRegistry, Build
         ),
         is_enabled: enabled_for(ProviderId::ChatGpt),
         poll_interval: interval_for(ProviderId::ChatGpt),
+        daily: DailyQuotaDeltaStore::new(
+            Arc::clone(&text),
+            "chatgpt_daily_usage",
+            Arc::clone(clock),
+        ),
     });
 
     let grokbot = GrokbotUsagePoller::new(GrokbotPollerConfig::live(

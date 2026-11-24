@@ -11,8 +11,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tokenmon_core::{
-    AuthEventListener, AuthSession, AuthSessionState, CapturedSession, CredentialStoreError,
-    ProviderAuthSession, ProviderError, SessionGeneration,
+    AuthEvent, AuthEventListener, AuthSession, AuthSessionState, CapturedSession,
+    CredentialStoreError, ProviderAuthSession, ProviderError, SessionGeneration,
 };
 use tokenmon_provider_chatgpt::{ChatGptTransport, RawReply, chatgpt_auth_config};
 
@@ -116,6 +116,7 @@ struct Inner {
 #[derive(Default)]
 pub struct FakeSession {
     inner: Mutex<Inner>,
+    listeners: Mutex<Vec<Arc<dyn AuthEventListener>>>,
 }
 
 impl FakeSession {
@@ -135,6 +136,16 @@ impl FakeSession {
         let mut g = self.inner.lock().unwrap();
         g.cookie = None;
         g.state.mark_session_invalid(None);
+    }
+
+    /// Delivers `event` to every registered listener, as the real session does
+    /// on sign-out (`SignedOut`) or when a different account signs in
+    /// (`AccountReset`).
+    pub fn fire(&self, event: AuthEvent) {
+        let listeners = self.listeners.lock().unwrap().clone();
+        for listener in listeners {
+            listener.on_auth_event(event);
+        }
     }
 
     pub fn generation(&self) -> SessionGeneration {
@@ -163,7 +174,9 @@ impl AuthSession for FakeSession {
     fn is_current(&self, generation: SessionGeneration) -> bool {
         self.inner.lock().unwrap().state.is_current(generation)
     }
-    fn add_listener(&self, _listener: Arc<dyn AuthEventListener>) {}
+    fn add_listener(&self, listener: Arc<dyn AuthEventListener>) {
+        self.listeners.lock().unwrap().push(listener);
+    }
 }
 
 impl ProviderAuthSession for FakeSession {

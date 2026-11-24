@@ -91,6 +91,7 @@ fn test_claude_chatgpt_and_grok_footers_show_the_pill_only_with_resets() {
                     secondary: Some(window()),
                     limit_reached: false,
                     allowed: true,
+                    daily: None,
                 }),
             },
             &ctx(),

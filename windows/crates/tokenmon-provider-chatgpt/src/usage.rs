@@ -186,6 +186,43 @@ impl ChatGptSnapshot {
         }
     }
 
+    /// Length of the Codex weekly window, in seconds.
+    pub const WEEK_SECONDS: i64 = 7 * 86_400;
+
+    /// The window that spans a week, which the daily budget bars divide into
+    /// days: the one reporting a seven-day length (a free plan reports it as
+    /// the primary), else the secondary window when it reports no length.
+    /// `None` when neither applies.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use chrono::Utc;
+    /// use tokenmon_provider_chatgpt::{ChatGptSnapshot, UsageResponse, UsageWindow};
+    /// let week = UsageWindow { used_percent: 20.0, resets_at: None, window_seconds: Some(604_800) };
+    /// let response = UsageResponse {
+    ///     plan_name: None,
+    ///     allowed: true,
+    ///     limit_reached: false,
+    ///     primary: None,
+    ///     secondary: Some(week.clone()),
+    ///     saved_resets: None,
+    /// };
+    /// let snapshot = ChatGptSnapshot::new(response, Utc::now());
+    /// assert_eq!(snapshot.weekly_window(), Some(&week));
+    /// ```
+    pub fn weekly_window(&self) -> Option<&UsageWindow> {
+        let week = [self.primary.as_ref(), self.secondary.as_ref()]
+            .into_iter()
+            .flatten()
+            .find(|w| w.window_seconds == Some(Self::WEEK_SECONDS));
+        week.or_else(|| {
+            self.secondary
+                .as_ref()
+                .filter(|w| w.window_seconds.is_none())
+        })
+    }
+
     /// The reset belonging to the headline window, even when its clock is missing.
     pub fn resets_at(&self) -> Option<DateTime<Utc>> {
         self.primary

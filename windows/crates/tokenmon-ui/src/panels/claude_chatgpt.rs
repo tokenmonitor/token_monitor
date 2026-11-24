@@ -280,6 +280,8 @@ pub struct ChatGptSnapshotInput {
     pub allowed: bool,
     /// Saved Codex limit resets.
     pub saved_resets: Option<SavedResets>,
+    /// Daily bars of the weekly window.
+    pub daily: Option<DailyBudgetInput>,
 }
 
 /// ChatGPT panel input.
@@ -302,6 +304,8 @@ pub struct ChatGptUsage {
     pub blocked_text: Option<&'static str>,
     /// Account-wide limit flag without an identifiable exhausted window.
     pub unattributed_limit: Option<&'static str>,
+    /// Daily bars of the weekly window.
+    pub daily: Option<DailyBudgetVm>,
     /// Footer.
     pub footer: FooterVm,
 }
@@ -356,6 +360,7 @@ pub fn build_chatgpt(input: &ChatGptInput, ctx: &PanelContext) -> PanelVm<ChatGp
                 .then_some("Codex access is currently blocked for this account."),
             unattributed_limit: (snap.limit_reached && pused < 100.0 && sused < 100.0)
                 .then_some("Limit reached · Window not reported"),
+            daily: snap.daily.as_ref().and_then(|d| build_daily_budget(d, ctx)),
             footer: FooterVm::standard(s, ctx, ProviderId::ChatGpt, ProviderId::ChatGpt)
                 .with_saved_resets(snap.saved_resets, ProviderId::ChatGpt, ctx),
         },

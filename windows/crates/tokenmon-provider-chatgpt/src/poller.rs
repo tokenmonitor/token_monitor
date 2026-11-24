@@ -13,6 +13,9 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use tokenmon_core::polling::{PollOutcome, PollingLoop, ProviderRefresh};
+use tokenmon_core::storage::{DailyQuotaDeltaStore, QuotaWindow};
+use tokenmon_core::usage::budget::SpentByDay;
+use tokenmon_core::usage::{Calendar, DailyBudget, DailyBudgetDay, WeekOffset};
 use tokenmon_core::{
     AuthEvent, AuthEventListener, BoxFuture, Clock, ProviderAuthSession, ProviderError,
     ProviderErrorContext, ProviderId, ProviderUsagePoller, SessionGeneration,
@@ -45,13 +48,29 @@ pub struct ChatGptPollerConfig {
     pub is_enabled: Arc<dyn Fn() -> bool + Send + Sync>,
     /// `AppSettings.pollInterval(for: .chatgpt, menuIsOpen:)`; `None` parks.
     pub poll_interval: Arc<dyn Fn(bool) -> Option<Duration> + Send + Sync>,
+    /// The persisted weekly-pool deltas (`chatgpt_daily_usage`) behind the
+    /// daily bars.
+    pub daily: DailyQuotaDeltaStore,
 }
+
+/// The weekly pool is 100 percentage points over 7 days.
+const WEEKLY_LIMIT_PERCENT: f64 = 100.0;
+/// Bars per weekly window.
+const DAYS_IN_PERIOD: i64 = 7;
 
 #[derive(Debug, Default)]
 struct State {
     snapshot: Option<ChatGptSnapshot>,
     last_error: Option<ProviderError>,
     last_refreshed_at: Option<DateTime<Utc>>,
+    /// Daily bars for the current weekly window, anchored to its `reset_at`.
+    daily_budget_days: Option<Vec<DailyBudgetDay>>,
+    /// Last observed weekly `reset_at`; anchors the bars when a later payload
+    /// omits it.
+    weekly_resets_at: Option<DateTime<Utc>>,
+    /// Instant the current bars were built against, so earlier weeks shift
+    /// from the same window.
+    budget_reference_now: Option<DateTime<Utc>>,
 }
 
 /// Clears the in-flight flag on drop.
@@ -66,9 +85,19 @@ impl Drop for RefreshGuard<'_> {
 struct SessionEvents(Weak<ChatGptPoller>);
 
 impl AuthEventListener for SessionEvents {
-    fn on_auth_event(&self, _event: AuthEvent) {
-        if let Some(poller) = self.0.upgrade() {
-            poller.clear_snapshot();
+    fn on_auth_event(&self, event: AuthEvent) {
+        let Some(poller) = self.0.upgrade() else {
+            return;
+        };
+        // Sign-out drops the snapshot; the persisted daily history is wiped
+        // only when a different account signs in.
+        poller.clear_snapshot();
+        if event == AuthEvent::AccountReset {
+            poller
+                .daily
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .clear();
         }
     }
 }
@@ -84,6 +113,7 @@ pub struct ChatGptPoller {
     refreshing: AtomicBool,
     menu_open: AtomicBool,
     state: Mutex<State>,
+    daily: Mutex<DailyQuotaDeltaStore>,
     polling: Arc<PollingLoop>,
 }
 
@@ -122,6 +152,7 @@ impl ChatGptPoller {
                 refreshing: AtomicBool::new(false),
                 menu_open: AtomicBool::new(false),
                 state: Mutex::new(State::default()),
+                daily: Mutex::new(config.daily),
                 polling,
             }
         });
@@ -178,6 +209,97 @@ impl ChatGptPoller {
         self.lock_state().snapshot.clone()
     }
 
+    /// Daily bars for the current weekly window: percent of the weekly pool
+    /// used per calendar day. `None` before the first poll; empty until a
+    /// weekly reset instant has been observed.
+    pub fn daily_budget_days(&self) -> Option<Vec<DailyBudgetDay>> {
+        self.lock_state().daily_budget_days.clone()
+    }
+
+    /// Bars for the weekly window `week_offset` steps before the current one
+    /// (`CURRENT` is the current one). Reads the live daily store, so the
+    /// panel can browse earlier weeks without a new poll. Empty until a
+    /// weekly reset instant has been observed.
+    pub fn daily_budget_days_at(&self, week_offset: WeekOffset) -> Vec<DailyBudgetDay> {
+        let state = self.lock_state();
+        let now = state
+            .budget_reference_now
+            .unwrap_or_else(|| self.clock.now());
+        self.build_bars(&state, now, week_offset)
+    }
+
+    /// Weekly reset instant the bars anchor to: the latest payload's, else the
+    /// last one seen this run, else the one the daily store persisted, carried
+    /// forward by whole weeks once it has passed.
+    pub fn weekly_resets_at(&self, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
+        let state = self.lock_state();
+        self.weekly_resets_at_locked(&state, now)
+    }
+
+    fn weekly_resets_at_locked(&self, state: &State, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
+        let live = state
+            .snapshot
+            .as_ref()
+            .and_then(ChatGptSnapshot::weekly_window)
+            .and_then(|w| w.resets_at);
+        let remembered = state.weekly_resets_at.or_else(|| {
+            self.daily
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .window_resets_at()
+        });
+        live.or_else(|| DailyBudget::project_weekly_reset(remembered, now))
+    }
+
+    fn build_bars(
+        &self,
+        state: &State,
+        now: DateTime<Utc>,
+        week_offset: WeekOffset,
+    ) -> Vec<DailyBudgetDay> {
+        let Some(resets_at) = self.weekly_resets_at_locked(state, now) else {
+            return Vec::new();
+        };
+        let calendar = Calendar::local(self.clock.as_ref());
+        let daily = self.daily.lock().unwrap_or_else(PoisonError::into_inner);
+        let spent: SpentByDay = daily.spent_by_day().into_iter().collect();
+        DailyBudget::build_weekly_window_days(
+            WEEKLY_LIMIT_PERCENT,
+            DAYS_IN_PERIOD,
+            resets_at,
+            &spent,
+            daily.window_start(),
+            daily.interrupted_window_start(),
+            week_offset,
+            now,
+            &calendar,
+        )
+    }
+
+    /// Records the weekly window's used % in the daily store. A moved
+    /// `reset_at` together with a used-% drop is a rollover or early reset,
+    /// which the store recognizes and keeps earlier days for.
+    fn record_weekly_usage(&self, state: &mut State, fresh: &ChatGptSnapshot) {
+        if let Some(week) = fresh.weekly_window() {
+            if let Some(resets_at) = week.resets_at {
+                state.weekly_resets_at = Some(resets_at);
+            }
+            self.daily
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .record(
+                    week.used_percent,
+                    fresh.fetched_at,
+                    Some(QuotaWindow {
+                        start: None,
+                        resets_at: week.resets_at,
+                    }),
+                    DAYS_IN_PERIOD,
+                );
+        }
+        state.budget_reference_now = Some(fresh.fetched_at);
+    }
+
     /// One refresh (the body of Swift `performRefresh`): gating, the guarded
     /// fetch and the publish step.
     ///
@@ -229,9 +351,14 @@ impl ChatGptPoller {
         );
         {
             let mut state = self.lock_state();
+            self.record_weekly_usage(&mut state, &snapshot);
             state.snapshot = Some(snapshot);
             state.last_error = None;
             state.last_refreshed_at = Some(self.clock.now());
+            let now = state
+                .budget_reference_now
+                .unwrap_or_else(|| self.clock.now());
+            state.daily_budget_days = Some(self.build_bars(&state, now, WeekOffset::CURRENT));
         }
         self.auth.set_needs_sign_in(false);
         PollOutcome::Success

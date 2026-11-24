@@ -258,10 +258,28 @@ pub fn claude_source(poller: &Arc<ClaudeUsagePoller>) -> ViewSource {
     })
 }
 
-/// ChatGPT: snapshot only.
+/// ChatGPT: snapshot plus the weekly window's daily bars.
 pub fn chatgpt_source(poller: &Arc<ChatGptPoller>) -> ViewSource {
     let poller = Arc::clone(poller);
-    Arc::new(move |_| SnapshotView::ChatGpt(poller.snapshot().as_ref().map(Into::into)))
+    Arc::new(move |q| {
+        SnapshotView::ChatGpt(poller.snapshot().map(|snapshot| {
+            let calendar = Calendar::local(q.clock);
+            let used = snapshot.weekly_window().map(|w| w.used_percent);
+            let ctx = chart(
+                ProviderId::ChatGpt,
+                q,
+                used,
+                None,
+                poller.weekly_resets_at(q.now),
+                &calendar,
+            );
+            let days = poller.daily_budget_days_at(WeekOffset::new(q.week_offset));
+            ChatGptSnapshotInput {
+                daily: daily_input(&days, &ctx),
+                ..ChatGptSnapshotInput::from(&snapshot)
+            }
+        }))
+    })
 }
 
 /// OpenCode: snapshot plus monthly-plan bars.

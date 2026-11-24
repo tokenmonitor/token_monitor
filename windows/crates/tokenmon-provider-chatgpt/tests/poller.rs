@@ -16,6 +16,7 @@ use common::FakeSession;
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use tokenmon_core::polling::PollOutcome;
+use tokenmon_core::storage::{DailyQuotaDeltaStore, InMemoryStringStore};
 use tokenmon_core::{
     Clock, ManualClock, ProviderError, ProviderErrorContext as C, ProviderUsagePoller,
 };
@@ -41,11 +42,16 @@ fn config(session: &Arc<FakeSession>, f: Arc<FetchFn>) -> ChatGptPollerConfig {
     let clock: Arc<dyn Clock> = Arc::new(ManualClock::from_unix(1_790_000_000));
     ChatGptPollerConfig {
         session: session.clone(),
-        clock,
+        clock: Arc::clone(&clock),
         token_cache: Arc::new(AccessTokenCache::new()),
         fetch: f,
         is_enabled: Arc::new(|| true),
         poll_interval: Arc::new(|_| None),
+        daily: DailyQuotaDeltaStore::new(
+            Arc::new(InMemoryStringStore::default()),
+            "chatgpt_daily_usage",
+            Arc::clone(&clock),
+        ),
     }
 }
 

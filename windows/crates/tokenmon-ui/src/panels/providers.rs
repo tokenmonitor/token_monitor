@@ -252,6 +252,7 @@ impl From<&ChatGptSnapshot> for ChatGptSnapshotInput {
             limit_reached: s.limit_reached,
             allowed: s.allowed,
             saved_resets: s.saved_resets,
+            daily: None,
         }
     }
 }

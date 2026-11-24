@@ -413,6 +413,7 @@ pub fn apply_chatgpt(w: &ui::ChatGptVm<'_>, p: &PanelVm<ChatGptUsage>) {
         w.set_tracks(tracks(&u.tracks));
         w.set_blocked(opt(u.blocked_text));
         w.set_unattributed_limit(opt(u.unattributed_limit));
+        w.set_daily(daily(u.daily.as_ref()));
         w.set_footer(footer(&u.footer, None));
     }
 }

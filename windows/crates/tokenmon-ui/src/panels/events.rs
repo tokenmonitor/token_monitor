@@ -161,6 +161,7 @@ pub fn connect_claude(w: &ui::ClaudeVm<'_>, handler: &PanelHandler) {
 pub fn connect_chatgpt(w: &ui::ChatGptVm<'_>, handler: &PanelHandler) {
     common!(w, handler);
     auth!(w, handler, ProviderId::ChatGpt, ProviderId::ChatGpt);
+    weeks!(w, handler, ProviderId::ChatGpt);
 }
 
 /// Connects an OpenCode panel.
