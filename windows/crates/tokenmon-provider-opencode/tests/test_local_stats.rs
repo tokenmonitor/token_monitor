@@ -577,3 +577,30 @@ fn test_unpriced_model_flagged_on_row() {
     let snap = snapshot(&scan_of(&f), at(NOW));
     assert!(snap.models[0].is_cost_unpriced);
 }
+
+/// OpenCode records reasoning apart from visible output; it is billed at the
+/// output rate, so it counts toward the output tokens.
+#[test]
+fn test_reasoning_tokens_count_as_output() {
+    let mut f = Fixture::new();
+    f.session(
+        "ses_reasoning",
+        NOW - 600,
+        "opencode-go",
+        "minimax-m3",
+        false,
+    );
+    f.message_json(
+        "ses_reasoning",
+        NOW - 600,
+        r#"{"role":"assistant","cost":1,"providerID":"opencode-go","modelID":"minimax-m3","tokens":{"input":500,"output":1000,"reasoning":3000,"cache":{"read":0,"write":0}}}"#,
+    );
+    let snap = snapshot(&scan_of(&f), at(NOW));
+    let model = snap
+        .models
+        .iter()
+        .find(|m| m.model_id == "minimax-m3")
+        .expect("model");
+    assert_eq!(model.output_tokens, 4000);
+    assert_eq!(model.input_tokens, 500);
+}

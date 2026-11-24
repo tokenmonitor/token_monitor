@@ -270,7 +270,8 @@ AND lower(CASE WHEN json_valid(model) THEN json_extract(model, '$.providerID') E
 const ROWS_SQL: &str = "SELECT time_created, session_id, \
 json_extract(data, '$.providerID'), json_extract(data, '$.modelID'), \
 json_extract(data, '$.cost'), \
-json_extract(data, '$.tokens.input'), json_extract(data, '$.tokens.output'), \
+json_extract(data, '$.tokens.input'), \
+COALESCE(json_extract(data, '$.tokens.output'), 0) + COALESCE(json_extract(data, '$.tokens.reasoning'), 0), \
 json_extract(data, '$.tokens.cache.read'), json_extract(data, '$.tokens.cache.write') \
 FROM message \
 WHERE time_created >= ?1 \

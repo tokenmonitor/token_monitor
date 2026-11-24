@@ -890,7 +890,7 @@ specs do not list the test.
 | `TokenMonTests/Providers/OpenCode/OpenCodeStatsTests.swift::OpenCodeStatsTests::testMonthlyDailyBudgetUsesSubscriptionMonthDenominator` | reset Sep 5, now Aug 20 → first bar budget 100/31 | ws-opencode | ported | `crates/tokenmon-provider-opencode/tests/test_budget.rs::test_monthly_daily_budget_uses_subscription_month_denominator` |  |
 | `TokenMonTests/Providers/OpenCode/OpenCodeStatsTests.swift::OpenCodeStatsTests::testFetchDailySpendsFiltersToWindow` | Sep 10 $5, 16 $3, 17 $9, window [16,18) → {16:3, 17:9}, sum 12 (local-cal keys) | ws-opencode | ported | `crates/tokenmon-provider-opencode/tests/test_local_stats_windows.rs::test_fetch_daily_spends_filters_to_window` |  |
 | `TokenMonTests/Providers/OpenCode/OpenCodeStatsTests.swift::OpenCodeStatsTests::testMonthlyDailyBudgetSpreadsWhenNoLocalSpends` | no rows, used 12, window Aug 5–Sep 5, now Aug 7 → bars sum 12, today > 0 | ws-opencode | ported | `crates/tokenmon-provider-opencode/tests/test_local_stats.rs::test_spread_when_no_local_spends` |  |
-| `TokenMonTests/Providers/OpenCode/OpenCodeStatsTests.swift::OpenCodeStatsTests::testReasoningTokensCountAsOutput` | Reasoning tokens count as output. | ws-opencode | todo | | |
+| `TokenMonTests/Providers/OpenCode/OpenCodeStatsTests.swift::OpenCodeStatsTests::testReasoningTokensCountAsOutput` | Reasoning tokens count as output: output 1000 + reasoning 3000 -> 4000 output tokens, input 500. | ws-opencode | todo | ported | `crates/tokenmon-provider-opencode/tests/test_local_stats.rs::test_reasoning_tokens_count_as_output` |
 
 ### ws-openrouter (#19)
 
