@@ -346,7 +346,7 @@ Purpose: Claude Code deletes transcripts after ~30 days; the ledger keeps per-da
   when `totalCost > 0`, else `tokens/totalTokens*100` when `totalTokens > 0`, else 0. Sort: cost desc,
   then totalTokens desc, then modelID asc.
 
-#### 1.6.8 Pricing (`ClaudeAPIPricing`, `ratesVerifiedOn = "2026-10-06"`)
+#### 1.6.8 Pricing (`ClaudeAPIPricing`, `ratesVerifiedOn = "2026-11-17"`)
 
 `baseModelID(id)`: lowercase; if the substring after the last `-` is exactly 8 ASCII digits, drop
 `-YYYYMMDD`; else the lowercased id. `rates(for:) = table[baseModelID(id)]`.
@@ -357,18 +357,19 @@ unknown model → `nil`.
 
 | # | Model id (base) | Input $/1M | Output $/1M | Cache read $/1M | Cache write 5m $/1M (=1.25×in) | Cache write 1h $/1M (=2×in) |
 |---|---|---|---|---|---|---|
-| 1 | `claude-fable-5-1` | 10 | 50 | 0.25 | 12.5 | 20 |
-| 2 | `claude-fable-5` | 10 | 50 | 1 | 12.5 | 20 |
-| 3 | `claude-opus-5-5` | 4 | 20 | 0.20 | 5 | 8 |
-| 4 | `claude-opus-5` | 5 | 25 | 0.50 | 6.25 | 10 |
-| 5 | `claude-opus-4-8` | 5 | 25 | 0.50 | 6.25 | 10 |
-| 6 | `claude-opus-4-7` | 5 | 25 | 0.50 | 6.25 | 10 |
-| 7 | `claude-opus-4-6` | 5 | 25 | 0.50 | 6.25 | 10 |
-| 8 | `claude-sonnet-5-5` | 2 | 10 | 0.20 | 2.5 | 4 |
-| 9 | `claude-sonnet-5` | 2 | 10 | 0.20 | 2.5 | 4 |
-| 10 | `claude-sonnet-4-6` | 3 | 15 | 0.30 | 3.75 | 6 |
-| 11 | `claude-haiku-5-5` | 0.10 | 0.50 | 0.01 | 0.125 | 0.2 |
-| 12 | `claude-haiku-4-5` | 1 | 5 | 0.10 | 1.25 | 2 |
+| 1 | `claude-fable-5-2` | 8 | 40 | 0.20 | 10 | 16 |
+| 2 | `claude-fable-5-1` | 10 | 50 | 0.25 | 12.5 | 20 |
+| 3 | `claude-fable-5` | 10 | 50 | 1 | 12.5 | 20 |
+| 4 | `claude-opus-5-5` | 4 | 20 | 0.20 | 5 | 8 |
+| 5 | `claude-opus-5` | 5 | 25 | 0.50 | 6.25 | 10 |
+| 6 | `claude-opus-4-8` | 5 | 25 | 0.50 | 6.25 | 10 |
+| 7 | `claude-opus-4-7` | 5 | 25 | 0.50 | 6.25 | 10 |
+| 8 | `claude-opus-4-6` | 5 | 25 | 0.50 | 6.25 | 10 |
+| 9 | `claude-sonnet-5-5` | 2 | 10 | 0.10 | 2.5 | 4 |
+| 10 | `claude-sonnet-5` | 2 | 10 | 0.20 | 2.5 | 4 |
+| 11 | `claude-sonnet-4-6` | 3 | 15 | 0.30 | 3.75 | 6 |
+| 12 | `claude-haiku-5-5` | 0.10 | 0.50 | 0.01 | 0.125 | 0.2 |
+| 13 | `claude-haiku-4-5` | 1 | 5 | 0.10 | 1.25 | 2 |
 
 Haiku 5.5 uses its ≤100K-prompt rate for all prompt lengths.
 
