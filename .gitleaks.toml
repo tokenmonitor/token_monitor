@@ -1,15 +1,25 @@
 # gitleaks configuration — extends the default ruleset.
-# Allowlist covers build output and generated artifacts only (see SECURITY.md).
+# Allowlist covers build output, generated artifacts and a few fixed fake test
+# credentials (see SECURITY.md).
 [extend]
 useDefault = true
 
 [allowlist]
-description = "Build output and local tooling state"
+description = "Build output, local tooling state and fixed fake test credentials"
 paths = [
     '''(^|/)build/''',
     '''(^|/)\.build/''',
     '''(^|/)dist/''',
     '''(^|/)DerivedData/''',
+]
+# Fake credentials that the Windows secret-storage tests write on purpose, to
+# prove that no operation leaves them on disk (windows/crates/*/tests). They
+# are matched by exact value, so a real credential in those files still trips
+# the scan.
+regexes = [
+    '''PLAINTEXT-CANARY-0xC0FFEE(-not-a-real-secret)?''',
+    '''VERY-SECRET-PLAINTEXT-MARKER''',
+    '''sk-or-v1-PLAINTEXT-MARKER''',
 ]
 
 # These rules match provider session cookies, which the default ruleset misses.
