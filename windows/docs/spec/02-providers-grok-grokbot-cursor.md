@@ -2,8 +2,9 @@
 
 Source of truth (Swift, read in full for this spec):
 
-- `TokenMon/Providers/Grok/*` (GRPCWebParser, GrokUsageClient, GrokUsageResponseParser, GrokModels, GrokAuthSession, GrokSignIn, GrokUsagePoller, GrokDailyUsageBuilder, GrokDailyUsagePreview, GrokHistoryStore, GrokHistoryImport, GrokExportService, GrokPanelView)
-- `TokenMon/Providers/Grokbot/*` (GrokbotModels, GrokbotUsageClient, GrokbotUsagePoller, GrokbotPanelView)
+- `TokenMon/Providers/Grok/*` (GRPCWebParser, GrokUsageClient, GrokModels, GrokAuthSession, GrokSignIn, GrokUsagePoller, GrokDailyUsageBuilder, GrokDailyUsagePreview, GrokHistoryStore, GrokHistoryImport, GrokExportService, GrokPanelView, GrokUsageBreakdownCard)
+- `TokenMon/Providers/Grokbot/*` (GrokbotModels, GrokbotUsageClient, GrokbotUsageBreakdown, GrokbotUsageBreakdownCard, GrokbotUsagePoller, GrokbotPanelView)
+- `TokenMon/UI/Components/UsageBreakdownCard.swift` (the shared Usage Breakdown card)
 - `TokenMon/Providers/Cursor/*` (CursorAuthSession, CursorSignIn, CursorModels, CursorUsageClient, CursorUsageEvents, CursorUsagePoller, CursorPanelView)
 - Tests: `TokenMonTests/Providers/{Grok,Grokbot,Cursor}/*`
 
@@ -84,14 +85,13 @@ Identity/email:
 
 - Grok has no identity endpoint.
 - At capture, the email is the value of a cookie named `email` / `user_email`, or any cookie whose percent-decoded value is a plausible `local@domain.tld`. Only `sso`/`sso-rw` are captured, so in practice this is almost always nil.
-- A REST fallback payload may carry a top-level `email` string. It is used only when the client was given no account email.
 - The poller fills `snapshot.accountEmail` from `auth.accountEmail` when the fetched snapshot has none.
 
 Sign-in completion: the embedded browser navigates back to a grok.com page. After 1.5 s, cookie capture runs (up to 4 attempts × 0.4 s). Post-capture there are no provider-specific steps beyond the shared ones (store the credential, reset the strike count, poll).
 
 ### 1.2 HTTP endpoints
 
-#### 1.2.1 Primary: gRPC-web `GetGrokCreditsConfig`
+#### 1.2.1 gRPC-web `GetGrokCreditsConfig` (the only usage source)
 
 ```
 POST https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig
@@ -108,7 +108,7 @@ Headers (exactly these):
 Body: 5 bytes  00 00 00 00 00   (gRPC-web data frame: flag 0x00, big-endian length 0, empty message)
 ```
 
-It is sent on the shared no-cookie-jar, no-cache session. A cancelled request surfaces as `CancellationError`, and the poller treats that as "skipped" (not an error). Other transport errors are thrown unmapped (the raw URL error). The client then tries the REST probes (below) and rethrows the original error if none succeed.
+It is sent on the shared no-cookie-jar, no-cache session. A cancelled request surfaces as `CancellationError`, and the poller treats that as "skipped" (not an error). Other transport errors are thrown unmapped (the raw URL error). There is no fallback: every failure is thrown to the poller, which backs off like every other provider. (Upstream `8175790e` removed the old REST fallback probes of `/rest/subscriptions`, `/rest/user`, `/rest/billing/usage` and `/rest/usage`; the port must not request them.)
 
 Response handling, **in this exact order**:
 
@@ -242,52 +242,9 @@ Product enum map (field 1 inside each field-7 message):
 
 `debugFieldDump` (debug builds only) prints `frame[i] bytes=N`, then `  f32 a.b.c = v` and `  vi  a.b = v`. A plausible timestamp gets a `// <date>` suffix. This is not needed for parity.
 
-#### 1.2.6 REST fallback probes
+#### 1.2.6 No fallback
 
-These are only tried when the billing call threw something other than `.unauthorized` or cancellation. They run in order, stopping at the first success, and are skipped if the task is cancelled:
-
-| # | URL |
-|---|---|
-| 1 | `GET https://grok.com/rest/subscriptions` |
-| 2 | `GET https://grok.com/rest/user` |
-| 3 | `GET https://grok.com/rest/billing/usage` |
-| 4 | `GET https://grok.com/rest/usage` |
-
-- Headers: `Cookie`, `Accept: application/json`, `Origin: https://grok.com`, `Referer: https://grok.com/?_s=usage`, `User-Agent`.
-- Timeout 15 s.
-- A probe counts only if: the transport succeeded, the status is **exactly 200**, the body is non-empty, and `GrokUsageResponseParser.parseJSON` returns a snapshot.
-- Every other outcome, **including 401/403 and bot challenges**, moves on to the next probe. REST probes never mark the session unauthorized.
-- If no probe succeeds, the original billing error is rethrown.
-
-If `cookieHeader == nil`, the client throws `.notSignedIn(grok)` before any request.
-
-#### 1.2.7 REST JSON parser (`GrokUsageResponseParser.parseJSON`)
-
-1. Parse JSON. The root must be an object. Otherwise return nil.
-2. Wrapper recursion: for each key in `["usage","data","subscription","billing","credits","result"]` in that order, if `dict[key]` exists and `parseAny(dict[key])` succeeds, return that result. Recursion depth is unbounded.
-3. Read the percentages:
-   - `used = firstDouble(["usedPercent","usagePercent","credit_usage_percent","percentUsed","used_percent","usage_percent"])`
-   - `remaining = firstDouble(["remainingPercent","remaining_percent","percentRemaining"])`
-   - `isPercent(v)` = v is nil, or finite with `0 <= v <= 100.5`. If either fails, return nil. Bare `percent`/`value` keys are deliberately ignored.
-4. Products, from the first source present:
-   - **Array form**: `products`, else `breakdown`, else `productBreakdown`. It must be an array of objects. For each item:
-     - `id` = string `id` ?? `key` ?? `name` ?? `"other"`
-     - `name` = `displayName` ?? `name` ?? `label` ?? `ProductCatalog.displayName(id)`
-     - `pct` = `firstDouble(["percentOfPool","usagePercent"])`. If absent, drop the item.
-     - The product id is `id.lowercased()`.
-   - **Map form** (only if no array): `byProduct`, else `productUsage`, an object of `key → value`. Read `pct` as follows:
-     - If the value is a number, use it. Swift `as? Double` also accepts JSON booleans as 1/0, which is a quirk; the Rust port may treat booleans as non-numbers.
-     - If the value is an object, use `firstDouble(["percentOfPool","usagePercent"])`.
-     - Otherwise drop the entry.
-     - The product id is `key.lowercased()`, and displayName is `ProductCatalog.displayName(key)`.
-5. `resetsAt = parseFlexible(firstString(["resetsAt","resetAt","reset_at","billingPeriodEnd","periodEnd","nextReset"]))`.
-6. `credits = firstDecimal(["extraCredits","extraCreditsBalance","onDemandBalance","creditsBalance"])`. This is a Decimal; keep the written digits.
-7. Product range check: `products.allSatisfy(isPercent)`. This is effectively a no-op, because `ProductUsage.init` already clamps to 0...100.
-8. `inferredUsed = used ?? (sum(products.percentOfPool) > 0 ? sum : nil)`. If nil or not `isPercent`, return nil.
-9. `remainingPercent = remaining ?? max(0, 100 - inferredUsed)`.
-10. If products are empty, use `synthesizeProducts(inferredUsed)`.
-11. `accountEmail = argument ?? dict["email"]` (string).
-12. The snapshot init clamps used to 0...100, and remaining to 0...100.
+If `cookieHeader == nil`, the client throws `.notSignedIn(grok)` before any request. Otherwise it makes exactly one request, the billing call above, and returns its snapshot or throws its error. There is no REST probe and no JSON usage parser (`GrokUsageResponseParser` was deleted upstream).
 
 ### 1.3 Models and derived numbers
 
@@ -305,13 +262,14 @@ If `cookieHeader == nil`, the client throws `.notSignedIn(grok)` before any requ
 `ProductCatalog`:
 
 - `knownIDs` (preference toggle order): `build, api, chat, imagine, voice, other`. This is also the default visible set.
-- `displayOrder` (bars, chips, legend): `chat, build, imagine, voice, api, other`.
-- `categoryIDs` (Categories card): `chat, build, imagine, voice`. API and Other never appear there.
+- `displayOrder` (menu-bar bar, daily segments, legend, and the tie-break for usage order): `chat, build, imagine, voice, api, other`.
 - `displayName(id)`: build→`Grok Build`, api→`API`, chat→`Chat`, imagine→`Imagine`, voice→`Voice`, other→`Other`. Any other id uses Foundation `.capitalized`, which capitalizes the first letter of each word and lowercases the rest.
 - `shortName(id)`: build→`Build`, all others the same as `displayName`.
 - `filtered(products, visible, threshold)`: walk `displayOrder`. Keep the id if it is in `visible`, a product with that id exists (later duplicates win), and `percentOfPool > threshold`. **Ids not in displayOrder are dropped.**
-- `panelProducts(products, visible)` = `filtered(…, threshold: 0)`.
-- `categoryProducts(products, visible)`: for each of `categoryIDs` that is in `visible`, use the existing product, or else a placeholder with `percentOfPool 0` and the canonical displayName.
+- `sortedByUsage(products)`: `percentOfPool` descending; equal values keep `displayOrder` rank (ids not in `displayOrder` rank last).
+- `panelProducts(products, visible)` = `sortedByUsage(filtered(…, threshold: 0))`: the panel's products, **most used first** (upstream `d1034489`).
+- `breakdownProducts(products, visible)` = `panelProducts(...)`, or `[]` when every product in it has colour token `other` (the synthesized `other` slice of a breakdown-less snapshot, which says nothing the weekly bar does not). It feeds the Usage Breakdown card. API and Other appear in it like any other product.
+- There is no `categoryIDs` / `categoryProducts` any more; the Categories card was removed upstream (`de72ccd5`).
 - Settings `visibleProductIDs`:
   - The default is all `knownIDs`.
   - A persisted set is lowercased and intersected with `knownIDs`.
@@ -328,10 +286,11 @@ If `cookieHeader == nil`, the client throws `.notSignedIn(grok)` before any requ
 | `remainingPercent` | Double | at init: `clamp(remaining ?? 100 - clampedUsed)` |
 | `resetsAt` | Date? | |
 | `products` | `[ProductUsage]` | |
-| `extraCreditsBalance` | Decimal? | |
 | `accountEmail` | String? | |
 
 `usagePool` is always weekly.
+
+There is no extra-credits field (upstream `8175790e` removed `extraCreditsBalance`; it was filled only by the removed REST probes). A stored or imported snapshot that still carries `extraCreditsBalance` must still decode: the key is ignored on read and never written. The Rust `WeeklyUsageSnapshot` has no such field and does not deny unknown fields, so old `grok_history.dat` rows load unchanged. (macOS keeps an always-nil `extraCredits` column in the legacy SwiftData record only so that store opens without a migration; N/A on Windows.)
 
 `DailyUsageWeek` (Grok's own chart model) has these fields:
 
@@ -414,32 +373,30 @@ The poller calls it with `history = recent.reversed()` (oldest first, at most 20
     2. If there is no sample for the day, or the day is not in `validSampleDays`, the bar is empty.
     3. `products = endOfDay[day].products ?? current.products ?? []` and `previousProducts = endOfDay[prevDayKey].products ?? []`.
     4. **If `prevCumulative` exists:**
-       - If `dayCum + 5 < prev`: `isAfterReset = true`. If `dayCum > 0.05`, the segments are `segmentsFromProducts(products, fallbackTotal: dayCum)` (the absolute week-to-date).
+       - If `dayCum + 5 < prev`: `isAfterReset = true`. If `dayCum > 0.05`, the segments are `distribute(dayCum, products)` (the absolute week-to-date).
        - Otherwise the segments are `growthSegments(prev, dayCum, previousProducts, products)`.
     5. **Else, if `dayCum > 0.05` and (`isTrackingStart` or `isPeriodStart`):**
        - If `isTrackingStart`, set `isAfterReset = true`.
        - If the last sorted day before `dayStart` exists and `periodAdvanced(itsResets → dayResets)`, set `isAfterReset = true`.
-       - The segments are `segmentsFromProducts(products, dayCum)`.
-    6. **Else, if `dayCum > 0.05`** and the last sorted day `< dayStart` and `>= weekStart` exists and `periodAdvanced(itsResets → dayResets)`: `isAfterReset = true`, and the segments are `segmentsFromProducts(products, dayCum)`.
+       - The segments are `distribute(dayCum, products)`.
+    6. **Else, if `dayCum > 0.05`** and the last sorted day `< dayStart` and `>= weekStart` exists and `periodAdvanced(itsResets → dayResets)`: `isAfterReset = true`, and the segments are `distribute(dayCum, products)`.
     7. Otherwise the bar stays empty. The first mid-period sample is a baseline only.
 11. `isEstimated` = `validSampleDays ∩ [weekStart, weekEnd]` has fewer than 2 days, **and** `weekOffset == 0`.
 12. `finalize`:
     - Legend = the unique segment productIDs in first-seen order, then sorted by `displayOrder.firstIndex(id)` (99 when unknown). The id is not lowercased here.
     - `hasDailyData` = any day has segments.
 
-The segment helpers referenced above:
+The segment helpers referenced above. A bar's total is always the headline used % (its growth, or the week-to-date); the products only split it (upstream `135b2ddf`), so the bars add up to the pool's used % even when the breakdown does not (rounded product values, or a day without a breakdown before a day with one):
 
-- `segmentsFromProducts(products, fallbackTotal)`:
-  - Keep products with `> 0.05` and sort them for display. Each becomes a segment with its absolute percent.
-  - If none remain and `fallbackTotal > 0.05`, return one `other`/`Other` segment for the total.
 - `growthSegments(prevUsed, dayUsed, prevProducts, products)`:
-  - Compute `productDeltaSegments`: for each current product, `delta = max(0, pct - prev[id.lowercased()] ?? 0)`. Keep deltas above 0.05, sorted for display.
-  - If that list is non-empty and its sum is above 0.05, return it.
-  - Else, if `max(0, dayUsed - prevUsed) > 0.05`, return `distribute(total, products)`. Otherwise return `[]`.
+  - `total = max(0, dayUsed - prevUsed)`.
+  - `grown` = for each current product, `delta = max(0, pct - prev[id.lowercased()] ?? 0)`, kept when `delta > 0.05` (as products carrying the delta).
+  - Return `distribute(total, grownSum > 0.05 ? grown : products)`: split by the products that grew, or by the day's product mix when none grew.
 - `distribute(total, products)`:
+  - If `total <= 0.05`, return `[]`.
   - Keep products with `> 0.05`; call their sum `sum`.
-  - If none remain or `sum < 0.05`, return one `other` segment with `total`.
-  - Otherwise, for each visible product sorted for display, the share is `total * pct/sum`. Keep shares above 0.05.
+  - If none remain or `sum < 0.05`, return one `other`/`Other` segment with `total`.
+  - Otherwise, for each kept product sorted by `displayOrder`, the segment is `total * pct/sum`. No per-segment floor, so the segments always sum to `total`.
 
 Preview (`GrokDailyUsageBuilder.preview`) is UI preview data only:
 
@@ -453,11 +410,10 @@ Preview (`GrokDailyUsageBuilder.preview`) is UI preview data only:
 - Content is a UTF-8 JSON string of `{"version":1,"rows":[WeeklyUsageSnapshot…]}` using Swift's **default** `JSONEncoder`:
   - Dates are encoded as Double **seconds since 2001-01-01T00:00:00Z** (Apple reference date). This is not Unix time and not ISO.
   - UUIDs are uppercase hyphenated strings.
-  - Decimal is a JSON number.
   - Nil optionals are omitted.
   - `colorToken` is the raw string (`build|api|chat|imagine|voice|other`).
   - Product keys are `id, displayName, percentOfPool, colorToken`.
-  - Snapshot keys are `id, fetchedAt, usedPercent, remainingPercent, resetsAt?, products, extraCreditsBalance?, accountEmail?`.
+  - Snapshot keys are `id, fetchedAt, usedPercent, remainingPercent, resetsAt?, products, accountEmail?`. A row from an older build may also carry `extraCreditsBalance`; it is ignored on load and dropped on the next write.
   - **For the Windows port**: there is no macOS file to migrate, so the Rust format may differ. If cross-platform import is wanted, decode reference-date doubles.
 - Load: decode the file and sort rows by `fetchedAt` ascending.
   - If the file exists but cannot be decoded, set `storeFailed = true`. The store then runs in memory and **never overwrites** the bad file.
@@ -467,7 +423,7 @@ Preview (`GrokDailyUsageBuilder.preview`) is UI preview data only:
 - `append(s)`:
   1. Make `s.accountEmail` the active account.
   2. Let `last = recent.first`. If it is on the same day, `|Δused| < 0.05`, and `|Δt| < 60 s`, ignore `s` (noise).
-  3. If `last` is on the same day and has the same usage (`|Δused|<0.05`, `|Δremaining|<0.05`, equal `resetsAt`, equal products (full equality, including colour), equal credits, equal account), ignore `s` (idle poll, no write).
+  3. If `last` is on the same day and has the same usage (`|Δused|<0.05`, `|Δremaining|<0.05`, equal `resetsAt`, equal products (full equality, including colour), equal account), ignore `s` (idle poll, no write).
   4. Otherwise remove all rows with the same account on the same day, and insert `s` in chronological position. This gives one end-of-day row per account per day.
   5. Reload `recent` and schedule a flush.
 - Flush: debounce 400 ms (each append cancels and reschedules). `flush()` is synchronous and runs on app terminate. A write only happens when dirty, a store exists, and `!storeFailed`. If the write fails, the store stays dirty and the next append retries.
@@ -486,14 +442,13 @@ The save dialog's default filename is `grok-usage.csv` or `grok-usage.json`. Inp
 
 **CSV**:
 
-- Header: `fetchedAt,usedPercent,remainingPercent,resetsAt,products,extraCredits,accountEmail`
+- Header: `fetchedAt,usedPercent,remainingPercent,resetsAt,products,accountEmail` (the `extraCredits` column was removed upstream; the Rust export uses this header).
 - Lines are joined with `\n`, with **no trailing newline**.
 - Per row:
   - `fetchedAt`: ISO-8601 UTC `yyyy-MM-dd'T'HH:mm:ss'Z'`. Not escaped.
   - `usedPercent`, `remainingPercent`: `%.2f`.
   - `resetsAt`: ISO-8601, or empty. Escaped.
   - `products`: `"<id>:<percent>"` joined by `|`. The percent uses Swift `Double.description` (e.g. `25.0`, `0.1`, `33.333333333333336`, shortest round-trip repr with at least one decimal). Escaped.
-  - `extraCredits`: Decimal description (e.g. `4.1`), or empty. Escaped.
   - `accountEmail`: escaped, or empty.
 - `csvEscape(v)`:
   1. If the first Unicode scalar is one of `=`, `+`, `-`, `@`, TAB, or CR, prefix `'`.
@@ -502,7 +457,7 @@ The save dialog's default filename is `grok-usage.csv` or `grok-usage.json`. Inp
 **JSON**:
 
 - Pretty-printed with **sorted keys**, dates ISO-8601 (`yyyy-MM-ddTHH:mm:ssZ`, no fractional seconds).
-- The top level is an array of rows with keys `accountEmail?, extraCreditsBalance?, fetchedAt, products[], remainingPercent, resetsAt?, usedPercent`. There is no `id`.
+- The top level is an array of rows with keys `accountEmail?, fetchedAt, products[], remainingPercent, resetsAt?, usedPercent`. There is no `id`.
 - Product keys: `colorToken, displayName, id, percentOfPool`.
 - Nil values are omitted.
 - Apple's encoder escapes `/` as `\/` and uses `"key" : value` with 2-space indentation. Byte-identical output is not required by tests; the test only requires a JSON array.
@@ -553,21 +508,18 @@ States, in priority order:
    - Text: `Sign in to load your usage.`
    - Button `Sign In…`, with keyboard shortcut Cmd+S (use Ctrl+S on Windows).
 
-Usage view, as a vertical stack with spacing 10:
+Usage view, as a vertical stack with spacing 10. SuperGrok uses the Grokbot layout (upstream `de72ccd5`): the weekly bar, then the Usage Breakdown card. The old segmented pool bar, Categories card and Extra credits card are gone.
 
 1. **Pool card**
    - Header `Usage Pool Weekly`, trailing `"<Int(round(used))>% Used"`. Rounding is half away from zero.
-   - `SegmentedUsageBar(panelProducts(snapshot.products, visible), height 8)`:
-     - Draw the visible products with `> 0.05` in order, then a grey remainder slot if `100 - min(100, sum) > 0.5`. The remainder colour is the primary colour at 12% opacity.
-     - Gaps are 2 px, each segment has min width 3 px, and the corner radius is 2. Width per slot = `max(3, usable * pct/100)`; if the total exceeds `usable`, scale all slots down proportionally. `usable = width - gap*(slots-1)`.
+   - A `SlimUsageTrack` with its label row hidden: an 8 px capsule track filled in the **Grok accent** to `clamp(used)%` (the headline used % as one fill; no per-product segments).
    - If `resetsAt` is set, the caption `Format.resetCaption(resetsAt)` = `"Resets " + format("EEE dd MMMM h:mma")` in the POSIX locale with `AM`/`PM` lowercased, e.g. `Resets Thu 16 July 8:25pm`.
-2. **Categories card**, shown if `categoryProducts` is non-empty. It is empty only when all four are hidden.
-   - Header `Categories`.
-   - One row of up to 4 chips, in order Chat, Build, Imagine, Voice: a 7 px circle in the product colour, `shortName` (semibold), and `"<Int(round(pct))>%"`.
-   - Absent products show `0%`.
-   - The chip input is `categoryProducts(panelProducts(...), visible)`.
-3. **Extra credits card**, only if `extraCreditsBalance > 0`: `Extra credits` with a USD amount on the right, formatted en_US `$#,##0.00` (e.g. `$4.10`, `$410.00`).
-4. **Daily chart card**, only when `poller.week(weekOffset)` is non-nil (`DailyUsageChartView`). It renders above the following views, because the hover label can overflow.
+2. **Usage Breakdown card** (`GrokUsageBreakdownCard` over the shared `UsageBreakdownCard`), shown only when `breakdownProducts(snapshot.products, visible)` is non-empty:
+   - Header `Usage Breakdown`.
+   - One `SegmentedUsageBar` (height 8) with one slice per product, **most used first**. The slices fill the bar: slice `share = pct / Σ pct * 100` (no remainder track, since the shares sum to 100; slices with `share <= 0.05` are skipped). Gaps are 2 px, each slice has min width 3 px, corner radius 2; width per slot = `max(3, usable * share/100)`, scaled down proportionally if the total exceeds `usable = width - gap*(slots-1)`.
+   - Below it, a wrapping row of legend chips in the same order: a 7 px circle in the product colour, `shortName` (12 pt semibold, secondary), then the percent (primary).
+   - The chip percents are whole-number percents **of the pool** by largest remainder: `target = round(Σ pct)`; each share is `floor(pct / Σ * target)`, and the missing units go to the largest fractional remainders (ties to the earlier item). So 25 / 12 / 6 / 4 shows 25 / 12 / 6 / 4 (summing to 47), not stretched to 100. All zeros when the sum is 0.
+3. **Daily chart card**, only when `poller.week(weekOffset)` is non-nil (`DailyUsageChartView`). It renders above the following views, because the hover label can overflow.
    - **Header row**:
      - `Daily Budget` section header, then `14.3%`.
      - Spacer, then `week.rangeLabel` on the right.
@@ -592,10 +544,10 @@ Usage view, as a vertical stack with spacing 10:
      - If there is no pace caption, and the week `isEstimated` or has no daily data, show `Bars update between polls · week totals above`.
      - Otherwise, no footer.
    - Past weeks pass `periodUsedPercent` and `resetsAt` as nil.
-5. If `lastError` is set, show `StaleDataCaption`: the error message and `Showing data from <relative time> ago.`
-6. Sign-out button, a person-minus icon with tooltip `Sign out`. It opens an inline confirm `Sign out of Grok?` with a confirm (check icon) and a cancel (x icon). Confirming calls `auth.signOut()`.
+4. If `lastError` is set, show `StaleDataCaption`: the error message and `Showing data from <relative time> ago.`
+5. Sign-out button, a person-minus icon with tooltip `Sign out`. It opens an inline confirm `Sign out of Grok?` with a confirm (check icon) and a cancel (x icon). Confirming calls `auth.signOut()`.
 
-The menu bar (shared renderer) uses `ProductCatalog.filtered(products, visible, threshold: 0.05)`.
+The menu bar (shared renderer) uses `ProductCatalog.filtered(products, visible, threshold: 0.05)`, which stays in `displayOrder` (only the panel orders by use).
 
 ---
 
@@ -659,10 +611,45 @@ The expired-session case returns 307 to `api.workos.com/user_management/authoriz
    - Otherwise `label = firstString(["grokPlanLabel","grok_plan_label"])`, trimmed. The entitlement is `.superGrok(planLabel: label non-empty ? label : plan)`.
 7. The snapshot's `usedPercent = clamp(percent)`, and `accountEmail` is the one passed in.
 
-`captionText`:
+The entitlement is parsed and kept on the snapshot, but nothing displays it: the `via Cursor` / `via SuperGrok` funding caption and its `captionText` were removed upstream (`2bb5158f`).
 
-- `.cursor` gives `via Cursor`.
-- `.superGrok(l)` gives `via <l>`, or `via SuperGrok` when `l` is empty.
+#### 2.3.1 Usage breakdown by source (`GetGrokBotUsageBreakdown`, upstream `2ec2b515`)
+
+A second call, made only after a successful allowance poll:
+
+```
+POST https://api2.cursor.sh/aiserver.v1.DashboardService/GetGrokBotUsageBreakdown
+Headers: Authorization: Bearer <access token>
+         Connect-Protocol-Version: 1
+         Accept: application/json
+         User-Agent: TokenMon/<version>
+         Content-Type: application/json
+Body: {}
+```
+
+- The access token comes from the stored Cursor cookie header (`accessToken(fromCookieHeader:)`): split on `;`, trim spaces, take the first pair whose lowercased text starts with `workoscursorsessiontoken=`, percent-decode the value (`<user id>::<JWT>`), and take the part after the last `::` (or the whole value when there is none). It counts only if it splits on `.` into exactly 3 parts (empty parts allowed). Otherwise there is no token, no request is made, and the result is nil. No cookie is sent and nothing new is stored.
+- HTTP mapping is the shared `ProviderHTTP` one (§2.2); the body goes through `ProviderHTTP.jsonObject`.
+- `GrokbotUsageBreakdown.parse(root)`: the response holds one unit of a oneof. Check, in this order, the first key present whose value is an object:
+  | Unit | Keys | Row value keys | Conversion |
+  |---|---|---|---|
+  | `weeklyLimitPercent` | `weeklyLimitPpm`, `weekly_limit_ppm` | `ppm` | ppm / 10 000 → percent of the weekly allowance |
+  | `billingCyclePercent` | `billingCyclePpm`, `billing_cycle_ppm` | `ppm` | ppm / 10 000 → percent of the cycle allowance |
+  | `usd` | `billedCents`, `billed_cents` | `cents` | cents / 100 → US dollars |
+  - None present → nil (no breakdown).
+  - Rows: `bySource` ?? `by_source` (array of objects; missing → empty). Rows arrive one per UTC day and source and are **summed per source** over the period. `byBot` is ignored.
+  - Row source: `JSON.string(source)`, else `JSON.number(source)` as an integer string. `GrokbotUsageSource(wireValue:)` uppercases, strips `GROK_BOT_USAGE_SOURCE_`, and maps `USER`/`1` → user, `AUTOMATION`/`2` → automation, `AGENT`/`3` → agent, `GROUP`/`4` → group; anything else (including `UNSPECIFIED`, unknown names, missing) → other.
+  - Row value: `JSON.firstDouble(row, valueKeys) ?? 0` (int64s arrive as strings).
+  - `periodStart` / `periodEnd`: `periodStartMs`/`period_start_ms` and `periodEndMs`/`period_end_ms`, epoch milliseconds, nil unless > 0.
+  - `slices`: sources with a total > 0, sorted by value descending; ties keep the source order `user, automation, agent, group, other`.
+- `isShown(now)` = slices non-empty and (`periodEnd` nil or `now < periodEnd`).
+
+| Source | Label | sRGB |
+|---|---|---|
+| `user` | `You` | Grokbot accent (0.38, 0.42, 0.50) |
+| `automation` | `Routines` | (0.40, 0.56, 0.82) |
+| `agent` | `Bot to Bot` | (0.42, 0.68, 0.70) |
+| `group` | `Group chats` | (0.60, 0.52, 0.78) |
+| `other` | `Other` | (0.62, 0.62, 0.64) |
 
 ### 2.4 Models
 
@@ -698,12 +685,13 @@ Derived:
   5. Call `hourly.record(used, at: fetchedAt)`. Hourly key `grokbot_hourly_today`.
   6. `budgetReferenceNow = fetchedAt`.
   7. `dailyBudgetDays = buildDailyBudgetDays(spentByDay: daily.spentByDay, resetsAt: resetsAt ?? weeklyResetsAt, daysInPeriod, windowStart: daily.windowStart, interruptedWindowStart: daily.interruptedWindowStart, now: fetchedAt)`.
+- Breakdown (§2.3.1): when `ProviderRefresh.run` returned `.success`, fetch the breakdown with the same cookie header. Capture `auth.sessionGeneration` first; drop the result if the task was cancelled or the generation changed (sign-out or account switch). A non-nil result replaces `breakdown`; nil keeps the last one. Any error keeps the last one, is only logged, sets no `lastError`, and never counts against the shared Cursor session. A test that injects a fake snapshot fetch gets no breakdown unless it injects one too.
 - `buildDailyBudgetDays(...)`: if `resetsAt` is nil, return `[]`. Otherwise `DailyBudget.buildWeeklyWindowDays(limitUSD: 100, daysInPeriod, resetsAt, spentByDay, windowStart, interruptedWindowStart, weekOffset, now)`.
   - Units are pool-% (limit 100), so `budget/day = 100/daysInPeriod`.
   - Bars run from period start to the day before reset. Before the reset instant on reset morning, the first bar stays the old period start.
   - After an early reset, the preserved prior-window days lead the bars, flagged `isPriorWindow`. These behaviours live in Core.
 - `dailyBudgetDays(weekOffset:)` rebuilds from the live store with `resetsAt = snapshot?.resetsAt ?? weeklyResetsAt`, `daysInPeriod = snapshot?.daysInPeriod() ?? 7`, and `now = budgetReferenceNow ?? Date()`.
-- `signedOut` (from the shared Cursor session) clears `snapshot`, `dailyBudgetDays`, `weeklyResetsAt`, `budgetReferenceNow`, `lastError`, and `lastRefreshedAt`. `accountReset` also clears the hourly and daily stores.
+- `signedOut` (from the shared Cursor session) clears `snapshot`, `dailyBudgetDays`, `breakdown`, `weeklyResetsAt`, `budgetReferenceNow`, `lastError`, and `lastRefreshedAt`. `accountReset` also clears the hourly and daily stores.
 - Headline: `snapshot.usedPercent`, `snapshot.resetsAt`, `alertAccount = cursorAuth.accountEmail`.
 
 ### 2.6 Panel (`GrokbotPanelView`)
@@ -715,10 +703,12 @@ The title row is `Grokbot`.
    - Button: `Sign In to Grokbot…` (the default title).
 2. **Snapshot**:
    - **Pool card**:
-     - Header `Usage Pool <pool>`, trailing `"<Int(round(used))>% Used"`.
-     - Caption `entitlement.captionText` (secondary).
+     - Header `Usage Pool <pool>`, trailing `"<Int(round(used))>% Used"`. There is no funding caption.
      - If `hasIncludedAllowance`: a `SlimUsageTrack`. Its own label row is hidden. It is an 8 px capsule track in the Grokbot accent at width `clamp(used)%`, with a reset caption `Resets …` when `resetsAt` is set.
      - Otherwise the text `This plan has no included Bot allowance — usage bills on demand.`
+   - If `poller.breakdown` is set and `isShown(now)`, the **Usage Breakdown card** (`GrokbotUsageBreakdownCard` over the shared `UsageBreakdownCard`, same layout as SuperGrok §1.7), **above** the daily budget:
+     - One slice per source, most used first, in the source colours above; the slices fill the bar.
+     - Legend chips: the source label, then the value. Percent units show whole-number percents of the pool by largest remainder (as in §1.7); the `usd` unit shows `Format.usd(value)` per chip (e.g. `$2.50`) and the bar splits by dollars.
    - If `hasIncludedAllowance`, a `NavigableDailyBudgetCard(style: .weekly, accent: grokbot accent, periodUsedPercent: used, resetsAt: snapshot.resetsAt, daysForWeek: poller.dailyBudgetDays(weekOffset:))`:
      - The card is hidden when the days are empty (no reset ever observed).
      - Weekly pace uses the first non-prior bar as the period start.
@@ -1068,7 +1058,6 @@ Derived:
   1. `scanForField7Products` and `parseProductSubMessage` read varints past the sub-message `end`. The length check then computes `UInt64(end - index)`, which traps in Swift when `index > end`. In Rust, bound every read to `end` and use checked arithmetic; on violation, stop the walk (field-7 scan) or reject the product (sub-message).
   2. `scanForField7Products` has no recursion-depth limit. Cap it (e.g. at 64) or use an explicit stack, to avoid stack overflow on adversarial nesting.
   3. The tie order of unknown products is nondeterministic. Sort by (display index, id).
-  4. In the REST map form, booleans coerce to 1/0. Ignoring booleans is acceptable.
 
 ---
 
@@ -1080,7 +1069,6 @@ All dates in these tests are UTC Gregorian unless noted. Tests that call `Calend
 
 | Test | Asserts |
 |---|---|
-| `testParseFixtureJSON` | REST JSON `{usedPercent:35, remainingPercent:65, resetsAt:"2026-07-16T20:25:00Z", products:[build 25, api 9, chat 1]}` gives used 35, remaining 65, 3 products, `products[0].id=="build"` with colour `build`. Order is preserved; the REST array is **not** re-sorted. |
 | `testRemainingDefaultsFromUsed` | `WeeklyUsageSnapshot(used:40)` has remaining 60. |
 | `testUsageValuesAreClampedAtModelBoundary` | used 140 → 100; remaining −20 → 0; product 140 → 100. |
 | `testGrokDomainMatchingDoesNotAcceptLookalikes` | `.grok.com` ✓, `accounts.x.ai` ✓, `evilgrok.com` ✗, `x.ai.evil.example` ✗. |
@@ -1090,9 +1078,12 @@ All dates in these tests are UTC Gregorian unless noted. Tests that call `Calend
 | `testCSVEscapeGuardsLeadingTabAndCarriageReturn` | `"\t=1+1"`→`'\t=1+1`; `"\r=1+1"`→`"'\r=1+1"` (quoted); `"\r\n=1+1"`→`"'\r\n=1+1"`; `-5`→`'-5`; `plain`→`plain`. |
 | `testCSVEscapeQuotesCarriageReturnAndLineBreaks` | `a\rb`, `a\r\nb`, `a\nb`, `a,b` are each wrapped in quotes; `say "hi"`→`"say ""hi"""`. |
 | `testExportJSONRoundTrip` | JSON export parses as an array. |
-| `testByProductMapParse` | `{usedPercent:35, byProduct:{build:25,api:9,chat:1}}` gives 3 products. |
 | `testGRPCProductBreakdown` | Hex fixture A (§5.8) gives used 36, 2 products: chat 23, build 13. The enum-6 entry with no percent is dropped. |
 | `testOversizedLengthVarintDoesNotCrash` | Bytes `3A FF×9 7F` throw (no crash). |
+| `testNestedKeyVarintPastMessageEndDoesNotCrash` | used-64 prefix + `12 01 92 01 00`: used 64, no products (the scan stops at the message end). |
+| `testProductKeyVarintPastMessageEndDoesNotCrash` | used-64 prefix + `3A 01 92 01 00`: used 64, no products. |
+| `testProductValueVarintPastMessageEndRejectsProduct` | used-64 prefix + `3A 07 15 00 00 F0 41 08 84` + `01`: used 64, the product is rejected. |
+| `testDeeplyNestedMessagesDoNotOverflowStack` | 200,000 nested `12 <len>` messages after the used-64 prefix: used 64, no products, no stack overflow. |
 | `testGRPCLiveCreditsConfigEnumMap` | Hex fixture B gives used 64; build 30, chat 21, imagine 12, other 1; no voice; 4 products; order `[chat, build, imagine, other]`. |
 | `testGRPCProductBreakdownWithVoiceGap` | Built frame: used 64, products (2:30),(4:21),(6:nil),(5:12),(3:1) give 4 products with correct pairing and no voice. |
 | `testGRPCProductBreakdownWithExplicitZeroVoicePercent` | Same, with (6:0.0): imagine 12, other 1, no voice, count 4. |
@@ -1101,6 +1092,8 @@ All dates in these tests are UTC Gregorian unless noted. Tests that call `Calend
 | `testDailyUsageShowsYesterdayAfterDayRollover` | Flat 39 → 39 gives both days 0, not estimated, no daily data. |
 | `testDailyUsageEmptyUntilSecondSampleDay` | A single sample gives no daily data, estimated, all segments empty. |
 | `testDailyUsageExcludesFlatBuildFromToday` | 46 → 51 → 58 with build flat at 16: today is 7 with no build segment, and chat, api, and voice present. |
+| `testDailyUsageTotalFollowsHeadlineWhenBreakdownChanges` | now 07-15T12Z, reset 07-16T18:57Z. Yesterday 20 with only the synthesized `other` slice; today 25 (chat 15, build 10). Today's total is 5 (the headline growth, not the 25 of per-product increases), segments `[chat, build]` with chat 3. |
+| `testDailyUsageTotalFollowsHeadlineWhenProductsUndercount` | Yesterday 10.4 (chat 10), today 16.8 (chat 16): today's total is 6.4. |
 | `testDailyUsageMidPeriodRecalibrationRebasesOntoThatDay` | 51 → 71 → 28 with the same reset: today `isAfterReset`, earlier days 0, today ≈28 including build, estimated = true. |
 | `testDailyUsageRealResetShowsPostResetUsage` | Yesterday 90 (old reset 07-16) and today 12 (new reset 07-23), window from the old reset, now 07-15T20Z: today `isAfterReset`, total 12, includes chat. |
 | `testDailyUsageIgnoresPriorBillingPeriodSample` | A prior-period sample (reset 07-09) plus one in-week sample: all bars empty, estimated. |
@@ -1117,15 +1110,17 @@ All dates in these tests are UTC Gregorian unless noted. Tests that call `Calend
 | Test | Asserts |
 |---|---|
 | `testCancelledFetchThrowsCancellationError` | Cancelling a never-responding request surfaces cancellation. |
-| `testBillingSuccessSkipsRESTProbes` | Billing 200 with fixture A gives used 36; only the billing path is requested. |
-| `testBillingUnauthorizedRejectsWithoutProbing` | Billing 401 gives `.unauthorized`; only billing is requested. |
+| `testBillingSuccessRequestsOnlyBilling` | Billing 200 with fixture A gives used 36; only the billing path is requested. |
+| `testBillingUnauthorizedIsUnauthorized` | Billing 401 gives `.unauthorized`; only billing is requested. |
 | `testTrailersOnlyUnauthenticatedIsUnauthorized` | 200, headers `grpc-status: 16`, `grpc-message: unauthenticated`, empty body: `.unauthorized`. |
 | `testBillingChallengeIsTransient` | 403 `text/html` "Just a moment..." is not `.unauthorized`. |
-| `testRESTProbeRejectionNeverInvalidates` | Billing 500 and all REST 401: the error is not unauthorized; requested paths are billing followed by all 4 REST paths in order. |
-| `testRESTProbeSuppliesUsageWhenBillingFails` | Billing 503 and REST #3 (`/rest/billing/usage`) returning `{"usage":{"usedPercent":42}}` give used 42. |
-| `testUnrelatedPercentKeyIsNotUsage` | `{"data":{"percent":50,"name":"profile completion"}}` gives nil. |
-| `testOutOfRangeUsageIsRejected` | usedPercent 1500 → nil; −3 → nil. |
-| `testProductsWithoutUsageKeysAreIgnored` | Products with only `value`/`percent` keys give nil. |
+| `testBillingServerErrorRequestsNothingElse` | Billing 500: the error is not `.unauthorized`, and only the billing path is requested (no fallback). |
+| `testParseResetExpiriesReadsEachToken` | Saved resets (see "Saved resets" below): two tokens give expiries `[1_790_000_000, 1_800_000_000]`. |
+| `testParseResetExpiriesEmptyReplyHasNoTokens` | An empty message, and an empty body, give `[]`. |
+| `testParseResetExpiriesIgnoresImplausibleTimestamps` | Expiry 42 is not counted. |
+| `testParseResetExpiriesThrowsOnTrailerError` | Trailer `grpc-status:13` throws. |
+| `testFetchSavedResetsCountsUnexpiredTokens` | now 1_795_000_000, tokens expiring 1_800_000_000 and 1_790_000_000: count 1, next expiry 1_800_000_000; only the resets path is requested. |
+| `testFetchSavedResetsChallengeIsNotUnauthorized` | A 403 challenge on the resets path is not `.unauthorized`. |
 
 ### 5.3 `ProductCatalogTests.swift`
 
@@ -1138,8 +1133,11 @@ All dates in these tests are UTC Gregorian unless noted. Tests that call `Calend
 | `testPanelProductsKeepsSynthesizedOtherSlice` | `synthesizeProducts(64)` gives `[other]` at 64. |
 | `testPanelProductsDropsZeroValueProducts` | chat 0, build 40 gives `[build]`. |
 | `testPanelProductsRespectsVisibility` | `[chat]`. |
-| `testCategoryProductsAlwaysIncludesTheFourCategories` | chat 40, api 8, other 7 gives ids `[chat, build, imagine, voice]` with values `[40, 0, 0, 0]`. |
-| `testCategoryProductsRespectsVisibility` | visible `{chat, voice}` gives `[chat, voice]`. |
+| `testPanelProductsOrdersMostUsedFirst` | chat 5, build 40, api 12, imagine 20 gives `[build, imagine, api, chat]`. |
+| `testSortedByUsageBreaksTiesByDisplayOrder` | voice 10, build 10, chat 10 gives `[chat, build, voice]`. |
+| `testBreakdownProductsMatchTheBar` | chat 30, api 8, other 12, voice 0 gives `[chat, other, api]`. |
+| `testBreakdownProductsSkipASynthesizedOtherSlice` | `synthesizeProducts(64)` gives `[]`. |
+| `testBreakdownProductsRespectVisibility` | chat 30, build 20 with visible `{build}` gives `[build]`. |
 
 ### 5.4 `GrokPollerGatingTests.swift`
 
@@ -1332,13 +1330,30 @@ frame   = 0x00, u32be(len(payload)), payload
 | `testSameDayStartAndResetFallsBackToAWeek` | Gives 7, 7 bars. |
 | `testDaysInPeriodFallsBackToSevenWithoutPeriodStart` | Gives 7. |
 | `testReportedSpanIsNotSanitized` | `reportedSpanDays` 14, `daysInPeriod` 7; nil without dates. |
-| `testEntitlementCaptions` | `via Cursor`, `via SuperGrok Heavy`, `via SuperGrok`. |
 | `testGrokbotIsARegisteredUsageProvider` | Present in `usageProviders`; displayName `Grokbot`; polled by `grokbot` and `overview`, not by `cursor`. |
 | `testIsNewWindowDetectsRollover` | `QuotaWindowTransition.isRollover`: +7 days → true; +1 day → false; nil previous → false; backwards → false. (Core) |
 | `testEarlyResetKeepsHistoryAndAnchorsBarsToNewPeriodStart` | Real `DailyQuotaDeltaStore`. Polls 10, 30, 50 (start −3d, reset +4d), then 3 (start 0, reset +7): 7 window bars from today (first 3); 3 prior bars (−3d first; 20, 20). Pace start is today; earned 100/7; headroom 100/7 − 3. |
 | `testNewPeriodStartWinsOverUnchangedResetInstant` | `interruptedWindowStart` = the old start day; the window opens today; 7 bars. |
 | `testNormalRolloverShowsNoPriorWindowBars` | 7 bars, no prior bars, first 3; the store keeps yesterday at 40. |
 | `testSamePeriodDropIsNotTreatedAsEarlyReset` | 60 → 20 in the same period: no interrupted start, no prior bars. |
+
+### 5.10.1 `Grokbot/GrokbotUsageBreakdownTests.swift` and the Grokbot breakdown cases in `Core/Polling/PollerSessionGuardTests.swift`
+
+| Test | Asserts |
+|---|---|
+| `testWeeklyBreakdownSumsDaysPerSourceAsPercent` | `weeklyLimitPpm` rows summed per source (user 100000 + 150000 ppm, automation 300000, agent 120000; `byBot` ignored): unit weekly, slices `[automation, user, agent]` = `[30, 25, 12]`, total 67, period start/end from `periodStartMs`/`periodEndMs` strings. |
+| `testBilledCentsBecomeDollars` | `billed_cents.by_source` (`USER` 250, source `2` 125): unit usd, `[user, automation]` = `[2.5, 1.25]`. |
+| `testBillingCycleShareIsPercent` | `billingCyclePpm` GROUP 50000: unit billing cycle, value 5. |
+| `testMissingOrEmptyBreakdown` | `{}` gives nil; `{"weeklyLimitPpm":{}}` gives no slices and is not shown. |
+| `testUnknownAndUnspecifiedSourcesCountAsOther` | `UNSPECIFIED` and unknown names → other; lowercase `grok_bot_usage_source_agent` → agent; `4` → group; agent's label `Bot to Bot`. |
+| `testTiesKeepSourceOrder` | AGENT 10000 and USER 10000 give `[user, agent]`. |
+| `testHiddenAfterThePeriodEnds` | Shown 1 s before `periodEnd`; hidden at `periodEnd`. |
+| `testAccessTokenComesFromTheSessionCookie` | `other=1; WorkosCursorSessionToken=u1%3A%3Aa.b.c; theme=dark` and `WorkosCursorSessionToken=a.b.c` both give `a.b.c`. |
+| `testNoAccessTokenWithoutAJWT` | `WorkosCursorSessionToken=live`, `other=aaa.bbb.ccc`, and `""` give nil. |
+| `testGrokbotPublishesBreakdownAfterSnapshot` | A successful poll publishes the breakdown. |
+| `testGrokbotBreakdownFailureKeepsLastAndSession` | A failing breakdown keeps the last one, sets no error, and never counts against the Cursor session. |
+| `testGrokbotBreakdownSkippedWhenSnapshotFails` | No breakdown fetch when the allowance poll fails. |
+| `testGrokbotStaleBreakdownIsDroppedAndSignOutClearsIt` | A breakdown landing after a sign-out/session change is dropped; sign-out clears it. |
 
 ### 5.11 `Cursor/CursorUsageClientTests.swift`
 
@@ -1409,7 +1424,7 @@ Fixtures:
 | 2 | `GRPCWebParser` internals (`dataFrames`, `scanProtobuf`, `scanForField7Products`, `parseProductSubMessage`, `readVarint`) | bytes | No out-of-bounds read or overflow (the §4 divergences: bound varints to `end`, cap recursion). The path length is ≤ 5 for `scanProtobuf`. |
 | 3 | `GRPCWebParser.validateTrailers(data)` / `trailerFields` | bytes | No panic on invalid UTF-8, bad percent escapes, or huge lengths. Unauthorized only for status 16 or `unauthenticated`. |
 | 4 | `GRPCWebParser.validateHeaders` | Header strings (`grpc-status`, `grpc-message`) | Integer parse never panics (overflow, signs, whitespace). |
-| 5 | `GrokUsageResponseParser.parseJSON` | JSON bytes | No panic or stack overflow on deep wrapper nesting. On Some: used and remaining in 0...100; products clamped. |
+| 5 | `GrokbotUsageBreakdown.parse` + `GrokbotUsageClient.accessToken(fromCookieHeader:)` | JSON / header strings | No panic on wrong types, huge or non-finite numbers, or bad percent escapes. On Some: slice values > 0 and finite, sorted descending, one slice per source. The token, when returned, has exactly 3 `.`-separated parts. (Replaces the REST JSON parser removed upstream in `8175790e`.) |
 | 6 | `GrokbotUsageClient.parseUsageStatus` | Body bytes (JSON or HTML) | Only `.unauthorized`, `.badResponse`, or `.custom` errors. On Ok, used in 0...100. Timestamp math with huge `seconds`/`nanos` (non-finite or overflowing) must not panic. |
 | 7 | `CursorUsageClient.parseSummary` | JSON | Percents clamped; money finite; no panic on wrong types (strings for numbers, nested `val` wrappers). |
 | 8 | `CursorUsageClient.parseUsageEventsPage` + `CursorUsageEvent.init` + `eventTimestamp` + `date(fromEpochNumber)` | JSON | `pageCount >= events.count`. `safeInt`/`safeInt64` saturate. Timestamps are > 0 and finite. Token sums never overflow (summed in f64, then saturated). |
