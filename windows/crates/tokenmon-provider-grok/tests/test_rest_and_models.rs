@@ -121,6 +121,44 @@ fn test_panel_products() {
     );
 }
 
+/// The usage bar runs from the most used product to the least used.
+#[test]
+fn test_panel_products_orders_most_used_first() {
+    let all = visible(&ProductCatalog::KNOWN_IDS);
+    let products = [
+        p("chat", 5.0),
+        p("build", 40.0),
+        p("api", 12.0),
+        p("imagine", 20.0),
+    ];
+    assert_eq!(
+        ids(&ProductCatalog::panel_products(&products, &all)),
+        ["build", "imagine", "api", "chat"]
+    );
+}
+
+/// Equal usage keeps the canonical display order.
+#[test]
+fn test_sorted_by_usage_breaks_ties_by_display_order() {
+    let products = [p("voice", 10.0), p("build", 10.0), p("chat", 10.0)];
+    assert_eq!(
+        ids(&ProductCatalog::sorted_by_usage(&products)),
+        ["chat", "build", "voice"]
+    );
+}
+
+/// The category chips run from most to least used; unused ones come last in
+/// display order.
+#[test]
+fn test_category_products_orders_most_used_first() {
+    let all = visible(&ProductCatalog::KNOWN_IDS);
+    let products = [p("chat", 3.0), p("voice", 9.0), p("build", 30.0)];
+    assert_eq!(
+        ids(&ProductCatalog::category_products(&products, &all)),
+        ["build", "voice", "chat", "imagine"]
+    );
+}
+
 /// Category rows always include the four categories, with 0% placeholders.
 #[test]
 fn test_category_products() {

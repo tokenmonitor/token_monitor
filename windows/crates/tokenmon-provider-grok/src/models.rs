@@ -162,21 +162,47 @@ impl ProductCatalog {
             .collect()
     }
 
-    /// Products for the panel bar and category rows (any non-zero slice).
+    /// `products` ordered most used first; ties keep the canonical display
+    /// order, then the id (Swift's tie order for unknown ids is
+    /// nondeterministic; the port is deterministic).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tokenmon_provider_grok::models::{ProductCatalog, ProductUsage};
+    /// let p = |id: &str, pct| ProductUsage::new(id, id, pct);
+    /// let sorted = ProductCatalog::sorted_by_usage(&[p("voice", 10.0), p("build", 10.0), p("chat", 10.0)]);
+    /// let ids: Vec<&str> = sorted.iter().map(|p| p.id.as_str()).collect();
+    /// assert_eq!(ids, ["chat", "build", "voice"]);
+    /// ```
+    pub fn sorted_by_usage(products: &[ProductUsage]) -> Vec<ProductUsage> {
+        let mut sorted = products.to_vec();
+        sorted.sort_by(|a, b| {
+            b.percent_of_pool
+                .partial_cmp(&a.percent_of_pool)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| Self::display_index(&a.id).cmp(&Self::display_index(&b.id)))
+                .then_with(|| a.id.cmp(&b.id))
+        });
+        sorted
+    }
+
+    /// Products for the panel's usage bar: the snapshot's own products, most
+    /// used first, limited to the visible set, keeping any non-zero slice.
     pub fn panel_products(
         products: &[ProductUsage],
         visible: &HashSet<String>,
     ) -> Vec<ProductUsage> {
-        Self::filtered(products, visible, 0.0)
+        Self::sorted_by_usage(&Self::filtered(products, visible, 0.0))
     }
 
-    /// One row per visible canonical category, with a 0% placeholder when the
-    /// product is absent.
+    /// One row per visible canonical category, most used first, with a 0%
+    /// placeholder when the product is absent.
     pub fn category_products(
         products: &[ProductUsage],
         visible: &HashSet<String>,
     ) -> Vec<ProductUsage> {
-        Self::CATEGORY_IDS
+        let rows: Vec<ProductUsage> = Self::CATEGORY_IDS
             .iter()
             .filter(|id| visible.contains(**id))
             .map(|id| {
@@ -187,7 +213,8 @@ impl ProductCatalog {
                     .cloned()
                     .unwrap_or_else(|| ProductUsage::new(id, Self::display_name(id), 0.0))
             })
-            .collect()
+            .collect();
+        Self::sorted_by_usage(&rows)
     }
 
     /// The persisted visible-product set after normalization: lowercased and
