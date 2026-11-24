@@ -395,3 +395,34 @@ fn test_month_daily_budget_shows_previous_period_days_on_the_current_week() {
     assert!((thursday.spent_usd - 10.0 / 3.0).abs() < 0.001);
     assert!(!thursday.is_prior_window);
 }
+
+/// Spend from the morning before a mid-day reset belongs to the old month: it
+/// must not shape the new month's first bar.
+#[test]
+fn test_month_daily_budget_splits_the_reset_day_at_the_reset_instant() {
+    let mut f = Fixture::new();
+    f.insert(
+        "a",
+        Msg::go("a", day(11, 18, 9).timestamp(), "m", 5.0),
+        false,
+    );
+    f.insert(
+        "b",
+        Msg::go("b", day(11, 18, 15).timestamp(), "m", 1.0),
+        false,
+    );
+    f.insert(
+        "c",
+        Msg::go("c", day(11, 19, 10).timestamp(), "m", 1.0),
+        false,
+    );
+    let load = scan_fn(&f);
+    let budget = month_daily_budget_days(
+        &request(day(11, 19, 12), 10.0 / 3.0, Some(day(12, 18, 14))),
+        load.as_ref(),
+        &Calendar::utc(),
+    )
+    .unwrap();
+    assert!((spent_on(&budget.days, day(11, 18, 0)) - 5.0 / 3.0).abs() < 0.001);
+    assert!((spent_on(&budget.days, day(11, 19, 0)) - 5.0 / 3.0).abs() < 0.001);
+}

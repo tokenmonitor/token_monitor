@@ -135,8 +135,8 @@ pub fn fetch_month_daily_spends(
     daily_spends(go_rows_between(&scan, start, end), cal)
 }
 
-/// `(period, history)` spends for `[start, end)` with 28 days of history
-/// before it; any read error gives two empty maps.
+/// `(period, history)` spends: `period` covers `[start, end)` and `history`
+/// the 28 days before `start`, split at the exact `start` instant; any read error gives two empty maps.
 pub fn spend_history(
     load: &ScanFn,
     start: DateTime<Utc>,
@@ -149,8 +149,12 @@ pub fn spend_history(
     let Some((from, scan)) = scan else {
         return (SpentByDay::new(), SpentByDay::new());
     };
-    let all = daily_spends(go_rows_between(&scan, from, end), cal);
-    all.into_iter().partition(|(day, _)| *day >= start_day)
+    // Rows are split at the exact `start` instant before bucketing by day, so
+    // the morning before a mid-day reset stays in history, not the new period.
+    (
+        daily_spends(go_rows_between(&scan, start, end), cal),
+        daily_spends(go_rows_between(&scan, from, start), cal),
+    )
 }
 
 fn percent_of(limit: f64, usd: &SpentByDay) -> SpentByDay {
