@@ -198,10 +198,10 @@ specs do not list the test.
 ### ws-core-usage (#9)
 
 | Swift test | Behavior | Workstream | Status | Rust test | Notes |
-| `TokenMonTests/Core/Usage/SavedResetsTests.swift::SavedResetsTests::testCountOutsideRangeIsNil` | Count outside range is nil. | ws-core-usage | todo | | |
-| `TokenMonTests/Core/Usage/SavedResetsTests.swift::SavedResetsTests::testExpirationsDropExpiredAndKeepSoonest` | Expirations drop expired and keep soonest. | ws-core-usage | todo | | |
-| `TokenMonTests/Core/Usage/SavedResetsTests.swift::SavedResetsTests::testExpirationsWithoutDatesHaveNoNextExpiry` | Expirations without dates have no next expiry. | ws-core-usage | todo | | |
-| `TokenMonTests/Core/Usage/SavedResetsTests.swift::SavedResetsTests::testAllExpiredIsNil` | All expired is nil. | ws-core-usage | todo | | |
+| `TokenMonTests/Core/Usage/SavedResetsTests.swift::SavedResetsTests::testCountOutsideRangeIsNil` | Count outside 1..=50 is rejected; 50 accepted | ws-core-usage | ported | `crates/tokenmon-core/tests/test_usage_saved_resets.rs::test_count_outside_range_is_none` | |
+| `TokenMonTests/Core/Usage/SavedResetsTests.swift::SavedResetsTests::testExpirationsDropExpiredAndKeepSoonest` | Expired (<= now) dropped, undated kept, soonest expiry wins | ws-core-usage | ported | `crates/tokenmon-core/tests/test_usage_saved_resets.rs::test_expirations_drop_expired_and_keep_soonest` | |
+| `TokenMonTests/Core/Usage/SavedResetsTests.swift::SavedResetsTests::testExpirationsWithoutDatesHaveNoNextExpiry` | Undated resets have no next expiry | ws-core-usage | ported | `crates/tokenmon-core/tests/test_usage_saved_resets.rs::test_expirations_without_dates_have_no_next_expiry` | |
+| `TokenMonTests/Core/Usage/SavedResetsTests.swift::SavedResetsTests::testAllExpiredIsNil` | All expired or empty yields no inventory | ws-core-usage | ported | `crates/tokenmon-core/tests/test_usage_saved_resets.rs::test_all_expired_is_none` | |
 |---|---|---|---|---|---|
 | `TokenMonTests/Core/Usage/DailyTokenUsageTests.swift::DailyTokenUsageTests::testAddMergesModelsAndSortsByTokens` | Add merges models and sorts by tokens: total 116; cost 3.5; models [B:100, A:16] | ws-core-usage | ported | `crates/tokenmon-core/tests/test_usage_daily_tokens.rs::test_add_merges_models_and_sorts_by_tokens` |  |
 | `TokenMonTests/Core/Usage/DailyTokenUsageTests.swift::DailyTokenUsageTests::testUnpricedUsageIsFlagged` | cost nil plus flag; empty model name counts only toward totals | ws-core-usage | ported | `crates/tokenmon-core/tests/test_usage_daily_tokens.rs::test_unpriced_usage_is_flagged` |  |

@@ -13,6 +13,7 @@ pub mod monthly_change;
 pub mod pace;
 pub mod percent;
 pub mod pool;
+pub mod saved_resets;
 pub mod source;
 pub mod tokens;
 pub mod week_offset;
@@ -24,6 +25,7 @@ pub use monthly_change::{ChangeUnit, MonthlyUsageChange, ParseChangeUnitError};
 pub use pace::{AllowancePeriod, PaceHeadroom, ParseAllowancePeriodError};
 pub use percent::Percent;
 pub use pool::{ParseUsagePoolError, UsagePool};
+pub use saved_resets::SavedResets;
 pub use source::{ParseUsageSourceError, UsageSource};
 pub use tokens::{
     DailyTokenUsage, DailyTokenUsageTally, HoverLabelRow, ModelTokens, TokenCounts, api_value_text,
