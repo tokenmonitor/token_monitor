@@ -10,11 +10,15 @@
 mod common;
 
 use chrono::{TimeZone, Utc};
-use common::{FIXTURE_A_HEX, FIXTURE_B_HEX, USED_PERCENT_64, hex, synthetic_frame, utc, varint};
+use common::{
+    FIXTURE_A_HEX, FIXTURE_B_HEX, USED_PERCENT_64, grpc_web_body, hex, pb_field, reset_token,
+    synthetic_frame, utc, varint,
+};
 use tokenmon_core::{ProviderError, UsageError};
 use tokenmon_provider_grok::grpc::{
-    data_frames, looks_like_protobuf, parse_usage, percent_decode, product_for_enum, read_varint,
-    scan_protobuf, trailer_fields, validate_headers, validate_status, validate_trailers,
+    data_frames, looks_like_protobuf, parse_reset_expiries, parse_usage, percent_decode,
+    product_for_enum, read_varint, scan_protobuf, trailer_fields, validate_headers,
+    validate_status, validate_trailers,
 };
 
 fn now() -> chrono::DateTime<Utc> {
@@ -486,4 +490,52 @@ fn test_fuzz_signed_status_is_still_unauthenticated() {
             "{raw:?}"
         );
     }
+}
+
+/// `testParseResetExpiriesReadsEachToken`: every token's expiry is read.
+#[test]
+fn test_parse_reset_expiries_reads_each_token() {
+    let message = [
+        pb_field(10, &reset_token("tok_a", 1_800_000_000)),
+        pb_field(10, &reset_token("tok_b", 1_790_000_000)),
+    ]
+    .concat();
+    let mut secs: Vec<i64> = parse_reset_expiries(&grpc_web_body(&message, 0))
+        .unwrap()
+        .iter()
+        .map(chrono::DateTime::timestamp)
+        .collect();
+    secs.sort_unstable();
+    assert_eq!(secs, [1_790_000_000, 1_800_000_000]);
+}
+
+/// `testParseResetExpiriesEmptyReplyHasNoTokens`: an empty frame or an empty
+/// body holds no tokens.
+#[test]
+fn test_parse_reset_expiries_empty_reply_has_no_tokens() {
+    assert!(
+        parse_reset_expiries(&grpc_web_body(&[], 0))
+            .unwrap()
+            .is_empty()
+    );
+    assert!(parse_reset_expiries(&[]).unwrap().is_empty());
+}
+
+/// `testParseResetExpiriesIgnoresImplausibleTimestamps`: an expiry of 42 is
+/// not a plausible timestamp and is not counted.
+#[test]
+fn test_parse_reset_expiries_ignores_implausible_timestamps() {
+    let message = pb_field(10, &reset_token("tok_a", 42));
+    assert!(
+        parse_reset_expiries(&grpc_web_body(&message, 0))
+            .unwrap()
+            .is_empty()
+    );
+}
+
+/// `testParseResetExpiriesThrowsOnTrailerError`: a non-zero trailer status is
+/// an error.
+#[test]
+fn test_parse_reset_expiries_errors_on_trailer_status() {
+    assert!(parse_reset_expiries(&grpc_web_body(&[], 13)).is_err());
 }

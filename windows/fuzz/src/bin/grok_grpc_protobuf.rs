@@ -9,7 +9,7 @@ use std::collections::HashSet;
 use libfuzzer_sys::fuzz_target;
 use tokenmon_core::{ProviderError, UsageError};
 use tokenmon_provider_grok::grpc::{
-    MAX_SCAN_PATH_LEN, parse_usage, read_varint, scan_for_field7_products, scan_protobuf,
+    MAX_SCAN_PATH_LEN, parse_reset_expiries, parse_usage, read_varint, scan_for_field7_products, scan_protobuf,
 };
 use tokenmon_provider_grok::models::ProductCatalog;
 
@@ -25,6 +25,15 @@ fuzz_target!(|data: &[u8]| {
 
     // The product scan over a sub-range must never read outside it.
     let _ = scan_for_field7_products(data, end / 2, end, 0);
+
+    // Reset expiries are plausible instants (2023..2036) or a typed error.
+    if let Ok(expiries) = parse_reset_expiries(data) {
+        assert!(
+            expiries
+                .iter()
+                .all(|e| (1_700_000_000..=2_100_000_000).contains(&e.timestamp()))
+        );
+    }
 
     match parse_usage(data, chrono::DateTime::UNIX_EPOCH) {
         Ok(parsed) => {

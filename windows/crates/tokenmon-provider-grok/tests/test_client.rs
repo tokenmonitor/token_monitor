@@ -13,11 +13,11 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use common::{FIXTURE_A_HEX, clock_at, hex, utc};
+use common::{FIXTURE_A_HEX, clock_at, grpc_web_body, hex, pb_field, reset_token, utc};
 use tokenmon_core::{BoxFuture, ProviderError, UsageError};
 use tokenmon_provider_grok::client::{
     BILLING_ENDPOINT, GrokEndpoints, GrokUsageClient, HttpMethod, HttpRequest, HttpResponse,
-    HttpTransport, ReqwestTransport, is_bot_challenge,
+    HttpTransport, REMAINING_RESETS_ENDPOINT, ReqwestTransport, is_bot_challenge,
 };
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -266,6 +266,7 @@ async fn test_reqwest_transport_against_mock_server() {
     )
     .with_endpoints(GrokEndpoints {
         billing: format!("{}/billing", server.uri()),
+        ..GrokEndpoints::default()
     });
     let snapshot = c.fetch_usage().await.unwrap();
     assert!((snapshot.used_percent - 36.0).abs() < 0.01);
@@ -286,4 +287,58 @@ async fn test_reqwest_transport_connection_refused() {
         .await
         .unwrap_err();
     assert!(!err.contains("127.0.0.1"));
+}
+
+/// `testFetchSavedResetsCountsUnexpiredTokens`: expired tokens are left out;
+/// the count and soonest expiry come from the rest, and only the resets path
+/// is requested.
+#[tokio::test]
+async fn test_fetch_saved_resets_counts_unexpired_tokens() {
+    let t = Arc::new(FakeTransport::default());
+    let message = [
+        pb_field(10, &reset_token("tok_a", 1_800_000_000)),
+        pb_field(10, &reset_token("tok_old", 1_790_000_000)),
+    ]
+    .concat();
+    t.route(
+        REMAINING_RESETS_ENDPOINT,
+        resp(200, &grpc_web_body(&message, 0)),
+    );
+    let now = chrono::DateTime::from_timestamp(1_795_000_000, 0).unwrap();
+    let client = GrokUsageClient::new(
+        t.clone(),
+        clock_at(now),
+        "TokenMon/test",
+        Some("sso=a".to_owned()),
+        None,
+    );
+    let resets = client.fetch_saved_resets().await.unwrap().unwrap();
+    assert_eq!(resets.count(), 1);
+    assert_eq!(resets.next_expiry().unwrap().timestamp(), 1_800_000_000);
+    assert_eq!(t.paths(), [REMAINING_RESETS_ENDPOINT]);
+}
+
+/// `testFetchSavedResetsChallengeIsNotUnauthorized`: a Cloudflare challenge on
+/// the resets path is an error the poller ignores, not a rejected session.
+#[tokio::test]
+async fn test_fetch_saved_resets_challenge_is_not_unauthorized() {
+    let t = Arc::new(FakeTransport::default());
+    t.route(
+        REMAINING_RESETS_ENDPOINT,
+        resp(403, b"<html><title>Just a moment...</title></html>"),
+    );
+    let err = client(&t, Some("sso=a"))
+        .fetch_saved_resets()
+        .await
+        .unwrap_err();
+    assert!(!is_unauthorized(&err));
+}
+
+/// Without a cookie header no saved-resets request is made.
+#[tokio::test]
+async fn test_fetch_saved_resets_needs_sign_in() {
+    let t = Arc::new(FakeTransport::default());
+    let err = client(&t, None).fetch_saved_resets().await.unwrap_err();
+    assert!(matches!(err, ProviderError::NotSignedIn(_)));
+    assert!(t.paths().is_empty());
 }

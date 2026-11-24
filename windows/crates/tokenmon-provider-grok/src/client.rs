@@ -11,6 +11,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use tokenmon_core::usage::SavedResets;
 use tokenmon_core::{BoxFuture, Clock, ProviderError, ProviderErrorContext, UsageError};
 
 use crate::grpc::{self, Parsed};
@@ -19,6 +20,10 @@ use crate::models::{WeeklyUsageSnapshot, synthesize_products};
 /// gRPC-web billing endpoint.
 pub const BILLING_ENDPOINT: &str =
     "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig";
+
+/// gRPC-web endpoint listing saved usage-limit reset coupons.
+pub const REMAINING_RESETS_ENDPOINT: &str =
+    "https://grok.com/prod_mc_billing.ConsumerUiSvc/GetRemainingResets";
 
 /// Per-request timeout.
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
@@ -190,12 +195,15 @@ pub fn bot_challenge_error(status: u16) -> ProviderError {
 pub struct GrokEndpoints {
     /// The gRPC-web billing URL.
     pub billing: String,
+    /// The gRPC-web saved-resets URL.
+    pub remaining_resets: String,
 }
 
 impl Default for GrokEndpoints {
     fn default() -> Self {
         Self {
             billing: BILLING_ENDPOINT.to_owned(),
+            remaining_resets: REMAINING_RESETS_ENDPOINT.to_owned(),
         }
     }
 }
@@ -250,6 +258,26 @@ impl GrokUsageClient {
         self.fetch_grpc_web_billing().await
     }
 
+    /// Saved reset coupons that have not expired now, or `None` when there
+    /// are none.
+    ///
+    /// # Errors
+    ///
+    /// `NotSignedIn` without a cookie header, otherwise any request, status or
+    /// parse error. Callers treat every error as "no new information": this
+    /// call never decides whether the session is valid.
+    pub async fn fetch_saved_resets(&self) -> Result<Option<SavedResets>, ProviderError> {
+        if self.cookie_header.is_none() {
+            return Err(ProviderError::NotSignedIn(CTX));
+        }
+        let body = self.post_grpc_web(&self.endpoints.remaining_resets).await?;
+        let expiries: Vec<_> = grpc::parse_reset_expiries(&body)?
+            .into_iter()
+            .map(Some)
+            .collect();
+        Ok(SavedResets::from_expirations(&expiries, self.clock.now()))
+    }
+
     fn headers(&self, extra: &[(&str, &str)]) -> Vec<(String, String)> {
         let cookie = self
             .cookie_header
@@ -269,9 +297,20 @@ impl GrokUsageClient {
     }
 
     async fn fetch_grpc_web_billing(&self) -> Result<WeeklyUsageSnapshot, ProviderError> {
+        let body = self.post_grpc_web(&self.endpoints.billing).await?;
+        grpc::validate_trailers(&body)?;
+        let now = self.clock.now();
+        let parsed = grpc::parse_usage(&body, now)?;
+        Ok(self.snapshot_from(parsed, now))
+    }
+
+    /// POSTs an empty gRPC-web message to `url` and returns the body once the
+    /// HTTP status and any header `grpc-status` are clean. Trailer-frame
+    /// status is left to the parser.
+    async fn post_grpc_web(&self, url: &str) -> Result<Vec<u8>, ProviderError> {
         let request = HttpRequest {
             method: HttpMethod::Post,
-            url: self.endpoints.billing.clone(),
+            url: url.to_owned(),
             headers: self.headers(&[
                 ("Content-Type", "application/grpc-web+proto"),
                 ("x-grpc-web", "1"),
@@ -301,10 +340,7 @@ impl GrokUsageClient {
             response.header("grpc-status"),
             response.header("grpc-message"),
         )?;
-        grpc::validate_trailers(&response.body)?;
-        let now = self.clock.now();
-        let parsed = grpc::parse_usage(&response.body, now)?;
-        Ok(self.snapshot_from(parsed, now))
+        Ok(response.body)
     }
 
     fn snapshot_from(

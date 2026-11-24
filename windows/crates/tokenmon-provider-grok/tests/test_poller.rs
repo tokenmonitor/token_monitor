@@ -13,13 +13,18 @@ use std::sync::{Arc, Mutex};
 
 use chrono::{DateTime, Utc};
 use common::{clock_at, utc};
+use tokenmon_core::ManualClock;
+use tokenmon_core::usage::SavedResets;
 use tokenmon_core::{
     AUTH_FAILURE_THRESHOLD, AuthEvent, AuthEventListener, AuthSession, AuthSessionState, BoxFuture,
     ProviderError, ProviderErrorContext, SessionGeneration,
 };
 use tokenmon_provider_grok::history::GrokHistoryStore;
 use tokenmon_provider_grok::models::WeeklyUsageSnapshot;
-use tokenmon_provider_grok::poller::{GrokFetch, GrokUsagePoller, HourlySink, RefreshOutcome};
+use tokenmon_provider_grok::poller::{
+    GrokFetch, GrokSavedResetsFetch, GrokUsagePoller, HourlySink, RefreshOutcome,
+    SAVED_RESETS_REFRESH_INTERVAL,
+};
 
 struct FakeAuth {
     state: Mutex<AuthSessionState>,
@@ -350,4 +355,119 @@ async fn test_flush_history_is_safe_without_backing() {
     r.poller.perform_refresh().await;
     r.poller.flush_history();
     r.poller.with_history(|h| assert_eq!(h.recent().len(), 1));
+}
+
+// -- Saved resets -------------------------------------------------------------
+
+type ResetsScript = dyn Fn() -> Result<Option<SavedResets>, ProviderError> + Send + Sync;
+
+struct ScriptedResets {
+    calls: AtomicUsize,
+    script: Box<ResetsScript>,
+}
+
+impl GrokSavedResetsFetch for ScriptedResets {
+    fn fetch(&self, _: String) -> BoxFuture<'_, Result<Option<SavedResets>, ProviderError>> {
+        Box::pin(async move {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            (self.script)()
+        })
+    }
+}
+
+struct ResetsRig {
+    poller: GrokUsagePoller,
+    auth: Arc<FakeAuth>,
+    resets: Arc<ScriptedResets>,
+    clock: Arc<ManualClock>,
+}
+
+fn resets_rig(
+    usage: impl Fn() -> Result<WeeklyUsageSnapshot, ProviderError> + Send + Sync + 'static,
+    resets: impl Fn() -> Result<Option<SavedResets>, ProviderError> + Send + Sync + 'static,
+) -> ResetsRig {
+    let auth = FakeAuth::signed_in(Some("me@x.co"));
+    let fetch = Arc::new(ScriptedFetch {
+        auth: auth.clone(),
+        calls: AtomicUsize::new(0),
+        script: Box::new(move |_| usage()),
+    });
+    let resets = Arc::new(ScriptedResets {
+        calls: AtomicUsize::new(0),
+        script: Box::new(resets),
+    });
+    let clock = clock_at(utc(2026, 7, 15, 12, 0));
+    let poller = GrokUsagePoller::new(
+        auth.clone(),
+        GrokHistoryStore::in_memory(clock.clone()),
+        clock.clone(),
+        fetch,
+        None,
+    )
+    .with_saved_resets_fetcher(resets.clone());
+    ResetsRig {
+        poller,
+        auth,
+        resets,
+        clock,
+    }
+}
+
+/// `testSavedResetsLoadAfterSuccessAndAreThrottled`: a good refresh loads the
+/// resets once; refreshes inside the throttle window do not ask again, and one
+/// after it does.
+#[tokio::test]
+async fn test_saved_resets_load_after_success_and_are_throttled() {
+    let r = resets_rig(|| Ok(snapshot(10.0)), || Ok(SavedResets::new(2, None)));
+    r.poller.perform_refresh().await;
+    r.poller.perform_refresh().await;
+    assert_eq!(r.resets.calls.load(Ordering::SeqCst), 1);
+    assert_eq!(r.poller.saved_resets().unwrap().count(), 2);
+    r.clock
+        .advance(SAVED_RESETS_REFRESH_INTERVAL.to_std().unwrap());
+    r.poller.perform_refresh().await;
+    assert_eq!(r.resets.calls.load(Ordering::SeqCst), 2);
+}
+
+/// `testSavedResetsSkippedWhenUsageFails`: a failed usage fetch never asks for
+/// the saved resets.
+#[tokio::test]
+async fn test_saved_resets_skipped_when_usage_fails() {
+    let r = resets_rig(
+        || {
+            Err(ProviderError::Network(
+                ProviderErrorContext::Grok,
+                "offline".into(),
+            ))
+        },
+        || Ok(SavedResets::new(1, None)),
+    );
+    r.poller.perform_refresh().await;
+    assert_eq!(r.resets.calls.load(Ordering::SeqCst), 0);
+    assert!(r.poller.saved_resets().is_none());
+}
+
+/// `testSavedResetsFailureIsQuiet`: a rejected or blocked saved-resets request
+/// shows no error and never strikes the session.
+#[tokio::test]
+async fn test_saved_resets_failure_is_quiet() {
+    let r = resets_rig(|| Ok(snapshot(10.0)), || Err(unauthorized()));
+    for _ in 0..4 {
+        r.poller.perform_refresh().await;
+    }
+    assert!(r.poller.last_error().is_none());
+    assert!(r.poller.saved_resets().is_none());
+    let state = r.auth.state();
+    assert!(!state.needs_sign_in && state.is_signed_in);
+    assert_eq!(state.consecutive_auth_failures, 0);
+}
+
+/// `testSignOutClearsSavedResets`: signing out drops the loaded resets.
+#[tokio::test]
+async fn test_sign_out_clears_saved_resets() {
+    let r = resets_rig(|| Ok(snapshot(10.0)), || Ok(SavedResets::new(1, None)));
+    r.poller.perform_refresh().await;
+    assert!(r.poller.saved_resets().is_some());
+    r.auth.fire(AuthEvent::SignedOut);
+    assert!(r.poller.saved_resets().is_none());
 }

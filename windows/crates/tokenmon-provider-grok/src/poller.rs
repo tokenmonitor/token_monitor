@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use chrono::{DateTime, Utc};
+use tokenmon_core::usage::SavedResets;
 use tokenmon_core::{
     AuthEvent, AuthEventListener, AuthSession, BoxFuture, Clock, ProviderError,
     ProviderErrorContext,
@@ -28,6 +29,20 @@ pub trait GrokFetch: Send + Sync {
         account_email: Option<String>,
     ) -> BoxFuture<'_, Result<WeeklyUsageSnapshot, ProviderError>>;
 }
+
+/// Fetches the saved usage-limit resets (best effort; every error is ignored
+/// by the poller).
+pub trait GrokSavedResetsFetch: Send + Sync {
+    /// Fetches the unexpired saved resets with the given cookie header.
+    fn fetch(
+        &self,
+        cookie_header: String,
+    ) -> BoxFuture<'_, Result<Option<SavedResets>, ProviderError>>;
+}
+
+/// Shortest wait between saved-reset requests. Coupons change rarely, so this
+/// is far longer than the usage poll.
+pub const SAVED_RESETS_REFRESH_INTERVAL: chrono::Duration = chrono::Duration::minutes(30);
 
 /// Receives the used% of each good poll (the hourly activity store).
 pub trait HourlySink: Send + Sync {
@@ -53,6 +68,11 @@ struct State {
     snapshot: Option<WeeklyUsageSnapshot>,
     last_error: Option<ProviderError>,
     last_refreshed_at: Option<DateTime<Utc>>,
+    /// Saved reset coupons, refreshed at most every
+    /// [`SAVED_RESETS_REFRESH_INTERVAL`].
+    saved_resets: Option<SavedResets>,
+    /// When the coupons were last requested, successfully or not.
+    saved_resets_requested_at: Option<DateTime<Utc>>,
 }
 
 /// Grok poller: displayed state plus the guarded refresh.
@@ -61,6 +81,7 @@ pub struct GrokUsagePoller {
     history: Arc<Mutex<GrokHistoryStore>>,
     clock: Arc<dyn Clock>,
     fetcher: Arc<dyn GrokFetch>,
+    saved_resets_fetcher: Option<Arc<dyn GrokSavedResetsFetch>>,
     hourly: Option<Arc<dyn HourlySink>>,
     enabled: AtomicBool,
     refreshing: AtomicBool,
@@ -94,6 +115,7 @@ impl GrokUsagePoller {
             history: Arc::new(Mutex::new(history)),
             clock,
             fetcher,
+            saved_resets_fetcher: None,
             hourly,
             enabled: AtomicBool::new(true),
             refreshing: AtomicBool::new(false),
@@ -109,6 +131,14 @@ impl GrokUsagePoller {
             hourly: poller.hourly.clone(),
         }));
         poller
+    }
+
+    /// Supplies the saved-resets fetch. Without one no saved-resets request
+    /// is ever made.
+    #[must_use]
+    pub fn with_saved_resets_fetcher(mut self, fetcher: Arc<dyn GrokSavedResetsFetch>) -> Self {
+        self.saved_resets_fetcher = Some(fetcher);
+        self
     }
 
     /// Enables or disables the provider; a disabled poller never fetches.
@@ -137,7 +167,10 @@ impl GrokUsagePoller {
             return RefreshOutcome::Skipped;
         };
         let generation = session.session_generation;
-        let result = self.fetcher.fetch(cookie, session.account_email).await;
+        let result = self
+            .fetcher
+            .fetch(cookie.clone(), session.account_email)
+            .await;
         if !self.auth.is_current(generation) {
             return RefreshOutcome::Skipped;
         }
@@ -145,6 +178,7 @@ impl GrokUsagePoller {
             Ok(snapshot) => {
                 self.auth.record_auth_success();
                 self.publish(snapshot);
+                self.refresh_saved_resets(cookie).await;
                 RefreshOutcome::Published
             }
             Err(error) => {
@@ -158,6 +192,41 @@ impl GrokUsagePoller {
                 RefreshOutcome::Failed
             }
         }
+    }
+
+    /// Requests the saved reset coupons when the last request is older than
+    /// [`SAVED_RESETS_REFRESH_INTERVAL`]. Runs only after a successful usage
+    /// fetch. Any error keeps the previous value and never counts against the
+    /// session; a result that lands after a sign-out or account switch is
+    /// dropped.
+    async fn refresh_saved_resets(&self, cookie: String) {
+        let Some(fetcher) = &self.saved_resets_fetcher else {
+            return;
+        };
+        let now = self.clock.now();
+        {
+            let mut state = lock(&self.state);
+            if state
+                .saved_resets_requested_at
+                .is_some_and(|at| now - at < SAVED_RESETS_REFRESH_INTERVAL)
+            {
+                return;
+            }
+            state.saved_resets_requested_at = Some(now);
+        }
+        let generation = self.auth.state().session_generation;
+        // Errors are deliberately dropped: the call is best effort and its
+        // message could carry request details.
+        if let Ok(resets) = fetcher.fetch(cookie).await
+            && self.auth.is_current(generation)
+        {
+            lock(&self.state).saved_resets = resets;
+        }
+    }
+
+    /// The saved reset coupons last loaded, when the account has any.
+    pub fn saved_resets(&self) -> Option<SavedResets> {
+        lock(&self.state).saved_resets
     }
 
     fn publish(&self, mut snapshot: WeeklyUsageSnapshot) {

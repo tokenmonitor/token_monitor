@@ -3,6 +3,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
+use tokenmon_core::usage::SavedResets;
 use tokenmon_provider_chatgpt::{ChatGptSnapshot, parse_session_token, parse_usage};
 
 fuzz_target!(|data: &[u8]| {
@@ -12,6 +13,10 @@ fuzz_target!(|data: &[u8]| {
             assert!(w.used_percent.is_finite() && (0.0..=100.0).contains(&w.used_percent));
             let _ = w.label("Fallback");
             assert!((0.0..=100.0).contains(&w.remaining_percent()));
+        }
+        if let Some(resets) = response.saved_resets {
+            assert!((1..=SavedResets::MAXIMUM_COUNT).contains(&resets.count()));
+            assert!(resets.next_expiry().is_none());
         }
         let snap = ChatGptSnapshot::new(response, chrono::DateTime::UNIX_EPOCH);
         assert!((0.0..=100.0).contains(&snap.headline_used_percent()));

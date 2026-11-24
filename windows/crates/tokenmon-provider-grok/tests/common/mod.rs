@@ -98,3 +98,35 @@ pub fn clock_at(now: DateTime<Utc>) -> Arc<ManualClock> {
 pub fn clock_with_offset(now: DateTime<Utc>, hours: i32) -> Arc<ManualClock> {
     Arc::new(ManualClock::new(now).with_offset(FixedOffset::east_opt(hours * 3600).unwrap()))
 }
+
+/// Length-delimited protobuf field.
+pub fn pb_field(number: u64, payload: &[u8]) -> Vec<u8> {
+    let mut out = varint(number << 3 | 2);
+    out.extend(varint(payload.len() as u64));
+    out.extend_from_slice(payload);
+    out
+}
+
+/// One `GetRemainingResets` token: id (10), granted_at (20), expires_at (30),
+/// each timestamp a message with seconds as field 1.
+pub fn reset_token(id: &str, expires: u64) -> Vec<u8> {
+    let timestamp = |seconds: u64| [vec![0x08], varint(seconds)].concat();
+    [
+        pb_field(10, id.as_bytes()),
+        pb_field(20, &timestamp(1_780_000_000)),
+        pb_field(30, &timestamp(expires)),
+    ]
+    .concat()
+}
+
+/// gRPC-web body: one data frame, then a trailer frame with `status`.
+pub fn grpc_web_body(message: &[u8], status: u32) -> Vec<u8> {
+    fn frame(flags: u8, payload: &[u8]) -> Vec<u8> {
+        let mut out = vec![flags];
+        out.extend((payload.len() as u32).to_be_bytes());
+        out.extend_from_slice(payload);
+        out
+    }
+    let trailer = format!("grpc-status:{status}\r\n");
+    [frame(0x00, message), frame(0x80, trailer.as_bytes())].concat()
+}

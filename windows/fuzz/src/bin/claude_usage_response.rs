@@ -10,6 +10,10 @@ fuzz_target!(|data: &[u8]| {
             assert!((0.0..=100.0).contains(&w.used_percent));
             assert!((0.0..=100.0).contains(&w.remaining_percent()));
         }
+        if let Some(resets) = r.saved_resets {
+            let count = resets.count();
+            assert!((1..=tokenmon_core::usage::SavedResets::MAXIMUM_COUNT).contains(&count));
+        }
     }
     if let Ok(s) = std::str::from_utf8(data)
         && let Some(org) = organization_id_from_cookie_header(s)

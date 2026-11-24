@@ -10,6 +10,7 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use tokenmon_core::settings::AppSettings;
 use tokenmon_core::storage::{AppPaths, DailyQuotaDeltaStore, HourlyDeltaActivityStore, TextStore};
+use tokenmon_core::usage::SavedResets;
 use tokenmon_core::{BoxFuture, Clock, ProviderError, ProviderErrorContext, ProviderId};
 use tokenmon_provider_claude::fetch::{ClaudeUsageClient, DEFAULT_BASE_URL};
 use tokenmon_provider_claude::poller::{ClaudePollerDeps, ClaudeUsagePoller, live_code_usage};
@@ -19,7 +20,9 @@ use tokenmon_provider_cursor::poller::{CursorPollerConfig, CursorUsagePoller};
 use tokenmon_provider_grok::client::{GrokUsageClient, ReqwestTransport};
 use tokenmon_provider_grok::history::{FileBacking, GrokHistoryStore};
 use tokenmon_provider_grok::models::WeeklyUsageSnapshot;
-use tokenmon_provider_grok::poller::{GrokFetch, GrokUsagePoller, HourlySink};
+use tokenmon_provider_grok::poller::{
+    GrokFetch, GrokSavedResetsFetch, GrokUsagePoller, HourlySink,
+};
 use tokenmon_provider_grok::provider_poller::GrokProviderPoller;
 use tokenmon_provider_opencode::console::{
     ConsoleClient, ConsoleRequest, ConsoleResponse, ConsoleTransport,
@@ -118,6 +121,25 @@ impl GrokFetch for LiveGrokFetch {
                 account_email,
             )
             .fetch_usage()
+            .await
+        })
+    }
+}
+
+impl GrokSavedResetsFetch for LiveGrokFetch {
+    fn fetch(
+        &self,
+        cookie_header: String,
+    ) -> BoxFuture<'_, Result<Option<SavedResets>, ProviderError>> {
+        Box::pin(async move {
+            GrokUsageClient::new(
+                self.transport.clone(),
+                Arc::clone(&self.clock),
+                self.user_agent.clone(),
+                Some(cookie_header),
+                None,
+            )
+            .fetch_saved_resets()
             .await
         })
     }
@@ -252,19 +274,21 @@ pub fn build_registry(deps: &ProviderDeps<'_>) -> Result<ProviderRegistry, Build
         )),
         clock: Arc::clone(clock),
     });
-    let grok_inner = Arc::new(GrokUsagePoller::new(
-        sessions.grok.clone(),
-        GrokHistoryStore::open(Some(Box::new(FileBacking::in_dir(&dir))), Arc::clone(clock)),
-        Arc::clone(clock),
-        Arc::new(LiveGrokFetch {
-            transport: Arc::new(
-                ReqwestTransport::new().map_err(|e| BuildError::Http(e.to_string()))?,
-            ),
-            clock: Arc::clone(clock),
-            user_agent: user_agent.clone(),
-        }),
-        Some(Arc::clone(&grok_hourly) as Arc<dyn HourlySink>),
-    ));
+    let grok_live = Arc::new(LiveGrokFetch {
+        transport: Arc::new(ReqwestTransport::new().map_err(|e| BuildError::Http(e.to_string()))?),
+        clock: Arc::clone(clock),
+        user_agent: user_agent.clone(),
+    });
+    let grok_inner = Arc::new(
+        GrokUsagePoller::new(
+            sessions.grok.clone(),
+            GrokHistoryStore::open(Some(Box::new(FileBacking::in_dir(&dir))), Arc::clone(clock)),
+            Arc::clone(clock),
+            grok_live.clone(),
+            Some(Arc::clone(&grok_hourly) as Arc<dyn HourlySink>),
+        )
+        .with_saved_resets_fetcher(grok_live),
+    );
     let grok_settings = Arc::clone(settings);
     let grok = Arc::new(GrokProviderPoller::new(
         grok_inner,

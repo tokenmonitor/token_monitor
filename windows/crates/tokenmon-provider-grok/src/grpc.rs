@@ -37,6 +37,10 @@ const RESET_MIN_SECS: u64 = 1_700_000_000;
 /// Largest value treated as a plausible Unix reset timestamp.
 const RESET_MAX_SECS: u64 = 2_100_000_000;
 
+/// Protobuf path of a reset token's expiry in a `GetRemainingResets` reply:
+/// token (field 10), `expires_at` Timestamp (field 30), seconds (field 1).
+const RESET_EXPIRY_PATH: [u64; 3] = [10, 30, 1];
+
 /// Decoded usage percent, reset instant and product slices of one response.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Parsed {
@@ -641,6 +645,44 @@ fn reset_from_varints(varints: &[VarintField], now: DateTime<Utc>) -> Option<Dat
             .filter(|at| *at > now)
             .min()
     })
+}
+
+/// Expiry of every reset token in a `GetRemainingResets` reply.
+///
+/// Only the expiry is read; token ids (field 10 inside each token) are not.
+/// An empty reply (no data frame, or an empty one) holds no tokens, and a
+/// timestamp outside 2023 to 2036 is not counted.
+///
+/// # Errors
+///
+/// The `grpc-status` error from the trailer frame.
+///
+/// # Examples
+///
+/// ```
+/// use tokenmon_provider_grok::grpc::parse_reset_expiries;
+/// assert!(parse_reset_expiries(&[]).unwrap().is_empty());
+/// ```
+pub fn parse_reset_expiries(data: &[u8]) -> Result<Vec<DateTime<Utc>>, ProviderError> {
+    validate_trailers(data)?;
+    let mut payloads = data_frames(data);
+    if payloads.is_empty() && looks_like_protobuf(data) {
+        payloads = vec![data];
+    }
+    let mut expiries = Vec::new();
+    let mut used = 0;
+    for payload in payloads {
+        let scan = scan_with_budget(payload, 0, MAX_SCAN_FIELDS.saturating_sub(used));
+        used += scan.fixed32.len() + scan.varints.len();
+        expiries.extend(
+            scan.varints
+                .iter()
+                .filter(|v| v.path == RESET_EXPIRY_PATH)
+                .filter(|v| (RESET_MIN_SECS..=RESET_MAX_SECS).contains(&v.value))
+                .filter_map(|v| DateTime::from_timestamp(i64::try_from(v.value).ok()?, 0)),
+        );
+    }
+    Ok(expiries)
 }
 
 /// Parses a gRPC-web body into used percent, reset and products.
