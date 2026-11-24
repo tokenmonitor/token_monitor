@@ -380,10 +380,16 @@ fn test_corrupt_file_loads_defaults() {
 /// The theme preference defaults to System, persists, and ignores junk.
 #[test]
 fn test_theme_preference_defaults_persists_and_ignores_unknown_values() {
-    assert_eq!(Settings::default().theme_preference, ThemePreference::System);
+    assert_eq!(
+        Settings::default().theme_preference,
+        ThemePreference::System
+    );
     let (dir, s) = fresh();
     s.set_theme_preference(ThemePreference::Dark);
-    assert_eq!(reopen(&dir).snapshot().theme_preference, ThemePreference::Dark);
+    assert_eq!(
+        reopen(&dir).snapshot().theme_preference,
+        ThemePreference::Dark
+    );
     let junk = decode_settings(br#"{"appThemePreference": "purple"}"#);
     assert_eq!(junk.theme_preference, ThemePreference::System);
 }
