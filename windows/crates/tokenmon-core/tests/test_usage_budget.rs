@@ -943,3 +943,22 @@ fn test_build_days_caps_absurd_periods() {
     );
     assert!(days.len() <= 3_700);
 }
+
+/// Weekly reset projection carries past instants forward by whole weeks.
+#[test]
+fn test_project_weekly_reset_carries_past_instant_forward() {
+    let project = DailyBudget::project_weekly_reset;
+    assert_eq!(
+        project(Some(date(2026, 9, 13, 8)), date(2026, 10, 10, 9)),
+        Some(date(2026, 10, 11, 8))
+    );
+    assert_eq!(
+        project(Some(date(2026, 10, 12, 8)), date(2026, 10, 10, 0)),
+        Some(date(2026, 10, 12, 8))
+    );
+    assert_eq!(project(None, date(2026, 10, 10, 0)), None);
+    assert_eq!(
+        project(Some(date(2026, 10, 10, 9)), date(2026, 10, 10, 9)),
+        Some(date(2026, 10, 17, 9))
+    );
+}

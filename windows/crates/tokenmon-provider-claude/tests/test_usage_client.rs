@@ -7,7 +7,6 @@ use tokenmon_core::{ProviderError, UsageError};
 use tokenmon_provider_claude::usage::usage_request;
 use tokenmon_provider_claude::{
     ClaudeSnapshot, ClaudeUsageWindow, organization_id_from_cookie_header, parse_usage_body,
-    project_weekly_reset,
 };
 
 const FIXTURE: &str = r#"{"five_hour":{"utilization":42.5,"resets_at":"2026-08-21T14:00:00.127279+00:00"},
@@ -170,25 +169,6 @@ fn test_limit_ranking_ties_and_flexible_numbers() {
 fn test_non_finite_numbers_are_rejected() {
     let r = parse(r#"{"five_hour":{"utilization":"nan"},"seven_day":{"utilization":"inf"}}"#);
     assert!(r.five_hour.is_none() && r.seven_day.is_none());
-}
-
-/// Weekly reset projection carries past instants forward by whole weeks.
-#[test]
-fn test_project_weekly_reset_carries_past_instant_forward() {
-    let t = |m, d, h| Utc.with_ymd_and_hms(2026, m, d, h, 0, 0).unwrap();
-    assert_eq!(
-        project_weekly_reset(Some(t(9, 13, 8)), t(10, 10, 9)),
-        Some(t(10, 11, 8))
-    );
-    assert_eq!(
-        project_weekly_reset(Some(t(10, 20, 8)), t(10, 10, 9)),
-        Some(t(10, 20, 8))
-    );
-    assert_eq!(project_weekly_reset(None, t(10, 10, 9)), None);
-    assert_eq!(
-        project_weekly_reset(Some(t(10, 10, 9)), t(10, 10, 9)),
-        Some(t(10, 17, 9))
-    );
 }
 
 /// Snapshot headline, reset and pool rules.

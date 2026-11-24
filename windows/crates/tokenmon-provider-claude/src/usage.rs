@@ -1,13 +1,12 @@
 //! claude.ai usage endpoint: request shape, response parsing and snapshot.
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use serde_json::{Map, Value};
 use tokenmon_core::usage::{SavedResets, UsagePool};
 use tokenmon_core::util::parse_flexible;
 use tokenmon_core::{ProviderError, ProviderErrorContext, UsageError};
 
 const CTX: ProviderErrorContext = ProviderErrorContext::Claude;
-const WEEK_SECONDS: i64 = 604_800;
 
 /// Cookie name that carries the organization id (case-sensitive match).
 pub const ORG_COOKIE_NAME: &str = "lastActiveOrg";
@@ -401,25 +400,4 @@ impl ClaudeSnapshot {
         .collect();
         UsagePool::combining(&pools)
     }
-}
-
-/// Carries a past weekly reset forward by whole weeks until it is after
-/// `now`; `r == now` gives `r + 1 week`.
-///
-/// # Examples
-///
-/// ```
-/// use chrono::{TimeZone, Utc};
-/// use tokenmon_provider_claude::project_weekly_reset;
-/// let r = Utc.with_ymd_and_hms(2026, 9, 13, 8, 0, 0).unwrap();
-/// let now = Utc.with_ymd_and_hms(2026, 10, 10, 9, 0, 0).unwrap();
-/// assert_eq!(project_weekly_reset(Some(r), now), Some(Utc.with_ymd_and_hms(2026, 10, 11, 8, 0, 0).unwrap()));
-/// ```
-pub fn project_weekly_reset(r: Option<DateTime<Utc>>, now: DateTime<Utc>) -> Option<DateTime<Utc>> {
-    let r = r?;
-    if r > now {
-        return Some(r);
-    }
-    let weeks = (now - r).num_seconds().div_euclid(WEEK_SECONDS) + 1;
-    Duration::try_seconds(weeks.checked_mul(WEEK_SECONDS)?).and_then(|d| r.checked_add_signed(d))
 }

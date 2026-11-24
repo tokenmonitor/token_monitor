@@ -16,7 +16,6 @@ use crate::summary::ClaudeCodeUsageSummary;
 
 use crate::pricing::{cost, display_name};
 use crate::tokens::{DailyTokens, ModelTokens};
-use crate::usage::project_weekly_reset;
 
 /// Spent percentage points keyed by the start-of-day instant.
 pub type SpentByDay = std::collections::HashMap<DateTime<Utc>, f64>;
@@ -61,7 +60,7 @@ pub fn weekly_resets_at(
     remembered: Option<DateTime<Utc>>,
     now: DateTime<Utc>,
 ) -> Option<DateTime<Utc>> {
-    live.or_else(|| project_weekly_reset(remembered, now))
+    live.or_else(|| DailyBudget::project_weekly_reset(remembered, now))
 }
 
 /// One local day's tokens as the shared hover-label model: per-model usage

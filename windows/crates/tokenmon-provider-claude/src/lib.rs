@@ -47,5 +47,5 @@ pub use summary::{ClaudeCodeUsageSummary, ModelUsageRow, UsageTotals};
 pub use tokens::{DailyTokens, DayKey, ModelTokens};
 pub use usage::{
     ClaudeSnapshot, ClaudeUsageResponse, ClaudeUsageWindow, organization_id_from_cookie_header,
-    parse_usage_body, parse_usage_body_at, project_weekly_reset,
+    parse_usage_body, parse_usage_body_at,
 };

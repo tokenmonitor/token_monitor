@@ -91,6 +91,38 @@ fn bar(
 }
 
 impl DailyBudget {
+    /// Advances `resets_at` by whole weeks until it is after `now`, so a weekly
+    /// reset instant remembered from an earlier payload still estimates the
+    /// current window. Returns `resets_at` unchanged when it is still ahead;
+    /// `resets_at == now` gives one week later.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use chrono::{TimeZone, Utc};
+    /// use tokenmon_core::usage::DailyBudget;
+    /// let r = Utc.with_ymd_and_hms(2026, 9, 13, 8, 0, 0).unwrap();
+    /// let now = Utc.with_ymd_and_hms(2026, 10, 10, 9, 0, 0).unwrap();
+    /// assert_eq!(
+    ///     DailyBudget::project_weekly_reset(Some(r), now),
+    ///     Some(Utc.with_ymd_and_hms(2026, 10, 11, 8, 0, 0).unwrap())
+    /// );
+    /// ```
+    #[must_use]
+    pub fn project_weekly_reset(
+        resets_at: Option<DateTime<Utc>>,
+        now: DateTime<Utc>,
+    ) -> Option<DateTime<Utc>> {
+        const WEEK_SECONDS: i64 = 604_800;
+        let resets_at = resets_at?;
+        if resets_at > now {
+            return Some(resets_at);
+        }
+        let weeks = (now - resets_at).num_seconds().div_euclid(WEEK_SECONDS) + 1;
+        chrono::Duration::try_seconds(weeks.checked_mul(WEEK_SECONDS)?)
+            .and_then(|d| resets_at.checked_add_signed(d))
+    }
+
     /// Daily allowance from a limit, `0` unless both are positive.
     #[must_use]
     pub fn budget_per_day(limit: f64, days_in_period: i64) -> f64 {
