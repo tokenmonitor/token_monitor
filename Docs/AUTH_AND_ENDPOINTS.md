@@ -4,8 +4,8 @@ TokenMon reads usage from seven providers. None of them publishes a stable consu
 
 | Provider | Credential | Sent as | Endpoints |
 |----------|------------|---------|-----------|
-| Grok (SuperGrok) | grok.com session cookies | `Cookie` | `grok.com` gRPC-web billing, then REST probes |
-| Grokbot | Cursor session cookie (shared with Cursor) | `Cookie` | `cursor.com/api/dashboard/get-sand-usage-status` |
+| Grok (SuperGrok) | grok.com session cookies | `Cookie` | `grok.com` gRPC-web billing |
+| Grokbot | Cursor session cookie (shared with Cursor) | `Cookie`; the breakdown sends the cookie's JWT as `Authorization: Bearer` | `cursor.com/api/dashboard/get-sand-usage-status`, `api2.cursor.sh/aiserver.v1.DashboardService/GetGrokBotUsageBreakdown` |
 | Cursor | Cursor session cookie | `Cookie` | `cursor.com/api/usage-summary`, `/api/auth/me`, `/api/dashboard/get-filtered-usage-events` |
 | OpenCode | OpenCode console cookies | `Cookie` + `x-org-id` | `opencode.ai/console/...`; plus the local `opencode.db` |
 | Claude | claude.ai session cookies | `Cookie` | `claude.ai/api/organizations/{org}/usage` |
@@ -74,15 +74,12 @@ The XCTest host uses `InMemoryCredentialStore` and never reads, migrates, or wri
 
 Sign-in starts at `https://accounts.x.ai/sign-in?redirect=https://grok.com/?_s=usage`; capture runs once the flow returns to `grok.com`.
 
-| Order | Method | URL | Notes |
-|------:|--------|-----|-------|
-| 1 | POST | `https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig` | gRPC-web+proto, empty frame body. Source of truth: used %, period start, reset, product mix |
-| 2 | GET | `https://grok.com/rest/subscriptions` | Probed only when billing fails for a reason other than a rejected session |
-| 2 | GET | `https://grok.com/rest/user` | Same |
-| 2 | GET | `https://grok.com/rest/billing/usage` | Same |
-| 2 | GET | `https://grok.com/rest/usage` | Same |
+| Method | URL | Notes |
+|--------|-----|-------|
+| POST | `https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig` | gRPC-web+proto, empty frame body. Used %, period start, reset, product mix |
+| POST | `https://grok.com/prod_mc_billing.ConsumerUiSvc/GetRemainingResets` | Same request shape. Saved reset coupons; requested after a successful billing call, at most every 30 minutes |
 
-Only the billing endpoint decides whether the session is valid: a 401/403 from it is `.unauthorized`; every REST probe failure, including 401/403, just moves on to the next path. A gRPC status in the HTTP headers (trailers-only reply) or in the trailer frame is checked before parsing.
+A 401/403 from the billing endpoint is `.unauthorized`. A gRPC status in the HTTP headers (trailers-only reply) or in the trailer frame is checked before parsing.
 
 ### gRPC-web request shape
 
@@ -121,7 +118,7 @@ The billing API returns no per-day series:
 |----------|--------|
 | `GetGrokCreditsConfig` | Cumulative weekly `%` + product mix + period start/end only |
 | `GetGrokUsageInfo` / `GetGrokBuildBillingHistory` | HTTP 200, **empty body** (even with period params) |
-| `GetUsage` / `GetDailyUsage` / REST `/usage/daily` | Empty or 404 |
+| `GetUsage` / `GetDailyUsage` | Empty or 404 |
 
 The daily chart is therefore built from local samples (`GrokDailyUsageBuilder`):
 
@@ -130,28 +127,11 @@ The daily chart is therefore built from local samples (`GrokDailyUsageBuilder`):
 3. A period rollover advances the whole window; two periods never share a bar.
 4. Past weeks (chevron left) anchor to that week's own reset from local samples, so last week's bars remain after the weekly reset.
 
-### Expected JSON fields (defensive)
+When the billing payload carries no product breakdown, the UI synthesizes a single **Other** segment so the segmented bar still renders.
 
-```json
-{
-  "usedPercent": 35,
-  "remainingPercent": 65,
-  "resetsAt": "2026-07-16T20:25:00Z",
-  "products": [
-    { "id": "build", "displayName": "Grok Build", "percentOfPool": 25 },
-    { "id": "api", "displayName": "API", "percentOfPool": 9 },
-    { "id": "chat", "displayName": "Chat", "percentOfPool": 1 }
-  ],
-  "extraCredits": 0
-}
-```
+### Saved resets
 
-Also accepted:
-
-- Nested wrappers (`usage`, `data`, `billing`, …)
-- `byProduct` / `productUsage` maps
-
-When only an overall percent is available, the UI synthesizes a single **Other** segment so the segmented bar still renders.
+`GetRemainingResets` returns one field-10 message per unused coupon: token id (field 10), granted-at Timestamp (field 20), expires-at Timestamp (field 30, seconds in its field 1). Only the expiry is read; the token id is never decoded. Coupons that have not expired are counted. The call is best-effort: any error (including a Cloudflare challenge or 401) keeps the last count, shows nothing, and never counts toward the session's strikes. An empty reply means no coupons.
 
 ## Grokbot (Grok Bot)
 
@@ -171,6 +151,30 @@ accepts the proto names):
 | `current_period_start` | Period start; with the reset it yields the real period length |
 | `included_limit_zero`, `has_non_zero_included_limit` | Whether the plan includes an allowance at all |
 | `included_usage_super_grok_plan`, `grok_plan_label` | Which subscription funds the allowance |
+
+### Usage breakdown
+
+| Method | URL | Notes |
+|--------|-----|-------|
+| POST | `https://api2.cursor.sh/aiserver.v1.DashboardService/GetGrokBotUsageBreakdown` | Connect RPC, body `{}`, `Connect-Protocol-Version: 1`, `Authorization: Bearer <JWT>` |
+
+The dashboard's REST wrapper does not expose this method, so it is called on the
+RPC host, which takes a bearer token instead of the cookie. The token is the JWT
+inside the stored `WorkosCursorSessionToken` (value `<user id>::<JWT>`,
+percent-encoded); nothing new is stored.
+
+The response's `breakdown` oneof holds one unit: `weeklyLimitPpm` (parts per
+million of the weekly allowance), `billingCyclePpm` (of the billing cycle's), or
+`billedCents` (on-demand accounts). Each holds `periodStartMs` / `periodEndMs` and
+`bySource` rows `{dayMs, source, ppm | cents}`, one per UTC day and source, where
+`source` is `GROK_BOT_USAGE_SOURCE_{USER, AUTOMATION, AGENT, GROUP, OTHER}`
+(shown as You, Routines, Bot to Bot, Group chats, Other, the Grok Bot app's
+labels). `byBot` rows split the same usage by bot id; bot names are not included
+and are not used.
+
+The breakdown is fetched only after a successful usage-status call, and only adds
+detail: a failure keeps the last breakdown, shows no error, and does not count
+toward the Cursor session's strikes.
 
 **One endpoint covers both purchase channels.** Grokbot is sold through Cursor
 *and* through SuperGrok; when a SuperGrok plan pays for it, the plan fields are
@@ -226,7 +230,9 @@ Sign-in starts at `https://claude.ai/new`.
 
 | Method | URL | Notes |
 |--------|-----|-------|
-| GET | `https://claude.ai/api/organizations/{org}/usage` | `{org}` is the `lastActiveOrg` cookie value; `Referer: https://claude.ai/`. Five-hour and weekly pools (`five_hour`, `seven_day`, or the `limits` list) with `utilization` and `resets_at` |
+| GET | `https://claude.ai/api/organizations/{org}/usage?cedar_ember=1` | `{org}` is the `lastActiveOrg` cookie value; `Referer: https://claude.ai/`. Five-hour and weekly pools (`five_hour`, `seven_day`, or the `limits` list) with `utilization` and `resets_at`, plus saved resets in `cedar_ember` |
+
+`cedar_ember` holds the "Reset for free" grants from Claude Settings → Usage: `{"eligible": true, "grants": [{"resets_left", "resets_total", "paused", "starts_at", "ends_at", …}]}`. A grant counts while it is not paused, has started and has not expired; `resets_left` of each such grant is summed, and the soonest `ends_at` is the next expiry. A grant with an unreadable count, pause state or bound is dropped without hiding the others. Grant ids are not read.
 
 `lastActiveOrg` also identifies the account, so a capture for a different org fires `accountReset`.
 
@@ -237,7 +243,7 @@ Sign-in starts at `https://chatgpt.com/`.
 | Order | Method | URL | Notes |
 |------:|--------|-----|-------|
 | 1 | GET | `https://chatgpt.com/api/auth/session` | Cookie only. Returns the web `accessToken` and renews the rolling session cookie |
-| 2 | GET | `https://chatgpt.com/backend-api/wham/usage` | Cookie + `Authorization: Bearer <accessToken>` + `ChatGPT-Account-Id` (from the token's `https://api.openai.com/auth` claim) |
+| 2 | GET | `https://chatgpt.com/backend-api/wham/usage` | Cookie + `Authorization: Bearer <accessToken>` + `ChatGPT-Account-Id` (from the token's `https://api.openai.com/auth` claim). `rate_limit` windows, plus saved Codex resets in `rate_limit_reset_credits.available_count` |
 
 The access token is cached in memory (`ChatGPTAccessTokenCache`) until five minutes before its JWT `exp`, and never longer than 30 minutes, so the session exchange still runs regularly and keeps the cookie fresh. A rejection clears the cached token. A sign-in page returned instead of the session JSON is reported as a bad response.
 

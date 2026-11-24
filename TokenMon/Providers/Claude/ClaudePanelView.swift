@@ -52,8 +52,11 @@ struct ClaudePanelView: View {
                         .padding(.top, 8)
                 }
 
-                ProviderSignOutButton(provider: .claude) {
-                    auth.signOut()
+                HStack {
+                    SavedResetsPill(resets: snapshot.savedResets, tint: MonitorProvider.claude.accentColor)
+                    ProviderSignOutButton(provider: .claude) {
+                        auth.signOut()
+                    }
                 }
             }
         } else {

@@ -45,8 +45,6 @@ enum ProductCatalog {
     static let knownIDs = ["build", "api", "chat", "imagine", "voice", "other"]
     /// Visual priority for bars / chips (matches grok.com: Chat, Build, Imagine, …).
     static let displayOrder = ["chat", "build", "imagine", "voice", "api", "other"]
-    /// Product IDs shown in the panel's Categories card (excludes API and Other).
-    static let categoryIDs = ["chat", "build", "imagine", "voice"]
 
     static func displayName(for id: String) -> String {
         switch id.lowercased() {
@@ -80,31 +78,39 @@ enum ProductCatalog {
         }
     }
 
-    /// Products for a panel's bar and category rows: the snapshot's own products
-    /// in canonical display order, limited to the user's visible set, keeping any
-    /// non-zero contribution (the menu bar applies a 0.05 floor). A breakdown-less
+    /// Rank of each product ID in `displayOrder`, for tie-breaking sorts.
+    private static let displayRank: [String: Int] = Dictionary(
+        uniqueKeysWithValues: displayOrder.enumerated().map { ($1, $0) }
+    )
+
+    /// `products` ordered most used first, ties kept in canonical display order.
+    static func sortedByUsage(_ products: [ProductUsage]) -> [ProductUsage] {
+        products.sorted { lhs, rhs in
+            if lhs.percentOfPool != rhs.percentOfPool {
+                return lhs.percentOfPool > rhs.percentOfPool
+            }
+            let lhsRank = displayRank[lhs.id.lowercased()] ?? displayOrder.count
+            let rhsRank = displayRank[rhs.id.lowercased()] ?? displayOrder.count
+            return lhsRank < rhsRank
+        }
+    }
+
+    /// Products for a panel's usage bar: the snapshot's own products, most used
+    /// first, limited to the user's visible set, keeping any non-zero
+    /// contribution (the menu bar applies a 0.05 floor). A breakdown-less
     /// snapshot carries a synthesized `"other"` slice, which this returns so the
     /// bar reflects the headline used%.
     static func panelProducts(_ products: [ProductUsage], visible: Set<String>) -> [ProductUsage] {
-        filtered(products, visible: visible, threshold: 0)
+        sortedByUsage(filtered(products, visible: visible, threshold: 0))
     }
 
-    /// One row per canonical category (Chat, Build, Imagine, Voice) in display
-    /// order, using the snapshot's value when present and a 0% placeholder when
-    /// the product is absent or unused, limited to the user's visible set.
-    static func categoryProducts(
-        _ products: [ProductUsage],
-        visible: Set<String>
-    ) -> [ProductUsage] {
-        let byID = Dictionary(
-            products.map { ($0.id.lowercased(), $0) },
-            uniquingKeysWith: { _, last in last }
-        )
-        return categoryIDs.compactMap { id in
-            guard visible.contains(id) else { return nil }
-            return byID[id]
-                ?? ProductUsage(id: id, displayName: displayName(for: id), percentOfPool: 0)
-        }
+    /// Products for the panel's Usage Breakdown card: the bar's products
+    /// (``panelProducts(_:visible:)``), or none when the only one is the
+    /// synthesized `"other"` slice of a breakdown-less snapshot, which would
+    /// say nothing the weekly bar does not.
+    static func breakdownProducts(_ products: [ProductUsage], visible: Set<String>) -> [ProductUsage] {
+        let shown = panelProducts(products, visible: visible)
+        return shown.allSatisfy { $0.colorToken == .other } ? [] : shown
     }
     /// Products that are both user-visible and contribute at least `threshold` to
     /// the pool, in canonical display order. Used by the menu bar renderer and panels.
@@ -208,7 +214,6 @@ struct WeeklyUsageSnapshot: Codable, Identifiable, Hashable, Sendable {
     var remainingPercent: Double
     var resetsAt: Date?
     var products: [ProductUsage]
-    var extraCreditsBalance: Decimal?
     var accountEmail: String?
 
     init(
@@ -218,7 +223,6 @@ struct WeeklyUsageSnapshot: Codable, Identifiable, Hashable, Sendable {
         remainingPercent: Double? = nil,
         resetsAt: Date? = nil,
         products: [ProductUsage] = [],
-        extraCreditsBalance: Decimal? = nil,
         accountEmail: String? = nil
     ) {
         self.id = id
@@ -231,7 +235,6 @@ struct WeeklyUsageSnapshot: Codable, Identifiable, Hashable, Sendable {
         )
         self.resetsAt = resetsAt
         self.products = products
-        self.extraCreditsBalance = extraCreditsBalance
         self.accountEmail = accountEmail
     }
 
@@ -244,7 +247,6 @@ struct WeeklyUsageSnapshot: Codable, Identifiable, Hashable, Sendable {
             ProductUsage(id: "api", displayName: "API", percentOfPool: 9),
             ProductUsage(id: "chat", displayName: "Chat", percentOfPool: 1)
         ],
-        extraCreditsBalance: nil,
         accountEmail: "user@example.com"
     )
 }

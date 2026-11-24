@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// ChatGPT usage panel (5-hour and weekly Codex windows).
+/// ChatGPT usage panel (5-hour and weekly Codex windows, and the weekly
+/// window's daily bars).
 struct ChatGPTPanelView: View {
     let poller: ChatGPTUsagePoller
     let auth: ChatGPTAuthSession
@@ -40,6 +41,14 @@ struct ChatGPTPanelView: View {
                     }
                 }
 
+                NavigableDailyBudgetCard(
+                    style: .weekly,
+                    accent: MonitorProvider.chatgpt.accentColor,
+                    periodUsedPercent: snapshot.weeklyWindow?.usedPercent,
+                    resetsAt: poller.weeklyResetsAt(),
+                    daysForWeek: { poller.dailyBudgetDays(weekOffset: $0) }
+                )
+
                 if let err = poller.lastError {
                     StaleDataCaption(message: err, lastRefreshedAt: poller.lastRefreshedAt)
                         .padding(.top, 8)
@@ -51,8 +60,11 @@ struct ChatGPTPanelView: View {
                         .padding(.top, 8)
                 }
 
-                ProviderSignOutButton(provider: .chatgpt) {
-                    auth.signOut()
+                HStack {
+                    SavedResetsPill(resets: snapshot.savedResets, tint: MonitorProvider.chatgpt.accentColor)
+                    ProviderSignOutButton(provider: .chatgpt) {
+                        auth.signOut()
+                    }
                 }
             }
         } else {

@@ -2,28 +2,6 @@
 import XCTest
 
 final class GrokUsageParsingTests: XCTestCase {
-    func testParseFixtureJSON() throws {
-        let json = Data("""
-        {
-          "usedPercent": 35,
-          "remainingPercent": 65,
-          "resetsAt": "2026-07-16T20:25:00Z",
-          "products": [
-            { "id": "build", "displayName": "Grok Build", "percentOfPool": 25 },
-            { "id": "api", "displayName": "API", "percentOfPool": 9 },
-            { "id": "chat", "displayName": "Chat", "percentOfPool": 1 }
-          ]
-        }
-        """.utf8)
-
-        let snap = try XCTUnwrap(GrokUsageResponseParser.parseJSON(json, accountEmail: nil))
-        XCTAssertEqual(snap.usedPercent, 35, accuracy: 0.01)
-        XCTAssertEqual(snap.remainingPercent, 65, accuracy: 0.01)
-        XCTAssertEqual(snap.products.count, 3)
-        XCTAssertEqual(snap.products[0].id, "build")
-        XCTAssertEqual(snap.products[0].colorToken, .build)
-    }
-
     func testRemainingDefaultsFromUsed() {
         let snap = WeeklyUsageSnapshot(usedPercent: 40)
         XCTAssertEqual(snap.remainingPercent, 60, accuracy: 0.01)
@@ -91,17 +69,6 @@ final class GrokUsageParsingTests: XCTestCase {
         let data = try GrokExportService.export([.preview], format: .json)
         let obj = try JSONSerialization.jsonObject(with: data)
         XCTAssertTrue(obj is [Any])
-    }
-
-    func testByProductMapParse() throws {
-        let json = Data("""
-        {
-          "usedPercent": 35,
-          "byProduct": { "build": 25, "api": 9, "chat": 1 }
-        }
-        """.utf8)
-        let snap = try XCTUnwrap(GrokUsageResponseParser.parseJSON(json, accountEmail: nil))
-        XCTAssertEqual(snap.products.count, 3)
     }
 
     func testGRPCProductBreakdown() throws {
@@ -579,6 +546,82 @@ final class GrokUsageParsingTests: XCTestCase {
         XCTAssertTrue(todayDay?.segments.contains { $0.productID == "chat" } ?? false)
         XCTAssertTrue(todayDay?.segments.contains { $0.productID == "api" } ?? false)
         XCTAssertTrue(todayDay?.segments.contains { $0.productID == "voice" } ?? false)
+    }
+
+    /// A day's bar (and its hover line) is the growth in the headline used%,
+    /// even when the product breakdown does not add up to it: here yesterday
+    /// had no breakdown (a synthesized "other" slice) and today has one, so the
+    /// per-product increases (25) overstate the day's real use (5).
+    func testDailyUsageTotalFollowsHeadlineWhenBreakdownChanges() throws {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = ISO8601DateFormatter().date(from: "2026-07-15T12:00:00Z")!
+        let today = cal.startOfDay(for: now)
+        let yesterday = try XCTUnwrap(cal.date(byAdding: .day, value: -1, to: today))
+        let resetsAt = ISO8601DateFormatter().date(from: "2026-07-16T18:57:00Z")!
+        let history = [
+            WeeklyUsageSnapshot(
+                fetchedAt: yesterday.addingTimeInterval(3600 * 12),
+                usedPercent: 20,
+                resetsAt: resetsAt,
+                products: GrokUsageClient.synthesizeProducts(usedPercent: 20)
+            ),
+            WeeklyUsageSnapshot(
+                fetchedAt: today.addingTimeInterval(3600 * 10),
+                usedPercent: 25,
+                resetsAt: resetsAt,
+                products: [
+                    ProductUsage(id: "chat", displayName: "Chat", percentOfPool: 15),
+                    ProductUsage(id: "build", displayName: "Grok Build", percentOfPool: 10)
+                ]
+            )
+        ]
+        let week = try XCTUnwrap(GrokDailyUsageBuilder.week(
+            history: history,
+            current: history.last,
+            resetsAt: resetsAt,
+            calendar: cal,
+            now: now
+        ))
+        let todayDay = try XCTUnwrap(week.days.first { cal.isDate($0.dayStart, inSameDayAs: today) })
+        XCTAssertEqual(todayDay.totalPercent, 5, accuracy: 0.01)
+        // The split still follows the products that grew.
+        XCTAssertEqual(todayDay.segments.map(\.productID), ["chat", "build"])
+        XCTAssertEqual(todayDay.segments.first?.percentOfWeekly ?? 0, 3, accuracy: 0.01)
+    }
+
+    /// Product percentages that are rounded below the headline used% still
+    /// give a day bar equal to the headline's growth.
+    func testDailyUsageTotalFollowsHeadlineWhenProductsUndercount() throws {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = ISO8601DateFormatter().date(from: "2026-07-15T12:00:00Z")!
+        let today = cal.startOfDay(for: now)
+        let yesterday = try XCTUnwrap(cal.date(byAdding: .day, value: -1, to: today))
+        let resetsAt = ISO8601DateFormatter().date(from: "2026-07-16T18:57:00Z")!
+        let history = [
+            WeeklyUsageSnapshot(
+                fetchedAt: yesterday.addingTimeInterval(3600 * 12),
+                usedPercent: 10.4,
+                resetsAt: resetsAt,
+                products: [ProductUsage(id: "chat", displayName: "Chat", percentOfPool: 10)]
+            ),
+            WeeklyUsageSnapshot(
+                fetchedAt: today.addingTimeInterval(3600 * 10),
+                usedPercent: 16.8,
+                resetsAt: resetsAt,
+                products: [ProductUsage(id: "chat", displayName: "Chat", percentOfPool: 16)]
+            )
+        ]
+        let week = try XCTUnwrap(GrokDailyUsageBuilder.week(
+            history: history,
+            current: history.last,
+            resetsAt: resetsAt,
+            calendar: cal,
+            now: now
+        ))
+        let todayDay = try XCTUnwrap(week.days.first { cal.isDate($0.dayStart, inSameDayAs: today) })
+        XCTAssertEqual(todayDay.totalPercent, 6.4, accuracy: 0.01)
     }
 
     /// Mid-period server recalibration: used% drops but `resetsAt` stays the same.

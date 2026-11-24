@@ -24,6 +24,7 @@ final class GrokPollerGatingTests: XCTestCase {
 
     private func makePoller(
         settings: AppSettings,
+        fetchResets: @escaping (String?) async throws -> SavedResets? = { _ in nil },
         fetch: @escaping (String?, String?) async throws -> WeeklyUsageSnapshot
     ) -> (GrokUsagePoller, GrokAuthSession) {
         let auth = GrokAuthSession(directory: dir)
@@ -36,7 +37,8 @@ final class GrokPollerGatingTests: XCTestCase {
                 store: FileBackedStringStore(directory: dir, filenamePrefix: "hourly_"),
                 storageKey: "grok"
             ),
-            fetchUsage: fetch
+            fetchUsage: fetch,
+            fetchSavedResets: fetchResets
         )
         return (poller, auth)
     }
@@ -127,5 +129,78 @@ final class GrokPollerGatingTests: XCTestCase {
 
         auth.signOut()
         XCTAssertNil(poller.currentWeek)
+    }
+
+    // MARK: - Saved resets
+
+    /// A successful refresh loads the saved resets once; refreshes inside the
+    /// throttle window do not request them again.
+    func testSavedResetsLoadAfterSuccessAndAreThrottled() async {
+        let settings = AppSettings(defaults: defaults)
+        settings.selectedProvider = .grok
+        var resetFetches = 0
+        let (poller, _) = makePoller(settings: settings, fetchResets: { _ in
+            resetFetches += 1
+            return SavedResets(count: 2)
+        }, fetch: { _, _ in WeeklyUsageSnapshot(usedPercent: 10) })
+
+        await poller.refreshNow()
+        await poller.refreshNow()
+
+        XCTAssertEqual(resetFetches, 1)
+        XCTAssertEqual(poller.savedResets?.count, 2)
+    }
+
+    /// A failed usage fetch never requests the saved resets.
+    func testSavedResetsSkippedWhenUsageFails() async {
+        let settings = AppSettings(defaults: defaults)
+        settings.selectedProvider = .grok
+        var resetFetches = 0
+        let (poller, _) = makePoller(settings: settings, fetchResets: { _ in
+            resetFetches += 1
+            return SavedResets(count: 1)
+        }, fetch: { _, _ in throw ProviderError.network(.grok, "offline") })
+
+        await poller.refreshNow()
+
+        XCTAssertEqual(resetFetches, 0)
+        XCTAssertNil(poller.savedResets)
+    }
+
+    /// A rejected or blocked saved-resets request is quiet: no error shown,
+    /// no strike against the session.
+    func testSavedResetsFailureIsQuiet() async {
+        let settings = AppSettings(defaults: defaults)
+        settings.selectedProvider = .grok
+        let (poller, auth) = makePoller(
+            settings: settings,
+            fetchResets: { _ in throw ProviderError.unauthorized(.grok) },
+            fetch: { _, _ in WeeklyUsageSnapshot(usedPercent: 10) }
+        )
+
+        for _ in 0..<4 {
+            await poller.refreshNow()
+        }
+
+        XCTAssertNil(poller.lastError)
+        XCTAssertNil(poller.savedResets)
+        XCTAssertFalse(auth.needsSignIn)
+        XCTAssertTrue(auth.isSignedIn)
+    }
+
+    func testSignOutClearsSavedResets() async {
+        let settings = AppSettings(defaults: defaults)
+        settings.selectedProvider = .grok
+        let (poller, auth) = makePoller(
+            settings: settings,
+            fetchResets: { _ in SavedResets(count: 1) },
+            fetch: { _, _ in WeeklyUsageSnapshot(usedPercent: 10) }
+        )
+        await poller.refreshNow()
+        XCTAssertNotNil(poller.savedResets)
+
+        auth.signOut()
+
+        XCTAssertNil(poller.savedResets)
     }
 }

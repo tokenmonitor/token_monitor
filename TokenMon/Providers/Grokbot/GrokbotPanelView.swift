@@ -19,9 +19,6 @@ struct GrokbotPanelView: View {
                         title: snapshot.usagePool.sectionTitle,
                         trailing: "\(Int(snapshot.usedPercent.rounded()))% Used"
                     )
-                    Text(snapshot.entitlement.captionText)
-                        .font(PanelTypography.caption)
-                        .foregroundStyle(.secondary)
                     if snapshot.hasIncludedAllowance {
                         SlimUsageTrack(
                             label: "Weekly",
@@ -35,6 +32,10 @@ struct GrokbotPanelView: View {
                             .font(PanelTypography.caption)
                             .foregroundStyle(.secondary)
                     }
+                }
+
+                if let breakdown = poller.breakdown, breakdown.isShown(at: Date()) {
+                    GrokbotUsageBreakdownCard(breakdown: breakdown)
                 }
 
                 if snapshot.hasIncludedAllowance {

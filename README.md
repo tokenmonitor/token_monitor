@@ -23,15 +23,15 @@ Providers plug into one contract (session, usage client, poller, panel), so supp
 
 | Provider | Usage pools surfaced | Daily Budget chart |
 |----------|----------------------|--------------------|
-| **ChatGPT (Codex)** | 5-hour primary + weekly secondary pool | — |
+| **ChatGPT (Codex)** | 5-hour primary + weekly secondary pool | Weekly window |
 | **Claude** | 5-hour session + weekly (7-day) pool; Claude Code tokens and API-rate spend for this month and all time, by model, read from local logs (shown signed in or not) | Weekly window |
 | **Cursor** | Monthly billing cycle (usage-summary %) | Last 7 days of the billing cycle |
 | **Grokbot** | Weekly Bot allowance, anchored to the plan's own reset instant | Weekly window |
 | **OpenCode Go** | 5-hour + weekly + monthly limits (console); local estimate when signed out | Weekly + subscription-month sections |
-| **OpenRouter** | Account credits (management key) or per-key spending cap with provider-declared reset window | — |
+| **OpenRouter** | Account credits (management key) or per-key spending cap with provider-declared reset window | Key reset window, or a UTC week of the balance |
 | **SuperGrok** | Rolling weekly pool ending at the provider's reset instant; per-product breakdown (Chat, Build, API, Imagine, …) | Billing-period week (`100/7` per day) |
 
-Every window is anchored to the provider's own reset metadata (`resetsAt`, billing-cycle dates, or declared reset period). When a payload lacks that metadata, the affected section waits for the next complete refresh.
+Every window is anchored to the provider's own reset metadata (`resetsAt`, billing-cycle dates, or declared reset period). When a payload lacks that metadata, the affected section waits for the next complete refresh. OpenRouter credits and a key cap that never resets have no such window: the bars are the UTC week as shares of the balance, and the pace line stays off.
 
 ## Features
 
@@ -41,12 +41,13 @@ Every window is anchored to the provider's own reset metadata (`resetsAt`, billi
 | **Dropdown** | Per-provider panel headed by its usage pool (hourly, weekly, monthly or mixed), with used / remaining, breakdown by product, window or model, a daily chart and the reset time |
 | **Overview tab** | Every connected provider on one hourly chart; arrows step back through the last 30 days |
 | **Daily Budget** | Per-pool daily charts (weekly windows, subscription months) paced against the provider's own consumed % |
+| **Saved resets** | ChatGPT (Codex), Claude and SuperGrok let an account save usage-limit resets to spend later. When the account has any, a pill beside the sign-out button shows how many; for Claude and SuperGrok, hovering it shows when the next one expires. Resets are spent in the provider's own app, never from TokenMon |
 | **Auth** | Guided sign-in per provider in an isolated web view that closes itself once you're signed in; API-key providers connect in Settings. Credentials are kept in the macOS Keychain. Signing out keeps the local history for when the same account signs back in |
 | **Polling** | Faster refresh while the menu is open, slower when idle; providers that are hidden and unwatched do not poll; failed refreshes back off and retry |
 | **History** | Daily usage kept on this Mac for the charts; SuperGrok snapshots export as CSV or JSON |
 | **Alerts** | Optional notification when a provider's usage crosses a threshold; choose the threshold and which providers it watches in Settings › General (off by default) |
 | **Settings** | Four tabs: General (launch at login, updates, refresh intervals, alerts), Providers (tab order and menu bar graphs), Accounts (sign-in for each provider), and Data (product categories, export) |
-| **Updates** | Optional check for new GitHub releases; verified in-place install (see [Docs/NOTARIZATION.md](Docs/NOTARIZATION.md#in-app-updates)) |
+| **Updates** | Optional check for new GitHub releases, shown as an "Update available" pill at the bottom of the panel; verified in-place install (see [Docs/NOTARIZATION.md](Docs/NOTARIZATION.md#in-app-updates)) |
 | **Agent app** | No Dock icon by default (`LSUIElement`) |
 
 ## Requirements

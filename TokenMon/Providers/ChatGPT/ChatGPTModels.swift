@@ -37,6 +37,8 @@ struct ChatGPTUsageResponse: Hashable, Sendable {
     var limitReached: Bool
     var primary: ChatGPTUsageWindow?
     var secondary: ChatGPTUsageWindow?
+    /// Saved Codex limit resets, from `rate_limit_reset_credits.available_count`.
+    var savedResets: SavedResets?
 
     /// Parses the raw usage JSON (`primary_window` = 5h, `secondary_window` = weekly).
     static func parse(_ data: Data) throws -> ChatGPTUsageResponse {
@@ -49,8 +51,18 @@ struct ChatGPTUsageResponse: Hashable, Sendable {
             allowed: (rateLimit["allowed"] as? Bool) ?? true,
             limitReached: (rateLimit["limit_reached"] as? Bool) ?? false,
             primary: window(from: rateLimit["primary_window"] ?? rateLimit["five_hour"]),
-            secondary: window(from: rateLimit["secondary_window"] ?? rateLimit["weekly"])
+            secondary: window(from: rateLimit["secondary_window"] ?? rateLimit["weekly"]),
+            savedResets: savedResets(from: root["rate_limit_reset_credits"])
         )
+    }
+
+    /// Count of saved resets. The payload carries only the count; expiries
+    /// live on a separate endpoint that is not requested.
+    private static func savedResets(from raw: Any?) -> SavedResets? {
+        guard let dict = raw as? [String: Any],
+              let count = JSON.number(dict["available_count"]).flatMap({ Int(exactly: $0) })
+        else { return nil }
+        return SavedResets(count: count)
     }
 
     private static func window(from raw: Any?) -> ChatGPTUsageWindow? {
@@ -83,8 +95,25 @@ struct ChatGPTSnapshot: Identifiable, Hashable, Sendable {
     var limitReached: Bool
     var primary: ChatGPTUsageWindow?
     var secondary: ChatGPTUsageWindow?
+    var savedResets: SavedResets?
 
     var resetsAt: Date? { (primary ?? secondary)?.resetsAt }
+
+    /// Length of the Codex weekly window, in seconds.
+    static let weekSeconds = 7 * 86_400
+
+    /// The window that spans a week, which the daily budget bars divide into
+    /// days: the one reporting a seven-day length, else the secondary window
+    /// when it reports no length. `nil` when neither applies.
+    var weeklyWindow: ChatGPTUsageWindow? {
+        if let week = [primary, secondary].compactMap({ $0 }).first(where: { $0.windowSeconds == Self.weekSeconds }) {
+            return week
+        }
+        if let secondary, secondary.windowSeconds == nil {
+            return secondary
+        }
+        return nil
+    }
 
     /// The account-wide flag doesn't identify a window. Only a full window
     /// can use its own reset clock as the time when that limit will be lifted.

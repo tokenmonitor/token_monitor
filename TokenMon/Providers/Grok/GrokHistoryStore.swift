@@ -109,13 +109,12 @@ final class GrokHistoryStore {
     }
 
     /// True when `next` records nothing new over `current`: same usage (within
-    /// rounding), reset instant, product split, credits and account.
+    /// rounding), reset instant, product split and account.
     private static func hasSameUsage(_ current: WeeklyUsageSnapshot, _ next: WeeklyUsageSnapshot) -> Bool {
         abs(current.usedPercent - next.usedPercent) < 0.05
             && abs(current.remainingPercent - next.remainingPercent) < 0.05
             && current.resetsAt == next.resetsAt
             && current.products == next.products
-            && current.extraCreditsBalance == next.extraCreditsBalance
             && current.accountEmail == next.accountEmail
     }
 

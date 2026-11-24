@@ -48,15 +48,10 @@ struct GrokPanelView: View {
 
     @ViewBuilder
     private func usageHeader(_ snapshot: WeeklyUsageSnapshot) -> some View {
-        // Render the products the snapshot actually carries (including a
-        // synthesized "other" slice when the server omits the breakdown), limited
-        // to the user's visible set, so the bar always matches the headline used%.
-        let products = ProductCatalog.panelProducts(
+        // The breakdown splits the products the snapshot carries, limited to the
+        // user's visible set; the weekly bar shows the headline used% as one fill.
+        let breakdownProducts = ProductCatalog.breakdownProducts(
             snapshot.products,
-            visible: settings.visibleProductIDs
-        )
-        let categoryProducts = ProductCatalog.categoryProducts(
-            products,
             visible: settings.visibleProductIDs
         )
         let week = poller.week(weekOffset: weekOffset)
@@ -68,34 +63,17 @@ struct GrokPanelView: View {
                     title: snapshot.usagePool.sectionTitle,
                     trailing: "\(Int(snapshot.usedPercent.rounded()))% Used"
                 )
-
-                SegmentedUsageBar(products: products, height: 8)
-
-                UsageLimitCaption(resetsAt: snapshot.resetsAt, percent: snapshot.usedPercent)
+                SlimUsageTrack(
+                    label: "Weekly",
+                    percent: snapshot.usedPercent,
+                    color: MonitorProvider.grok.accentColor,
+                    resetsAt: snapshot.resetsAt,
+                    showsLabel: false
+                )
             }
 
-            if !categoryProducts.isEmpty {
-                PanelCard {
-                    PanelSectionHeader(title: "Categories")
-                    HStack(spacing: 12) {
-                        ForEach(categoryProducts) { product in
-                            CategoryRow(product: product)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                }
-            }
-
-            if let credits = snapshot.extraCreditsBalance, credits > 0 {
-                PanelCard {
-                    HStack {
-                        Text("Extra credits")
-                        Spacer()
-                        Text(credits as NSDecimalNumber, formatter: Format.usdCurrency)
-                    }
-                    .font(PanelTypography.body)
-                    .foregroundStyle(.primary)
-                }
+            if !breakdownProducts.isEmpty {
+                GrokUsageBreakdownCard(products: breakdownProducts)
             }
 
             // The chart renders only when a provider reset defines a billing window.
@@ -120,8 +98,11 @@ struct GrokPanelView: View {
                     .padding(.top, 2)
             }
 
-            ProviderSignOutButton(provider: .grok) {
-                auth.signOut()
+            HStack {
+                SavedResetsPill(resets: poller.savedResets, tint: MonitorProvider.grok.accentColor)
+                ProviderSignOutButton(provider: .grok) {
+                    auth.signOut()
+                }
             }
         }
     }

@@ -96,6 +96,12 @@ struct OpenRouterSnapshot: Identifiable, Hashable, Sendable {
     var keyLimitRemainingUSD: Double?
     /// Per-model spend over the last 30 days (`/activity`; management keys only).
     var models: [OpenRouterModelUsage] = []
+    /// `limit_reset` when the bar measures a key limit (`daily`, `weekly`, `monthly`).
+    /// Nil for account credits and for a key cap that never resets.
+    var limitReset: String?
+    /// Spend in USD keyed by UTC day `yyyy-MM-dd`, from `/activity`, with today's
+    /// `/key` `usage_daily` filling a day activity did not report.
+    var spendByUTCDay: [String: Double] = [:]
 
     /// Which denominator backs `usedPercent`.
     var budgetSource: OpenRouterBudgetSource?
@@ -172,6 +178,10 @@ struct OpenRouterSnapshot: Identifiable, Hashable, Sendable {
         }
 
         snapshot.models = OpenRouterModelUsage.models(from: activity ?? [])
+        snapshot.spendByUTCDay = Self.spendByUTCDay(activity: activity ?? [], key: key, now: fetchedAt)
+        if snapshot.budgetSource == .keyLimit {
+            snapshot.limitReset = key.limitReset?.lowercased()
+        }
 
         // Negative usage (overdraft) clamps to zero.
         snapshot.usedUSD = max(0, snapshot.usedUSD)
@@ -190,6 +200,42 @@ struct OpenRouterSnapshot: Identifiable, Hashable, Sendable {
         default: return nil
         }
         return calendar.dateInterval(of: component, for: date)?.end
+    }
+
+    /// UTC-day spend. Activity rows win for a day they report; `usage_daily`
+    /// fills today only when activity left that day out.
+    private static func spendByUTCDay(
+        activity: [OpenRouterActivityRow],
+        key: OpenRouterKeyData,
+        now: Date
+    ) -> [String: Double] {
+        var totals: [String: Double] = [:]
+        for row in activity {
+            guard let day = utcDayKey(row.date) else { continue }
+            totals[day, default: 0] += max(0, row.usage)
+        }
+        let today = utcDayKey(now)
+        if let today, totals[today] == nil, let daily = key.usageDaily, daily > 0 {
+            totals[today] = daily
+        }
+        return totals
+    }
+
+    /// `yyyy-MM-dd` prefix of an activity date or of `date` in UTC.
+    private static func utcDayKey(_ raw: String) -> String? {
+        let day = String(raw.prefix(10))
+        let parts = day.split(separator: "-")
+        guard parts.count == 3, parts[0].count == 4, parts[1].count == 2, parts[2].count == 2,
+              parts.allSatisfy({ $0.allSatisfy(\.isNumber) }) else { return nil }
+        return day
+    }
+
+    private static func utcDayKey(_ date: Date) -> String? {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? calendar.timeZone
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        guard let year = parts.year, let month = parts.month, let day = parts.day else { return nil }
+        return String(format: "%04d-%02d-%02d", year, month, day)
     }
 
     /// `/key` usage field matching the provider-declared `limit_reset` window.

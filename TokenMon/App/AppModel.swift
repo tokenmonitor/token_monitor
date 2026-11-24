@@ -17,6 +17,7 @@ final class AppModel {
     let grokHourly = HourlyDeltaActivityStore(storageKey: "grok_hourly_today")
     let claudeHourly = HourlyDeltaActivityStore(storageKey: "claude_hourly_today")
     let claudeDaily = DailyQuotaDeltaStore(storageKey: "claude_daily_usage")
+    let chatGPTDaily = DailyQuotaDeltaStore(storageKey: "chatgpt_daily_usage")
     let cursorDaily = DailyQuotaDeltaStore(storageKey: "cursor_daily_usage")
     let grokbotHourly = HourlyDeltaActivityStore(storageKey: "grokbot_hourly_today")
     let grokbotDaily = DailyQuotaDeltaStore(storageKey: "grokbot_daily_usage")
@@ -93,7 +94,7 @@ final class AppModel {
         openCodePoller = OpenCodeUsagePoller(settings: settings, auth: openCodeAuth)
         cursorPoller = CursorUsagePoller(settings: settings, auth: cursorAuth, daily: cursorDaily)
         claudePoller = ClaudeUsagePoller(settings: settings, auth: claudeAuth, hourly: claudeHourly, daily: claudeDaily)
-        chatGPTPoller = ChatGPTUsagePoller(settings: settings, auth: chatGPTAuth)
+        chatGPTPoller = ChatGPTUsagePoller(settings: settings, auth: chatGPTAuth, daily: chatGPTDaily)
         openRouterPoller = OpenRouterUsagePoller(settings: settings, auth: openRouterAuth)
         // Grokbot bills through the Cursor account, so it borrows that session.
         grokbotPoller = GrokbotUsagePoller(

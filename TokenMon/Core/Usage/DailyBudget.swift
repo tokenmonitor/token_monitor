@@ -9,8 +9,10 @@ struct DailyBudgetDay: Identifiable, Hashable, Sendable {
     var date: Date
     var spentUSD: Double
     var budgetUSD: Double
-    /// True for a preserved day of the window an early provider reset cut short.
-    /// It is history only: pace and elapsed days count the new window's days alone.
+    /// True for a day of the previous window shown beside the current one: a
+    /// preserved day of a window an early provider reset cut short, or a day
+    /// before the current billing period. It is history only: pace and elapsed
+    /// days count the current window's days alone.
     var isPriorWindow = false
     /// Tokens used that day, for providers that can count them (Claude Code's
     /// transcripts, OpenCode's database, Cursor's usage events), with where
@@ -42,6 +44,17 @@ enum WeekOffset {
 
 /// Calendar-day budget math shared by the daily-budget charts.
 enum DailyBudget {
+    /// Advances `resetsAt` by whole weeks until it is after `now`, so a weekly
+    /// reset instant remembered from an earlier payload still estimates the
+    /// current window. Returns `resetsAt` unchanged when it is still ahead.
+    static func projectWeeklyReset(_ resetsAt: Date?, now: Date) -> Date? {
+        guard let resetsAt else { return nil }
+        guard resetsAt <= now else { return resetsAt }
+        let week: TimeInterval = 7 * 86_400
+        let weeks = (now.timeIntervalSince(resetsAt) / week).rounded(.down) + 1
+        return resetsAt.addingTimeInterval(weeks * week)
+    }
+
     /// Daily allowance from monthly limit (same units as `limit`).
     static func budgetPerDay(limitUSD: Double, daysInPeriod: Int) -> Double {
         guard limitUSD > 0, daysInPeriod > 0 else { return 0 }
@@ -227,18 +240,19 @@ enum DailyBudget {
         return calendar.date(byAdding: .day, value: -daysFromMonday, to: today) ?? today
     }
 
-    /// Monday–Sunday bars for a subscription month. Days outside the billing
-    /// period are present so the week still starts on Monday, with 0 spend.
+    /// Monday–Sunday bars for a subscription month. Days before the billing
+    /// period are present so the week still starts on Monday.
     ///
-    /// `priorWindowSpentByDay` holds preserved days of a window an early provider
-    /// reset cut short. Any such day that falls before `periodStart` inside the
-    /// displayed week is shown with its recorded spend and flagged `isPriorWindow`;
-    /// without it, days before the billing period read 0.
+    /// On the current week (`weekOffset == 0`), days before `periodStart` belong
+    /// to the previous period: they are flagged `isPriorWindow` (dimmed, outside
+    /// pace) and carry their spend from `priorWindowSpentByDay` (preserved days
+    /// of a window an early provider reset cut short), else from
+    /// `historyByDay`, else 0.
     ///
     /// `weekOffset` shifts the Monday–Sunday slice by whole weeks (`0` is the
-    /// week containing `now`). `historyByDay` supplies spend for days before
-    /// `periodStart` on those earlier weeks. The current week ignores it, so
-    /// week 0 stays limited to `priorWindowSpentByDay`.
+    /// week containing `now`). On those earlier weeks, days before
+    /// `periodStart` are the subject of the chart and draw at full strength
+    /// from the same sources.
     static func buildMondayWeekDays(
         periodStart: Date,
         periodEnd: Date,
@@ -276,8 +290,9 @@ enum DailyBudget {
                 let spent = priorWindowSpentByDay[key] ?? historyByDay[key] ?? 0
                 return DailyBudgetDay(date: key, spentUSD: spent, budgetUSD: perDay)
             }
-            if key < periodStartDay, let prior = priorWindowSpentByDay[key] {
-                return DailyBudgetDay(date: key, spentUSD: prior, budgetUSD: perDay, isPriorWindow: true)
+            if key < periodStartDay {
+                let spent = priorWindowSpentByDay[key] ?? historyByDay[key] ?? 0
+                return DailyBudgetDay(date: key, spentUSD: spent, budgetUSD: perDay, isPriorWindow: true)
             }
             return DailyBudgetDay(date: key, spentUSD: spentInPeriod[key] ?? 0, budgetUSD: perDay)
         }
