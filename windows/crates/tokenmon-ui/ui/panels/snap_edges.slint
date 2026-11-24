@@ -1,0 +1,33 @@
+// Fixed-content hosts for the switcher edge test (tests/panels_switcher_edges.rs):
+// the provider switcher and a card, each 396px wide (the panel content width)
+// inside an 8px margin, so their outer edges can be compared pixel for pixel.
+import { Theme, Typo, PanelCard } from "../components/kit.slint";
+import { TabRowData } from "types.slint";
+import { ProviderSwitcher } from "shell.slint";
+
+component EdgeHost inherits Window {
+    background: Theme.window-background;
+    width: 412px;
+    default-font-family: Typo.family;
+}
+
+export component SnapSwitcherEdges inherits EdgeHost {
+    in property <[TabRowData]> rows;
+    height: 16px + rows.length * 28px;
+    ProviderSwitcher {
+        x: 8px;
+        y: 8px;
+        width: 396px;
+        rows: root.rows;
+    }
+}
+
+export component SnapCardEdges inherits EdgeHost {
+    height: 80px;
+    PanelCard {
+        x: 8px;
+        y: 8px;
+        width: 396px;
+        Text { text: "x"; }
+    }
+}
