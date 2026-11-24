@@ -2,6 +2,13 @@
 //!
 //! The SHA-256 check against GitHub's asset digest is done by the installer
 //! itself. This module is where publisher verification plugs in.
+//!
+//! Decision (#37): until releases are Authenticode-signed, the SHA-256 digest
+//! GitHub records for the release asset is the trust anchor, the same as the
+//! macOS updater. An update installs only when that digest is present and
+//! matches the download; a release without one opens the release page instead.
+//! That protects against a corrupted or truncated download, not against someone
+//! who can replace a release asset, so signing remains the goal.
 
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
@@ -20,10 +27,11 @@ pub trait SignatureVerifier: Send + Sync {
 /// Structural checks only: the file really is a PE image / an MSI (OLE)
 /// container. This is NOT publisher verification.
 ///
-/// TODO(signing): once releases are Authenticode-signed, add a verifier that
-/// calls `WinVerifyTrust` (`WINTRUST_ACTION_GENERIC_VERIFY_V2`) and pins the
-/// signer subject/thumbprint, and fail closed. Until then unsigned builds are
-/// accepted because the SHA-256 digest comes from the same GitHub release.
+/// TODO(signing, #37): once releases are Authenticode-signed, switch the
+/// policy to [`SignaturePolicy::RequireAuthenticode`] and make
+/// [`AuthenticodeVerifier`] pin the signer subject or thumbprint (it now
+/// accepts any publisher whose signature is valid), and fail closed. Until
+/// then unsigned builds are accepted on the GitHub asset digest alone.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct PeHeaderVerifier;
 
@@ -85,7 +93,8 @@ pub fn zone_id_marks_internet(contents: &str) -> bool {
 }
 
 /// The text of the file's `Zone.Identifier` alternate data stream, if any.
-/// Only Windows has such streams.
+/// Only Windows has such streams. The app's own downloads never carry one, so
+/// this is a defensive check, not protection for the update path (#37).
 fn read_zone_identifier(path: &Path) -> Option<String> {
     if cfg!(windows) {
         let mut stream = path.as_os_str().to_owned();
