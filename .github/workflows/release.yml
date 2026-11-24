@@ -7,7 +7,9 @@ name: Release
 # downloads TokenMon-*.zip from releases/latest and checks it against the
 # SHA-256 digest GitHub records for the asset.
 #
-# The runner has no Developer ID certificate, so these files are ad-hoc signed.
+# The build itself lives in macos-installers.yml and the composable actions in
+# .github/actions/macos-*. Until the Developer ID secrets exist (see the header
+# of macos-installers.yml) the files are ad-hoc signed and the pkg is unsigned:
 # Gatekeeper warns on a first download. An already-installed copy can still
 # replace itself from the zip.
 #
@@ -55,23 +57,30 @@ jobs:
       contents: read
     uses: ./.github/workflows/ci.yml
 
+  installers:
+    name: Build pkg, zip, and dSYMs
+    needs: gates
+    permissions:
+      contents: read
+    uses: ./.github/workflows/macos-installers.yml
+    secrets: inherit
+
   publish:
     name: Publish zip, pkg, and dSYMs
-    needs: gates
-    runs-on: macos-26
-    timeout-minutes: 45
+    needs: installers
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Full history: `make release` numbers the build by commit count.
-          fetch-depth: 0
           persist-credentials: false
 
-      # The committed project is used as-is; the gates job fails on drift.
-      - name: Build release zip, pkg, and dSYM zip
-        run: make release
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: tokenmon-macos
+          path: dist
 
       - name: Attach the files to the GitHub release
         env:
