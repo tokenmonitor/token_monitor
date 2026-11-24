@@ -95,6 +95,7 @@ pub fn apply_screen(w: &SettingsWindow, s: &SettingsScreen) {
     w.set_launch_at_login(g.launch_at_login);
     w.set_desktop_menu(g.desktop_menu);
     w.set_checks_for_updates(g.checks_for_updates);
+    w.set_theme_index(g.theme_index);
     w.set_version_text(g.version_text.as_str().into());
     w.set_update_action_title(g.update_action_title.as_str().into());
     w.set_update_can_act(g.update_can_act);
@@ -194,6 +195,7 @@ fn wire(w: &Rc<SettingsWindow>, vm: &Arc<SettingsViewModel>) {
         .set_desktop_menu(v));
     route!(w, vm, on_checks_for_updates_changed, |vm, v| vm
         .set_checks_for_updates(v));
+    route!(w, vm, on_theme_changed, |vm, i| vm.set_theme_index(i));
     route!(w, vm, on_update_action, |vm| vm.update_primary_action());
     route!(w, vm, on_active_step, |vm, d| vm.step_active(step(d)));
     route!(w, vm, on_idle_step, |vm, d| vm.step_idle(step(d)));

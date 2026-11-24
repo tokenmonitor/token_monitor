@@ -5,6 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use tokenmon_core::ProviderId;
+use tokenmon_core::settings::ThemePreference;
 
 /// Poll-interval bounds for "While menu is open" (seconds, step 15).
 pub const ACTIVE_POLL_RANGE: (u32, u32, u32) = (15, 300, 15);
@@ -137,6 +138,8 @@ pub struct SettingsSnapshot {
     pub visible_products: Vec<ProductCategory>,
     /// `selectedProvider` (Overview switches the refresh status to per-provider lines).
     pub selected_provider: ProviderId,
+    /// `appThemePreference` (Windows-only).
+    pub theme_preference: ThemePreference,
 }
 
 impl Default for SettingsSnapshot {
@@ -156,6 +159,7 @@ impl Default for SettingsSnapshot {
             provider_order: ProviderId::USAGE_PROVIDERS,
             visible_products: ProductCategory::ALL.to_vec(),
             selected_provider: ProviderId::Grok,
+            theme_preference: ThemePreference::System,
         }
     }
 }
@@ -182,6 +186,8 @@ pub enum SettingsChange {
     ShowSelectedProviderOnly(bool),
     /// "Check automatically".
     ChecksForUpdates(bool),
+    /// "Appearance": System, Light or Dark.
+    ThemePreference(ThemePreference),
     /// "While menu is open" seconds (already within range).
     ActivePollSeconds(u32),
     /// "While idle" seconds (already within range).

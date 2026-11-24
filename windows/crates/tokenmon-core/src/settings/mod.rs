@@ -21,7 +21,7 @@ pub use model::{
     ACTIVE_POLL_RANGE, DEFAULT_ACTIVE_POLL_SECONDS, DEFAULT_IDLE_POLL_SECONDS,
     DEFAULT_THRESHOLD_PERCENT, GrokProduct, IDLE_POLL_RANGE, InvalidEnabledProviders,
     LEGACY_GRAPH_FLAGS, PanelSection, ParseSettingsEnumError, Settings, SettingsKey,
-    THRESHOLD_RANGE, migrate_graph_flags,
+    THRESHOLD_RANGE, ThemePreference, migrate_graph_flags,
 };
 
 /// Decodes raw `settings.json` bytes into a valid [`Settings`]. Never fails or

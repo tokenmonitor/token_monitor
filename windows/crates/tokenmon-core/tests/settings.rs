@@ -5,7 +5,8 @@ use std::sync::Arc;
 
 use tokenmon_core::ProviderId::{self, *};
 use tokenmon_core::settings::{
-    AppSettings, GrokProduct, PanelSection, Settings, SettingsFile, decode_settings,
+    AppSettings, GrokProduct, PanelSection, Settings, SettingsFile, ThemePreference,
+    decode_settings,
 };
 
 fn fresh() -> (tempfile::TempDir, AppSettings) {
@@ -374,4 +375,15 @@ fn test_corrupt_file_loads_defaults() {
     assert!(
         serde_json::from_slice::<serde_json::Value>(&std::fs::read(&path).expect("file")).is_ok()
     );
+}
+
+/// The theme preference defaults to System, persists, and ignores junk.
+#[test]
+fn test_theme_preference_defaults_persists_and_ignores_unknown_values() {
+    assert_eq!(Settings::default().theme_preference, ThemePreference::System);
+    let (dir, s) = fresh();
+    s.set_theme_preference(ThemePreference::Dark);
+    assert_eq!(reopen(&dir).snapshot().theme_preference, ThemePreference::Dark);
+    let junk = decode_settings(br#"{"appThemePreference": "purple"}"#);
+    assert_eq!(junk.theme_preference, ThemePreference::System);
 }

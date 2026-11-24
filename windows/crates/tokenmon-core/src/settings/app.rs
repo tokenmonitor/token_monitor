@@ -10,6 +10,7 @@ use tokio::sync::watch;
 use super::file::SettingsFile;
 use super::model::{
     GrokProduct, InvalidEnabledProviders, LEGACY_GRAPH_FLAGS, PanelSection, Settings, SettingsKey,
+    ThemePreference,
 };
 use crate::provider::ProviderId;
 
@@ -116,6 +117,14 @@ impl AppSettings {
     pub fn set_checks_for_updates(&self, on: bool) {
         self.mutate(&[], |s| Settings {
             checks_for_updates: on,
+            ..s.clone()
+        });
+    }
+
+    /// Sets `appThemePreference`.
+    pub fn set_theme_preference(&self, preference: ThemePreference) {
+        self.mutate(&[], |s| Settings {
+            theme_preference: preference,
             ..s.clone()
         });
     }

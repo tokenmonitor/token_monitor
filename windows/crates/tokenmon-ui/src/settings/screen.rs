@@ -142,6 +142,8 @@ pub struct GeneralScreen {
     pub desktop_menu: bool,
     /// "Check automatically".
     pub checks_for_updates: bool,
+    /// "Appearance" combo-box index (0 System, 1 Light, 2 Dark).
+    pub theme_index: i32,
     /// "Version <v>".
     pub version_text: String,
     /// Update button title.
@@ -285,6 +287,11 @@ fn general(s: &SettingsSnapshot, h: &HostStatus, local: &LocalState) -> GeneralS
         launch_at_login: h.launch_at_login,
         desktop_menu: h.desktop_menu_enabled,
         checks_for_updates: s.checks_for_updates,
+        theme_index: tokenmon_core::settings::ThemePreference::ALL
+            .iter()
+            .position(|p| *p == s.theme_preference)
+            .and_then(|i| i32::try_from(i).ok())
+            .unwrap_or(0),
         version_text: format!("Version {}", h.app_version.as_deref().unwrap_or("unknown")),
         update_action_title: h.update_action_title.clone(),
         update_can_act: h.update_can_act,

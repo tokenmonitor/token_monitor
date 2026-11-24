@@ -13,6 +13,7 @@ use std::time::Duration;
 use serde_json::Value;
 
 use super::file::SettingsMap;
+use crate::appearance::AppTheme;
 use crate::provider::{PollIntervalInputs, ProviderId, select_poll_interval};
 
 /// Lower and upper bound of the poll interval while the panel is open (seconds).
@@ -120,6 +121,40 @@ settings_enum! {
     }
 }
 
+settings_enum! {
+    /// Which color theme the panel and Settings use. Windows-only: macOS always
+    /// follows the system appearance, so the macOS app ignores this key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tokenmon_core::AppTheme;
+    /// use tokenmon_core::settings::ThemePreference;
+    /// assert_eq!(ThemePreference::System.resolve(AppTheme::Dark), AppTheme::Dark);
+    /// assert_eq!(ThemePreference::Light.resolve(AppTheme::Dark), AppTheme::Light);
+    /// assert_eq!(ThemePreference::Dark.resolve(AppTheme::Light), AppTheme::Dark);
+    /// ```
+    ThemePreference, "theme preference", {
+        /// Follow the Windows app mode.
+        System => "system",
+        /// Always light.
+        Light => "light",
+        /// Always dark.
+        Dark => "dark",
+    }
+}
+
+impl ThemePreference {
+    /// The theme to render with, given what Windows currently reports.
+    pub const fn resolve(self, system: AppTheme) -> AppTheme {
+        match self {
+            Self::System => system,
+            Self::Light => AppTheme::Light,
+            Self::Dark => AppTheme::Dark,
+        }
+    }
+}
+
 /// Every persisted settings key (spec 01 section 2). The JSON key names are the
 /// macOS `UserDefaults` names, so a settings file is readable by both ports.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -152,11 +187,13 @@ pub enum SettingsKey {
     VisibleProductIds,
     /// `collapsedPanelSections`.
     CollapsedPanelSections,
+    /// `appThemePreference` (Windows-only).
+    AppThemePreference,
 }
 
 impl SettingsKey {
     /// All keys.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::ShowCategoriesInMenuBar,
         Self::MenuBarGraphProviders,
         Self::ShowSelectedProviderInMenuBar,
@@ -171,6 +208,7 @@ impl SettingsKey {
         Self::ProviderOrder,
         Self::VisibleProductIds,
         Self::CollapsedPanelSections,
+        Self::AppThemePreference,
     ];
 
     /// The JSON key.
@@ -190,6 +228,7 @@ impl SettingsKey {
             Self::ProviderOrder => "providerOrder",
             Self::VisibleProductIds => "visibleProductIDs",
             Self::CollapsedPanelSections => "collapsedPanelSections",
+            Self::AppThemePreference => "appThemePreference",
         }
     }
 
@@ -217,6 +256,7 @@ impl SettingsKey {
             Self::CollapsedPanelSections => {
                 strings(s.collapsed_panel_sections.iter().map(|p| p.as_str()))
             }
+            Self::AppThemePreference => s.theme_preference.as_str().into(),
         }
     }
 }
@@ -282,6 +322,8 @@ pub struct Settings {
     pub visible_product_ids: BTreeSet<GrokProduct>,
     /// Closed dropdown sections.
     pub collapsed_panel_sections: BTreeSet<PanelSection>,
+    /// Light, dark or follow Windows (Windows-only).
+    pub theme_preference: ThemePreference,
 }
 
 fn usage_set() -> BTreeSet<ProviderId> {
@@ -309,6 +351,7 @@ impl Default for Settings {
             provider_order: ProviderId::USAGE_PROVIDERS,
             visible_product_ids: all_products(),
             collapsed_panel_sections: BTreeSet::new(),
+            theme_preference: ThemePreference::System,
         }
     }
 }
@@ -432,6 +475,11 @@ impl Settings {
             collapsed_panel_sections: read_strings(map, SettingsKey::CollapsedPanelSections)
                 .map(|v| v.iter().filter_map(|s| s.parse().ok()).collect())
                 .unwrap_or_default(),
+            theme_preference: map
+                .get(SettingsKey::AppThemePreference.as_str())
+                .and_then(Value::as_str)
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(ThemePreference::System),
         }
     }
 

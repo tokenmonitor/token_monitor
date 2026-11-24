@@ -227,12 +227,22 @@ impl Ui {
         });
     }
 
+    /// The theme to render with: the user's Appearance choice, resolved against
+    /// the Windows app mode when it is "System".
+    fn effective_theme(&self) -> AppTheme {
+        self.app
+            .settings
+            .snapshot()
+            .theme_preference
+            .resolve(theme::app_theme())
+    }
+
     /// The app theme windows created now should start with: the last one
-    /// applied, or the registry's when nothing was applied yet.
+    /// applied, or the current effective theme when nothing was applied yet.
     fn current_theme(&self) -> AppTheme {
         let known = self.theme.borrow().current();
         known.unwrap_or_else(|| {
-            let now = theme::app_theme();
+            let now = self.effective_theme();
             self.theme.borrow_mut().update(now);
             now
         })
@@ -241,7 +251,7 @@ impl Ui {
     /// Re-reads the app theme and, when it changed, restyles the panel,
     /// Settings and its title bar. Runs on the tick and on theme-change events.
     fn sync_theme(&self) {
-        let Some(now) = self.theme.borrow_mut().update(theme::app_theme()) else {
+        let Some(now) = self.theme.borrow_mut().update(self.effective_theme()) else {
             return;
         };
         if let Some(panel) = self.panel.existing() {
@@ -727,6 +737,16 @@ fn run_primary(pipe: &str, show_panel: bool, version: &str) -> ExitCode {
         move |_| {
             checker.settings_changed();
         },
+    );
+
+    // Choosing Light, Dark or System in Settings restyles the windows at once.
+    let _theme_observer = crate::observe::ObservationLoop::start(
+        runtime.handle(),
+        app.settings.subscribe(),
+        Duration::from_millis(100),
+        false,
+        |s| s.theme_preference,
+        move |_| with_ui(|ui| ui.sync_theme()),
     );
 
     // Sleep pauses every loop; wake resumes them once the network is back.

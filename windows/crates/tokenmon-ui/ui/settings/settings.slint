@@ -1,7 +1,7 @@
 // TokenMon Settings window (spec 01 section 2.1). Fluent style, four tabs.
 // Owner: ws-ui-settings. All strings that depend on data come from the Rust
 // view model (src/settings/screen.rs); only static labels live here.
-import { Button, LineEdit, Palette, ScrollView, Slider, Switch, TabWidget } from "std-widgets.slint";
+import { Button, ComboBox, LineEdit, Palette, ScrollView, Slider, Switch, TabWidget } from "std-widgets.slint";
 
 export struct ToggleRowData {
     id: string,
@@ -163,6 +163,7 @@ export component SettingsWindow inherits Window {
     in-out property <bool> launch-at-login;
     in-out property <bool> desktop-menu;
     in-out property <bool> checks-for-updates;
+    in-out property <int> theme-index;
     in property <string> version-text;
     in property <string> update-action-title;
     in property <bool> update-can-act;
@@ -204,6 +205,7 @@ export component SettingsWindow inherits Window {
     callback launch-at-login-changed(bool);
     callback desktop-menu-changed(bool);
     callback checks-for-updates-changed(bool);
+    callback theme-changed(int);
     callback update-action();
     callback active-step(int);
     callback idle-step(int);
@@ -247,6 +249,24 @@ export component SettingsWindow inherits Window {
                             checked: root.desktop-menu;
                             toggled(v) => {
                                 root.desktop-menu-changed(v);
+                            }
+                        }
+                    }
+                    Section {
+                        title: "Appearance";
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: "Theme";
+                                vertical-alignment: center;
+                                horizontal-stretch: 1;
+                            }
+                            ComboBox {
+                                model: ["System", "Light", "Dark"];
+                                current-index: root.theme-index;
+                                selected(_) => {
+                                    root.theme-changed(self.current-index);
+                                }
                             }
                         }
                     }

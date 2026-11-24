@@ -90,6 +90,14 @@ impl SettingsViewModel {
         self.backend.apply(SettingsChange::ChecksForUpdates(on));
     }
 
+    /// "Appearance": the combo-box index (0 System, 1 Light, 2 Dark).
+    pub fn set_theme_index(&self, index: i32) {
+        let all = tokenmon_core::settings::ThemePreference::ALL;
+        if let Some(p) = usize::try_from(index).ok().and_then(|i| all.get(i)) {
+            self.backend.apply(SettingsChange::ThemePreference(*p));
+        }
+    }
+
     /// The update button.
     pub fn update_primary_action(&self) {
         self.host.update_primary_action();

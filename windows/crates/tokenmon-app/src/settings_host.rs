@@ -77,6 +77,7 @@ fn snapshot_of(s: &Settings) -> SettingsSnapshot {
         menu_bar_graph_providers: s.menu_bar_graph_providers.iter().copied().collect(),
         show_selected_provider_only: s.show_selected_provider_in_menu_bar,
         checks_for_updates: s.checks_for_updates,
+        theme_preference: s.theme_preference,
         active_poll_seconds: s.active_poll_seconds,
         idle_poll_seconds: s.idle_poll_seconds,
         threshold_enabled: s.threshold_enabled,
@@ -109,6 +110,7 @@ impl SettingsBackend for AppSettingsBackend {
                 s.set_show_selected_provider_in_menu_bar(v);
             }
             SettingsChange::ChecksForUpdates(v) => s.set_checks_for_updates(v),
+            SettingsChange::ThemePreference(v) => s.set_theme_preference(v),
             SettingsChange::ActivePollSeconds(v) => s.set_active_poll_seconds(v),
             SettingsChange::IdlePollSeconds(v) => s.set_idle_poll_seconds(v),
             SettingsChange::ThresholdEnabled(v) => s.set_threshold_enabled(v),

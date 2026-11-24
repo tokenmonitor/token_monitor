@@ -49,6 +49,7 @@ impl SettingsBackend for InMemorySettings {
             }
             SettingsChange::ShowSelectedProviderOnly(v) => s.show_selected_provider_only = v,
             SettingsChange::ChecksForUpdates(v) => s.checks_for_updates = v,
+            SettingsChange::ThemePreference(v) => s.theme_preference = v,
             SettingsChange::ActivePollSeconds(v) => {
                 s.active_poll_seconds = v.clamp(ACTIVE_POLL_RANGE.0, ACTIVE_POLL_RANGE.1);
             }
