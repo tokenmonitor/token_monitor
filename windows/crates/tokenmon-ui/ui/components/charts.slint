@@ -17,6 +17,18 @@ export global HoverMath {
         }
     }
 
+    /// Column whose centered stem is under `x` (within 4px of it), or -1 in
+    /// the gaps between stems.
+    pure public function stem-index(x: length, column-width: length, columns: int, stem-width: length) -> int {
+        if (column-index(x, column-width, columns) < 0) {
+            -1
+        } else if (abs(x - column-width * (column-index(x, column-width, columns) + 0.5)) <= stem-width / 2 + 4px) {
+            column-index(x, column-width, columns)
+        } else {
+            -1
+        }
+    }
+
     /// Left edge of the floating label: beside the pointer (left preferred,
     /// right when the left side would leave the container).
     pure public function label-x(pointer-x: length, label-width: length, container-width: length) -> length {
@@ -328,7 +340,7 @@ component DailyChartBody inherits VerticalLayout {
     }
     bars := Rectangle {
         height: PanelMetrics.stem-height + 42px;
-        private property <int> hovered: touch.has-hover ? HoverMath.column-index(touch.mouse-x, self.width / max(1, root.days.length), root.days.length) : -1;
+        private property <int> hovered: (touch.has-hover && touch.mouse-y >= 0px && touch.mouse-y <= PanelMetrics.stem-height) ? HoverMath.stem-index(touch.mouse-x, self.width / max(1, root.days.length), root.days.length, PanelMetrics.stem-width) : -1;
         HorizontalLayout {
             for day[i] in root.days: DayColumn {
                 day: day;

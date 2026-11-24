@@ -341,7 +341,7 @@ fn test_kit_component_snapshots() {
     w.set_size(PhysicalSize::new(WIDTH, 260));
     // Bars row: card padding 12 + 12 window padding; 7 columns of 372/7 px.
     w.dispatch_event(WindowEvent::PointerMoved {
-        position: LogicalPosition::new(12.0 + 1.5 * 372.0 / 7.0 + 12.0, 150.0),
+        position: LogicalPosition::new(12.0 + 1.5 * 372.0 / 7.0 + 12.0, 140.0),
     });
     check(&w, "daily_budget_hover", 260, &mut failures);
 
@@ -363,6 +363,8 @@ fn test_kit_component_snapshots() {
     assert_eq!(g.invoke_column_index(119.9, 40.0, 7), 2);
     assert_eq!(g.invoke_column_index(280.0, 40.0, 7), -1);
     assert_eq!(g.invoke_column_index(-1.0, 40.0, 7), -1);
+    assert_eq!(g.invoke_stem_index(60.0, 40.0, 7, 12.0), 1);
+    assert_eq!(g.invoke_stem_index(41.0, 40.0, 7, 12.0), -1);
     assert_eq!(g.invoke_label_x(200.0, 100.0, 300.0), 86.0);
     assert_eq!(g.invoke_label_x(40.0, 100.0, 300.0), 54.0);
     assert_eq!(g.invoke_label_x(100.0, 250.0, 300.0), 0.0);

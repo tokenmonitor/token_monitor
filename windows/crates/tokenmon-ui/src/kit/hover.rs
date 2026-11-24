@@ -1,6 +1,6 @@
 //! Hover geometry and copy for the daily bar charts (`DailyBudgetHover`).
 //!
-//! The Slint `HoverMath` global implements the same two functions in the
+//! The Slint `HoverMath` global implements the same functions in the
 //! component; tests keep both in agreement.
 
 /// Distance between the pointer and the floating label.
@@ -21,6 +21,26 @@ pub fn column_index(x: f64, column_width: f64, columns: usize) -> Option<usize> 
     }
     let idx = (x / column_width).floor() as usize;
     (idx < columns).then_some(idx)
+}
+
+/// Horizontal slack either side of a stem that still counts as over it.
+pub const STEM_HIT_SLOP: f64 = 4.0;
+
+/// Index of the bar whose stem is under `x`: the stem is centered in its
+/// column and `x` must lie within [`STEM_HIT_SLOP`] of it. `None` in the gaps
+/// between stems, so the label hides as the pointer leaves a bar.
+///
+/// # Examples
+///
+/// ```
+/// use tokenmon_ui::kit::hover::stem_index;
+/// assert_eq!(stem_index(60.0, 40.0, 7, 12.0), Some(1));
+/// assert_eq!(stem_index(41.0, 40.0, 7, 12.0), None);
+/// ```
+pub fn stem_index(x: f64, column_width: f64, columns: usize, stem_width: f64) -> Option<usize> {
+    let index = column_index(x, column_width, columns)?;
+    let center = column_width * (index as f64 + 0.5);
+    ((x - center).abs() <= stem_width / 2.0 + STEM_HIT_SLOP).then_some(index)
 }
 
 /// Top-left of the floating label for a pointer at `(px, py)`.

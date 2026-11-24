@@ -8,7 +8,9 @@ use tokenmon_core::{ProviderId, Srgb};
 use tokenmon_ui::kit::daily::{
     DailyBudgetDay, DayTokensText, day_bar, footer_text, header_percent, range_label, weekday_label,
 };
-use tokenmon_ui::kit::hover::{DayUsage, column_index, label_origin, usage_line};
+use tokenmon_ui::kit::hover::{
+    DayUsage, STEM_HIT_SLOP, column_index, label_origin, stem_index, usage_line,
+};
 use tokenmon_ui::kit::palette::{ProductColor, to_color};
 use tokenmon_ui::kit::segments::{ProductShare, layout_segments, segment_widths};
 use tokenmon_ui::kit::week::WeekOffset;
@@ -85,6 +87,19 @@ fn test_column_index_maps_pointer_to_bar() {
     assert_eq!(column_index(280.0, 40.0, 7), None);
     assert_eq!(column_index(-1.0, 40.0, 7), None);
     assert_eq!(column_index(10.0, 0.0, 0), None);
+}
+
+/// testStemIndexCoversOnlyTheStem: only the stem (plus slack) shows the label.
+#[test]
+fn test_stem_index_covers_only_the_stem() {
+    let slop = STEM_HIT_SLOP;
+    assert_eq!(stem_index(60.0, 40.0, 7, 12.0), Some(1));
+    assert_eq!(stem_index(54.0 - slop, 40.0, 7, 12.0), Some(1));
+    assert_eq!(stem_index(66.0 + slop, 40.0, 7, 12.0), Some(1));
+    assert_eq!(stem_index(53.0 - slop, 40.0, 7, 12.0), None);
+    assert_eq!(stem_index(67.0 + slop, 40.0, 7, 12.0), None);
+    assert_eq!(stem_index(41.0, 40.0, 7, 12.0), None);
+    assert_eq!(stem_index(300.0, 40.0, 7, 12.0), None);
 }
 
 /// testLabelFloatsBesideThePointer.
