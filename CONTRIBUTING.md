@@ -94,10 +94,16 @@ cannot carry a reference, so the guard fails on that push and says so. Open a
 request, then re-run the failed job; an open `windows-parity` issue that
 mentions the commit satisfies the guard.
 
+The two apps also ship **one version number**: `MARKETING_VERSION` in
+`project.yml` and `[workspace.package] version` in `windows/Cargo.toml` (which
+every crate and the MSI inherit) must be equal. Bump both together and refresh
+`windows/Cargo.lock` and `windows/fuzz/Cargo.lock`. CI fails on drift.
+
 Check locally before pushing:
 
 ```bash
 python3 windows/scripts/parity/check_parity.py
+python3 windows/scripts/parity/check_versions.py
 python3 -m unittest discover -s windows/scripts/parity/tests
 ```
 

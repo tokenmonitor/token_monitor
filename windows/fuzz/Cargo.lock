@@ -1637,7 +1637,7 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "tokenmon-core"
-version = "0.1.0"
+version = "1.13.2"
 dependencies = [
  "chrono",
  "futures",
@@ -1676,7 +1676,7 @@ dependencies = [
 
 [[package]]
 name = "tokenmon-platform"
-version = "0.1.0"
+version = "1.13.2"
 dependencies = [
  "reqwest",
  "serde",
@@ -1696,7 +1696,7 @@ dependencies = [
 
 [[package]]
 name = "tokenmon-provider-chatgpt"
-version = "0.1.0"
+version = "1.13.2"
 dependencies = [
  "chrono",
  "serde",
@@ -1707,7 +1707,7 @@ dependencies = [
 
 [[package]]
 name = "tokenmon-provider-claude"
-version = "0.1.0"
+version = "1.13.2"
 dependencies = [
  "chrono",
  "serde",
@@ -1720,7 +1720,7 @@ dependencies = [
 
 [[package]]
 name = "tokenmon-provider-cursor"
-version = "0.1.0"
+version = "1.13.2"
 dependencies = [
  "chrono",
  "futures",
@@ -1731,7 +1731,7 @@ dependencies = [
 
 [[package]]
 name = "tokenmon-provider-grok"
-version = "0.1.0"
+version = "1.13.2"
 dependencies = [
  "chrono",
  "reqwest",
@@ -1746,7 +1746,7 @@ dependencies = [
 
 [[package]]
 name = "tokenmon-provider-grokbot"
-version = "0.1.0"
+version = "1.13.2"
 dependencies = [
  "chrono",
  "serde_json",
@@ -1757,7 +1757,7 @@ dependencies = [
 
 [[package]]
 name = "tokenmon-provider-opencode"
-version = "0.1.0"
+version = "1.13.2"
 dependencies = [
  "chrono",
  "rusqlite",
@@ -1769,7 +1769,7 @@ dependencies = [
 
 [[package]]
 name = "tokenmon-provider-openrouter"
-version = "0.1.0"
+version = "1.13.2"
 dependencies = [
  "chrono",
  "futures",
