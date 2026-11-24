@@ -209,6 +209,12 @@ impl Ui {
                 WindowEvent::Focused(focused) => ui.note_focus(*focused),
                 // WM_SETTINGCHANGE: the app theme may have changed.
                 WindowEvent::ThemeChanged(_) => ui.sync_theme(),
+                // The window took its real size (first show, new content, a
+                // DPI change): re-anchor it so it never hangs into the taskbar.
+                // Deferred so placement never runs inside a winit callback.
+                WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                    ui.replace_soon();
+                }
                 WindowEvent::KeyboardInput { event, .. }
                     if event.state.is_pressed()
                         && event.logical_key == Key::Named(NamedKey::Escape) =>
@@ -356,8 +362,26 @@ impl Ui {
             }
             debug_assert_eq!(self.panel.creations(), 1, "one panel window only");
             self.log_actual_geometry(&window);
+            // On the first show the native window only now exists, and the
+            // position set before it did can be dropped: place it again.
+            self.replace_soon();
             self.app.model.set_menu_open(true);
         }
+    }
+
+    /// Re-anchors the panel on the next event-loop turn, if it is still on
+    /// screen then.
+    fn replace_soon(&self) {
+        let weak = self.me.borrow().clone();
+        slint::Timer::single_shot(std::time::Duration::ZERO, move || {
+            let Some(ui) = weak.upgrade() else {
+                return;
+            };
+            if let Some(window) = ui.panel.existing().filter(|w| w.is_visible()) {
+                ui.place(&window);
+                ui.log_actual_geometry(&window);
+            }
+        });
     }
 
     /// Anchors the window to the tray icon on the side away from the taskbar,
