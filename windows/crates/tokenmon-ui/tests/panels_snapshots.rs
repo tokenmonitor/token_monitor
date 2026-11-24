@@ -640,6 +640,7 @@ fn render_all_states(last: &Rc<RefCell<Option<Rc<MinimalSoftwareWindow>>>>) {
             percent_of_window: 100.0,
         }],
         show_all_models: false,
+        daily: None,
     };
     let nolimit = OpenRouterSnapshotInput {
         budget_source: None,

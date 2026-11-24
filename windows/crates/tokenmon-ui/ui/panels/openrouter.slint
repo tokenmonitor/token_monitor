@@ -1,6 +1,6 @@
 import { PanelHeader, PoolCard, DailyCard, ModelsCard, FooterBlock, MessageBlock, Caption, ActionButton } from "parts.slint";
 import { Theme, Typo, PanelCard, PanelSectionHeader, DigitText, MetricStatGrid } from "../components/kit.slint";
-import { TrackData, ModelsData, FooterData, HeaderData, TabRowData, MetricItem } from "types.slint";
+import { TrackData, ModelsData, DailyData, FooterData, HeaderData, TabRowData, MetricItem } from "types.slint";
 
 /// State and actions of the OpenRouter panel body; the host sets and connects these once.
 export global OpenRouterVm {
@@ -13,6 +13,9 @@ export global OpenRouterVm {
     /// The "Replace API Key…" link was pressed.
     callback replace-key();
     callback toggle-show-all-models();
+    callback previous-week();
+    callback next-week();
+    in property <DailyData> daily;
     in property <HeaderData> header;
     in property <bool> has-usage;
     in property <string> message;
@@ -43,6 +46,11 @@ export component OpenRouterBody inherits VerticalLayout {
         tracks: OpenRouterVm.tracks;
     }
     if OpenRouterVm.has-usage && OpenRouterVm.no-limit != "": Caption { text: OpenRouterVm.no-limit; }
+    if OpenRouterVm.has-usage && OpenRouterVm.daily.present: DailyCard {
+        data: OpenRouterVm.daily;
+        previous-week => { OpenRouterVm.previous-week(); }
+        next-week => { OpenRouterVm.next-week(); }
+    }
     if OpenRouterVm.has-usage: VerticalLayout {
         spacing: 8px;
         PanelSectionHeader { title: "Stats"; }

@@ -175,6 +175,7 @@ pub fn connect_opencode(w: &ui::OpenCodeVm<'_>, handler: &PanelHandler) {
 /// Connects an OpenRouter panel (API-key entry instead of a sign-in window).
 pub fn connect_openrouter(w: &ui::OpenRouterVm<'_>, handler: &PanelHandler) {
     common!(w, handler);
+    weeks!(w, handler, ProviderId::OpenRouter);
     let h = handler.clone();
     w.on_sign_out(move || h(PanelEvent::SignOut(ProviderId::OpenRouter)));
     let h = handler.clone();

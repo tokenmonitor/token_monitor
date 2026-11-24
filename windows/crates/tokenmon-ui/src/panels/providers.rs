@@ -329,6 +329,7 @@ impl OpenRouterSnapshotInput {
             key_usage_daily_usd: s.key_usage_daily_usd,
             models: s.models.iter().map(or_model).collect(),
             show_all_models,
+            daily: None,
         }
     }
 }

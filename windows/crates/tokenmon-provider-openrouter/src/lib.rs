@@ -12,6 +12,7 @@
 pub mod activity;
 pub mod auth;
 pub mod client;
+pub mod daily_chart;
 pub mod models;
 pub mod poller;
 pub mod snapshot;
@@ -19,6 +20,7 @@ pub mod snapshot;
 pub use activity::{CostEstimator, ModelUsage, NoCostEstimator, canonical_slug, models_from_rows};
 pub use auth::{ApiKey, OpenRouterAuthSession, SaveKeyError, looks_like_api_key};
 pub use client::{Endpoint, EndpointFetcher, OpenRouterUsageClient, ReqwestFetcher};
+pub use daily_chart::{ChartKind, OpenRouterDailyChart};
 pub use models::{ActivityRow, CreditsData, KeyData, parse_activity, parse_credits, parse_key};
 pub use poller::{ClientFactory, OpenRouterUsagePoller};
 pub use snapshot::{BudgetSource, LimitReset, OpenRouterSnapshot};

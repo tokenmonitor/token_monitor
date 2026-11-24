@@ -1,6 +1,8 @@
 //! [`OpenRouterSnapshot`]: budget selection, reset window and derived values.
 
-use chrono::{DateTime, Datelike, Days, Utc};
+use std::collections::BTreeMap;
+
+use chrono::{DateTime, Datelike, Days, NaiveDate, Utc};
 
 use crate::activity::{CostEstimator, ModelUsage, models_from_rows};
 use crate::models::{ActivityRow, CreditsData, KeyData};
@@ -86,6 +88,9 @@ pub struct OpenRouterSnapshot {
     pub remaining_usd: Option<f64>,
     /// Per-model spend, highest first.
     pub models: Vec<ModelUsage>,
+    /// Spend in USD per UTC day, from `/activity`, with today's `/key`
+    /// `usage_daily` filling a day activity did not report.
+    pub spend_by_utc_day: BTreeMap<NaiveDate, f64>,
     /// When the data was fetched.
     pub fetched_at: DateTime<Utc>,
 }
@@ -143,6 +148,42 @@ fn key_limit_budget(key: &KeyData) -> Option<Budget> {
         used: window_usage.unwrap_or(key.usage),
         remaining,
     })
+}
+
+/// `yyyy-MM-dd` prefix of an activity date, when it is one.
+fn utc_day(raw: &str) -> Option<NaiveDate> {
+    let day = raw.get(..10)?;
+    let parts: Vec<&str> = day.split('-').collect();
+    let well_formed = matches!(parts.as_slice(), [y, m, d]
+        if y.len() == 4 && m.len() == 2 && d.len() == 2)
+        && parts.iter().all(|p| p.bytes().all(|b| b.is_ascii_digit()));
+    if !well_formed {
+        return None;
+    }
+    NaiveDate::parse_from_str(day, "%Y-%m-%d").ok()
+}
+
+/// UTC-day spend. Activity rows win for a day they report; `usage_daily`
+/// fills today only when activity left that day out.
+fn spend_by_utc_day(
+    activity: &[ActivityRow],
+    key: &KeyData,
+    now: DateTime<Utc>,
+) -> BTreeMap<NaiveDate, f64> {
+    let mut totals: BTreeMap<NaiveDate, f64> = BTreeMap::new();
+    for row in activity {
+        if let Some(day) = utc_day(&row.date) {
+            let slot = totals.entry(day).or_insert(0.0);
+            *slot = finite(*slot + row.usage.max(0.0));
+        }
+    }
+    let today = now.date_naive();
+    if let Some(daily) = key.usage_daily.filter(|d| *d > 0.0)
+        && !totals.contains_key(&today)
+    {
+        totals.insert(today, finite(daily));
+    }
+    totals
 }
 
 impl OpenRouterSnapshot {
@@ -211,6 +252,7 @@ impl OpenRouterSnapshot {
             used_usd: finite(used).max(0.0),
             remaining_usd: budget.as_ref().map(|b| b.remaining),
             models: models_from_rows(activity.unwrap_or(&[]), estimator),
+            spend_by_utc_day: spend_by_utc_day(activity.unwrap_or(&[]), key, fetched_at),
             fetched_at,
         }
     }

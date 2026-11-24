@@ -158,6 +158,7 @@ fn or_snapshot(budget: Option<f64>, used: f64) -> OpenRouterSnapshot {
             model("openai/gpt-5", "openai/gpt-5", 0.4, false, 80.0),
             model("vendor/model", "vendor/model-20260101", 0.1, true, 20.0),
         ],
+        spend_by_utc_day: std::collections::BTreeMap::default(),
         fetched_at: now(),
     }
 }

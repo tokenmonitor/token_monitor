@@ -25,7 +25,7 @@ use tokenmon_provider_opencode::snapshot::{WindowKind, WindowUsage};
 use tokenmon_provider_opencode::stats::{
     DayHourlyUsage, overview_hour_token_counts, overview_quota_hour_weights,
 };
-use tokenmon_provider_openrouter::OpenRouterUsagePoller;
+use tokenmon_provider_openrouter::{ChartKind, OpenRouterDailyChart, OpenRouterUsagePoller};
 use tokenmon_ui::panels::claude_chatgpt::{
     ChatGptSnapshotInput, ClaudeCodeInput, ClaudeSnapshotInput,
 };
@@ -37,6 +37,7 @@ use tokenmon_core::Clock;
 use tokenmon_provider_grok::models::ProductCatalog;
 
 use crate::daily::{ChartContext, daily_input, grok_week_input, noun_for};
+use tokenmon_ui::panels::common::AllowanceNoun;
 
 /// OpenCode's default monthly plan limit when no window carries one.
 const DEFAULT_MONTHLY_LIMIT_USD: f64 = 60.0;
@@ -123,6 +124,24 @@ fn chart<'a>(
         now: q.now,
         calendar,
     }
+}
+
+/// The chart context of an OpenRouter chart: paced against the key limit's
+/// own window, when it has one.
+fn chart_context<'a>(
+    provider: ProviderId,
+    q: &ViewQuery<'_>,
+    bars: &OpenRouterDailyChart,
+    calendar: &'a Calendar<'a>,
+) -> ChartContext<'a> {
+    chart(
+        provider,
+        q,
+        bars.period_used_percent,
+        bars.period_start,
+        bars.resets_at,
+        calendar,
+    )
 }
 
 /// Grok: snapshot plus the per-product week.
@@ -288,11 +307,25 @@ pub fn opencode_source(poller: &Arc<OpenCodeUsagePoller>) -> ViewSource {
 pub fn openrouter_source(poller: &Arc<OpenRouterUsagePoller>) -> ViewSource {
     let poller = Arc::clone(poller);
     Arc::new(move |q| {
-        SnapshotView::OpenRouter(
-            poller
-                .snapshot()
-                .map(|s| OpenRouterSnapshotInput::from_snapshot(&s, q.show_all_models)),
-        )
+        SnapshotView::OpenRouter(poller.snapshot().map(|s| {
+            let calendar = Calendar::local(q.clock);
+            let daily = OpenRouterDailyChart::make(&s, q.now).and_then(|bars| {
+                let ctx = ChartContext {
+                    noun: if bars.kind == ChartKind::Monthly {
+                        AllowanceNoun::Monthly
+                    } else {
+                        AllowanceNoun::Weekly
+                    },
+                    ..chart_context(ProviderId::OpenRouter, q, &bars, &calendar)
+                };
+                let days = bars.days(WeekOffset::new(q.week_offset), &calendar);
+                daily_input(&days, &ctx)
+            });
+            OpenRouterSnapshotInput {
+                daily,
+                ..OpenRouterSnapshotInput::from_snapshot(&s, q.show_all_models)
+            }
+        }))
     })
 }
 

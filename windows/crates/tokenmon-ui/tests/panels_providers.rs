@@ -892,6 +892,7 @@ fn or_snap() -> OpenRouterSnapshotInput {
             percent_of_window: 100.0,
         }],
         show_all_models: false,
+        daily: None,
     }
 }
 

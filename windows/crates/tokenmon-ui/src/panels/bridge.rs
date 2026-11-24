@@ -423,6 +423,7 @@ pub fn apply_openrouter(w: &ui::OpenRouterVm<'_>, v: &OpenRouterPanelVm) {
         w.set_used_text(opt(u.used_text.as_deref()));
         w.set_tracks(model(u.track.iter().map(track).collect()));
         w.set_no_limit(opt(u.no_limit_text));
+        w.set_daily(daily(u.daily.as_ref()));
         w.set_stats(metrics(&u.stats));
         w.set_models(models(u.models.as_ref()));
         w.set_replace_link(text(if u.replace_link {

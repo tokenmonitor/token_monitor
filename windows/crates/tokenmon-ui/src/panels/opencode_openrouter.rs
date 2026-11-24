@@ -314,6 +314,9 @@ pub struct OpenRouterSnapshotInput {
     pub models: Vec<OpenRouterModelInput>,
     /// `View all` toggled.
     pub show_all_models: bool,
+    /// Daily bars for the credit pool (key reset window, or a UTC week of
+    /// the balance); `None` without a budget.
+    pub daily: Option<DailyBudgetInput>,
 }
 
 /// OpenRouter panel input.
@@ -355,6 +358,8 @@ pub struct OpenRouterUsage {
     pub track: Option<TrackVm>,
     /// Text when the key has no limit.
     pub no_limit_text: Option<&'static str>,
+    /// Daily bars under the credit bar.
+    pub daily: Option<DailyBudgetVm>,
     /// `Stats` grid.
     pub stats: MetricGridVm,
     /// Models card.
@@ -484,6 +489,7 @@ pub fn build_openrouter(input: &OpenRouterInput, ctx: &PanelContext) -> OpenRout
                     .is_none()
                     .then_some("This key has no credit limit, so usage shows as spend only."),
                 track,
+                daily: snap.daily.as_ref().and_then(|d| build_daily_budget(d, ctx)),
                 stats,
                 models: (!rows.is_empty()).then(|| {
                     ModelsCardVm::new(
