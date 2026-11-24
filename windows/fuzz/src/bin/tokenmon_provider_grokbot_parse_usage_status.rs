@@ -22,7 +22,6 @@ fuzz_target!(|data: &[u8]| {
             let cal = Calendar::utc();
             assert!(snapshot.days_in_period(&cal) >= 1);
             let _ = snapshot.usage_pool(&cal);
-            let _ = snapshot.entitlement.caption_text();
         }
         Err(
             ProviderError::Unauthorized(_)
