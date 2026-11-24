@@ -311,10 +311,14 @@ rounded rect radius **12**:
    `ClaudePanelView` | `ChatGPTPanelView` | `OpenRouterPanelView` | `GrokbotPanelView` (non-overview panels are specified in the
    provider slices). Sign-in buttons inside them open `AppWindow.signIn(provider)`; Grokbot opens `signIn(.cursor)`;
    OpenRouter has none (API key in Settings). `openPreferences` (cog) opens Settings.
-4. `UpdateAvailableIndicator`: only when the update checker has an available release; top padding 10; plain button with
-   `arrow.down.circle` icon + `"TokenMon <ver> is available"` (or `"Installing TokenMon <ver>…"` while installing), caption
-   font, tint/accent color, disabled when `!checker.canAct`, tooltip "Download, verify, and install the update"; optional
-   `statusMessage` below in caption2 secondary; click → `performPrimaryAction()`.
+4. `UpdateAvailableIndicator` (upstream 41924464): only when the update checker has an available release; top padding 10; a
+   tinted capsule pill (`PanelPill`: icon, label, caption scale, accent text on 14% accent fill, horizontal padding 8)
+   reading `"Update available"` (or `"Installing update…"` while installing), disabled when `!checker.canAct`, tooltip
+   `"Download, verify, and install TokenMon <ver>"` (`"Installing TokenMon <ver>"` while installing); optional
+   `statusMessage` below in caption secondary; click → `performPrimaryAction()`.
+   Saved resets are a `PanelPill` too: `"Resets available"` + count in the provider accent, on the sign-out row (pill leading,
+   sign-out icon trailing) of the ChatGPT, Claude and SuperGrok panels; the tooltip is `"Next expires <EEE dd MMMM h:mma>"`, or
+   `"Saved usage-limit resets"` without an expiry. The earlier "Saved resets" card (9a4365ac) no longer exists.
 
 Opening any window (Settings or sign-in) first shows the Dock icon (`setActivationPolicy(.regular)`) and activates the app;
 when the last such window closes the app returns to accessory (no Dock icon) after a 0.25 s grace period (cancelled if another window

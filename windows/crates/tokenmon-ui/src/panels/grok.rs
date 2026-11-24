@@ -1,6 +1,7 @@
 //! Grok panel (`GrokPanelView`, spec 02 section 1.7).
 
 use chrono::{DateTime, Utc};
+use tokenmon_core::usage::SavedResets;
 use tokenmon_core::{ProviderId, Srgb};
 
 use super::common::{
@@ -34,6 +35,8 @@ pub struct GrokSnapshotInput {
     pub category_products: Vec<ProductInput>,
     /// Daily chart for the selected week, if any.
     pub week: Option<DailyBudgetInput>,
+    /// Saved SuperGrok limit resets (loaded by the poller, not the snapshot).
+    pub saved_resets: Option<SavedResets>,
 }
 
 /// Grok panel input.
@@ -174,7 +177,8 @@ pub fn build(input: &GrokInput, ctx: &PanelContext) -> PanelVm<GrokUsage> {
             reset_caption: ctx.limit_reset_caption(snap.resets_at, snap.used_percent),
             categories,
             daily: snap.week.as_ref().and_then(|w| build_daily_budget(w, ctx)),
-            footer: FooterVm::standard(s, ctx, ProviderId::Grok, ProviderId::Grok),
+            footer: FooterVm::standard(s, ctx, ProviderId::Grok, ProviderId::Grok)
+                .with_saved_resets(snap.saved_resets, ProviderId::Grok, ctx),
         },
     )
 }

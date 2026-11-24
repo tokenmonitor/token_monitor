@@ -203,6 +203,7 @@ fn render_all_states(last: &Rc<RefCell<Option<Rc<MinimalSoftwareWindow>>>>) {
 
     // Grok
     let gsnap = GrokSnapshotInput {
+        saved_resets: None,
         used_percent: 36.0,
         resets_at: Some(at(2026, 7, 16, 20, 25)),
         pool_products: vec![product("Chat", 23.0), product("Build", 13.0)],
@@ -402,6 +403,7 @@ fn render_all_states(last: &Rc<RefCell<Option<Rc<MinimalSoftwareWindow>>>>) {
         models_expanded: true,
     };
     let clsnap = ClaudeSnapshotInput {
+        saved_resets: tokenmon_core::usage::SavedResets::new(2, None),
         pool_name: "Mixed".into(),
         five_hour: Some(WindowInput {
             label: None,
@@ -499,6 +501,7 @@ fn render_all_states(last: &Rc<RefCell<Option<Rc<MinimalSoftwareWindow>>>>) {
 
     // ChatGPT
     let gpt = ChatGptSnapshotInput {
+        saved_resets: None,
         plan_name: "ChatGPT Plus".into(),
         pool_name: "Hourly".into(),
         primary: Some(WindowInput {

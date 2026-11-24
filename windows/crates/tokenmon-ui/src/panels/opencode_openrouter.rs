@@ -241,6 +241,7 @@ pub fn build_opencode(input: &OpenCodeInput, ctx: &PanelContext) -> PanelVm<Open
                 stale: None,
                 sign_in_again: None,
                 sign_out: Some(super::common::SignOutVm::new(ProviderId::OpenCode)),
+                saved_resets: None,
             },
         },
     )

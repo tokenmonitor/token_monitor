@@ -39,6 +39,83 @@ export component ActionButton inherits Rectangle {
     }
 }
 
+/// Compact tinted capsule at the caption scale: an optional glyph, a short
+/// label and an optional figure. Hovering shows `help` above it.
+export component PanelPill inherits Rectangle {
+    in property <string> glyph;
+    in property <string> label;
+    in property <string> value;
+    in property <string> help;
+    in property <color> tint;
+    in property <bool> enabled: true;
+    // A pill that only informs (hover help) is not pressable.
+    in property <bool> pressable: false;
+    callback clicked();
+    height: 18px;
+    width: row.preferred-width;
+    border-radius: 9px;
+    background: root.tint.with-alpha(0.14);
+    opacity: root.enabled ? 1.0 : 0.5;
+    accessible-role: button;
+    accessible-label: root.label + (root.value != "" ? " " + root.value : "");
+    accessible-description: root.help;
+    row := HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 8px;
+        spacing: 4px;
+        alignment: center;
+        if root.glyph != "": Text {
+            text: root.glyph;
+            font-family: Typo.family;
+            font-size: Typo.caption-size;
+            color: root.tint;
+            vertical-alignment: center;
+        }
+        Text {
+            text: root.label;
+            font-family: Typo.family;
+            font-size: Typo.caption-size;
+            color: root.tint;
+            vertical-alignment: center;
+        }
+        if root.value != "": Text {
+            text: root.value;
+            font-family: Typo.family;
+            font-size: Typo.caption-size;
+            font-weight: 600;
+            color: root.tint;
+            vertical-alignment: center;
+        }
+    }
+    touch := TouchArea {
+        mouse-cursor: root.pressable && root.enabled ? pointer : default;
+        clicked => {
+            if (root.pressable && root.enabled) { root.clicked(); }
+        }
+    }
+    if touch.has-hover && root.help != "": Rectangle {
+        z: 100;
+        x: 0px;
+        y: -(tip.preferred-height + 12px) - 4px;
+        width: min(280px, tip.preferred-width + 20px);
+        height: tip.preferred-height + 12px;
+        background: Theme.window-background;
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: Theme.separator;
+        tip := Text {
+            x: 10px;
+            y: 6px;
+            width: parent.width - 20px;
+            text: root.help;
+            font-family: Typo.family;
+            font-size: Typo.caption-size;
+            color: Theme.primary;
+            wrap: word-wrap;
+        }
+    }
+}
+
 /// Provider header row (logo, title, meta, settings cog).
 export component PanelHeader inherits ProviderHeaderRow {
     in property <HeaderData> data;
@@ -214,9 +291,17 @@ export component FooterBlock inherits VerticalLayout {
         text: root.data.sign-in-again;
         clicked => { root.sign-in-again(); }
     }
-    if root.data.sign-out-confirm != "": HorizontalLayout {
+    if root.data.sign-out-confirm != "" || root.data.pill-label != "": HorizontalLayout {
         spacing: 8px;
-        alignment: end;
+        alignment: root.data.pill-label != "" ? stretch : end;
+        if root.data.pill-label != "": PanelPill {
+            glyph: "\u{21BA}";
+            label: root.data.pill-label;
+            value: root.data.pill-value;
+            help: root.data.pill-help;
+            tint: root.data.pill-tint;
+        }
+        if root.data.pill-label != "": Rectangle { horizontal-stretch: 1; }
         if root.confirming: Text {
             text: root.data.sign-out-confirm;
             font-family: Typo.family;

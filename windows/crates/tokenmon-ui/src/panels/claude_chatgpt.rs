@@ -3,7 +3,7 @@
 
 use chrono::{DateTime, Utc};
 use tokenmon_core::ProviderId;
-use tokenmon_core::usage::UsageSource;
+use tokenmon_core::usage::{SavedResets, UsageSource};
 use tokenmon_provider_claude::ClaudeCodeUsageSummary;
 use tokenmon_provider_claude::hover::ClaudeModelHoverDetail;
 
@@ -81,6 +81,8 @@ pub struct ClaudeSnapshotInput {
     pub weekly_resets_at: Option<DateTime<Utc>>,
     /// Daily bars.
     pub daily: Option<DailyBudgetInput>,
+    /// Saved "Reset for free" resets.
+    pub saved_resets: Option<SavedResets>,
 }
 
 /// Claude panel input.
@@ -251,7 +253,8 @@ pub fn build_claude(input: &ClaudeInput, ctx: &PanelContext) -> ClaudePanelVm {
                 pool_title: format!("Usage Pool {}", snap.pool_name),
                 tracks,
                 daily: snap.daily.as_ref().and_then(|d| build_daily_budget(d, ctx)),
-                footer: FooterVm::standard(s, ctx, ProviderId::Claude, ProviderId::Claude),
+                footer: FooterVm::standard(s, ctx, ProviderId::Claude, ProviderId::Claude)
+                    .with_saved_resets(snap.saved_resets, ProviderId::Claude, ctx),
             },
         ),
         code,
@@ -275,6 +278,8 @@ pub struct ChatGptSnapshotInput {
     pub limit_reached: bool,
     /// Codex access allowed.
     pub allowed: bool,
+    /// Saved Codex limit resets.
+    pub saved_resets: Option<SavedResets>,
 }
 
 /// ChatGPT panel input.
@@ -351,7 +356,8 @@ pub fn build_chatgpt(input: &ChatGptInput, ctx: &PanelContext) -> PanelVm<ChatGp
                 .then_some("Codex access is currently blocked for this account."),
             unattributed_limit: (snap.limit_reached && pused < 100.0 && sused < 100.0)
                 .then_some("Limit reached · Window not reported"),
-            footer: FooterVm::standard(s, ctx, ProviderId::ChatGpt, ProviderId::ChatGpt),
+            footer: FooterVm::standard(s, ctx, ProviderId::ChatGpt, ProviderId::ChatGpt)
+                .with_saved_resets(snap.saved_resets, ProviderId::ChatGpt, ctx),
         },
     )
 }

@@ -57,6 +57,8 @@ pub enum PanelEvent {
     SubmitApiKey(String),
     /// `Replace API Key…` was clicked.
     ReplaceApiKey,
+    /// The "Update available" pill was pressed: install the release.
+    InstallUpdate,
 }
 
 /// The single sink the app provides for all panel actions.
@@ -105,6 +107,8 @@ pub fn connect_chrome(w: &ui::PanelWindow, handler: &PanelHandler) {
             col: index(col),
         });
     });
+    let h = handler.clone();
+    w.on_update_pill_clicked(move || h(PanelEvent::InstallUpdate));
 }
 
 /// Connects every provider body of the one panel window. Call once per

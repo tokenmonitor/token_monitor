@@ -154,6 +154,7 @@ fn claude_input() -> ClaudeInput {
     ClaudeInput {
         status: status(),
         snapshot: Some(ClaudeSnapshotInput {
+            saved_resets: None,
             pool_name: "Weekly".into(),
             five_hour: Some(WindowInput {
                 label: None,

@@ -171,9 +171,9 @@ pub fn grok_source(poller: &Arc<GrokProviderPoller>) -> ViewSource {
             .map(|p| p.as_str().to_owned())
             .collect();
         let visible = ProductCatalog::normalize_visible_ids(&ids);
-        SnapshotView::Grok(Some(GrokSnapshotInput::from_snapshot(
-            &snapshot, &visible, week,
-        )))
+        let mut input = GrokSnapshotInput::from_snapshot(&snapshot, &visible, week);
+        input.saved_resets = usage.saved_resets();
+        SnapshotView::Grok(Some(input))
     })
 }
 

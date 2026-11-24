@@ -37,6 +37,7 @@ use tokenmon_platform::shell::{
 };
 use tokenmon_platform::webauth::WindowsWebAuthHost;
 use tokenmon_provider_opencode::db::DataDirEnv;
+use tokenmon_ui::panels::common::UpdatePillVm;
 use tokenmon_ui::panels::events::{PanelEvent, PanelHandler};
 use tokenmon_ui::panels::overview::OverviewCardVm;
 use tokenmon_ui::panels::switcher::{RowVm, build_switcher};
@@ -104,6 +105,8 @@ struct Ui {
     rows: RefCell<Vec<RowVm>>,
     cards: RefCell<Vec<OverviewCardVm>>,
     last_view: RefCell<Option<PanelView>>,
+    /// The "Update available" pill last applied to the panel window.
+    last_pill: RefCell<Option<UpdatePillVm>>,
     anchor: Cell<Option<Rect>>,
     /// Whether the selected panel has keyboard focus, and when it last lost it
     /// (to tell "was in front" at a tray press; see [`was_foreground`]).
@@ -342,7 +345,11 @@ impl Ui {
             &self.app.settings.snapshot().visible_usage_providers(),
             provider,
         );
-        if !reveal && self.last_view.borrow().as_ref() == Some(&view) && *self.rows.borrow() == rows
+        let pill = UpdatePillVm::from_state(&self.updates.checker.state());
+        if !reveal
+            && self.last_view.borrow().as_ref() == Some(&view)
+            && *self.rows.borrow() == rows
+            && *self.last_pill.borrow() == pill
         {
             return;
         }
@@ -353,6 +360,8 @@ impl Ui {
             self.cards.borrow_mut().clone_from(&vm.cards);
         }
         window.apply(&view, &rows);
+        window.set_update_pill(pill.as_ref());
+        *self.last_pill.borrow_mut() = pill;
         *self.rows.borrow_mut() = rows;
         *self.last_view.borrow_mut() = Some(view);
         if !reveal && window.is_visible() {
@@ -500,6 +509,21 @@ impl Ui {
             Action::ToggleSection(section) => {
                 let expanded = self.app.settings.snapshot().is_expanded(section);
                 self.app.settings.set_expanded(!expanded, section);
+                self.render(false);
+            }
+            Action::InstallUpdate => {
+                let updates = Arc::clone(&self.updates);
+                self.handle.spawn(async move {
+                    let relaunching = updates
+                        .checker
+                        .perform_primary_action(updates.installer.as_ref())
+                        .await;
+                    // The relaunched build waits on our single-instance lock,
+                    // so a scheduled relaunch needs the normal quit path now.
+                    if relaunching {
+                        with_ui(|ui| ui.quit());
+                    }
+                });
                 self.render(false);
             }
             Action::SubmitApiKey(key) => {
@@ -767,6 +791,7 @@ fn run_primary(pipe: &str, show_panel: bool, version: &str) -> ExitCode {
         rows: RefCell::new(Vec::new()),
         cards: RefCell::new(Vec::new()),
         last_view: RefCell::new(None),
+        last_pill: RefCell::new(None),
         anchor: Cell::new(None),
         focused: Cell::new(false),
         focus_lost_at: Cell::new(None),

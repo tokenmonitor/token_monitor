@@ -26,6 +26,7 @@ fn product(name: &str, pct: f64) -> ProductInput {
 
 fn grok_snap() -> GrokSnapshotInput {
     GrokSnapshotInput {
+        saved_resets: None,
         used_percent: 36.4,
         resets_at: Some(at(2026, 7, 16, 20, 25)),
         pool_products: vec![product("Chat", 23.0), product("Build", 13.0)],
@@ -398,6 +399,7 @@ fn claude_code() -> ClaudeCodeInput {
 
 fn claude_snap() -> ClaudeSnapshotInput {
     ClaudeSnapshotInput {
+        saved_resets: None,
         pool_name: "Mixed".into(),
         five_hour: Some(WindowInput {
             label: None,
@@ -524,6 +526,7 @@ fn test_claude_missing_windows_and_collapsed_models() {
 
 fn chatgpt_snap() -> ChatGptSnapshotInput {
     ChatGptSnapshotInput {
+        saved_resets: None,
         plan_name: "ChatGPT Plus".into(),
         pool_name: "Hourly".into(),
         primary: Some(WindowInput {
@@ -914,6 +917,7 @@ fn test_exhausted_provider_panels_keep_their_own_reset() {
     let expected = Some("Limit reached · Resets in 1 hour 35 minutes");
 
     let grok = GrokSnapshotInput {
+        saved_resets: None,
         used_percent: 100.0,
         resets_at: reset,
         ..grok_snap()

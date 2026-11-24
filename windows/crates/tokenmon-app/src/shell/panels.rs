@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use slint::ComponentHandle;
 use tokenmon_core::AppTheme;
+use tokenmon_ui::panels::common::UpdatePillVm;
 use tokenmon_ui::panels::switcher::RowVm;
 use tokenmon_ui::panels::{bridge, events, ui};
 
@@ -76,6 +77,11 @@ impl PanelWindow {
     /// Hides it.
     pub fn hide(&self) {
         let _ = self.window.hide();
+    }
+
+    /// Shows the "Update available" pill, or hides it with `None`.
+    pub fn set_update_pill(&self, pill: Option<&UpdatePillVm>) {
+        bridge::apply_update_pill(&self.window, pill);
     }
 
     /// Fills the window from `view` and the switcher grid and selects the

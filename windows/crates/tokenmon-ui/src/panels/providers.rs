@@ -72,6 +72,7 @@ impl GrokSnapshotInput {
                 .map(product)
                 .collect(),
             week,
+            saved_resets: None,
         }
     }
 }
@@ -166,6 +167,7 @@ impl ClaudeSnapshotInput {
             weekly_resets_at: weekly_resets_at
                 .or_else(|| s.seven_day.as_ref().and_then(|w| w.resets_at)),
             daily,
+            saved_resets: s.saved_resets,
         }
     }
 }
@@ -225,6 +227,7 @@ impl From<&ChatGptSnapshot> for ChatGptSnapshotInput {
             secondary: s.secondary.as_ref().map(|w| gpt_window(w, "Weekly")),
             limit_reached: s.limit_reached,
             allowed: s.allowed,
+            saved_resets: s.saved_resets,
         }
     }
 }

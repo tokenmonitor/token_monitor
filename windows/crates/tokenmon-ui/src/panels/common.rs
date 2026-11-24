@@ -5,7 +5,11 @@
 //! provider crates' snapshot types are added once those land.
 
 use chrono::{DateTime, NaiveDate, Utc};
-use tokenmon_core::usage::{Calendar, DailyBudget, PaceHeadroom, UsageSource, api_value_text};
+use tokenmon_core::update::UpdateState;
+use tokenmon_core::usage::{
+    Calendar, DailyBudget, PaceHeadroom, SavedResets, UsageSource, api_value_text,
+};
+use tokenmon_core::util::format::Format;
 use tokenmon_core::{ProviderId, Srgb};
 
 use crate::kit::week::WeekOffset;
@@ -325,6 +329,93 @@ pub struct FooterVm {
     pub sign_in_again: Option<SignInAction>,
     /// Sign-out control.
     pub sign_out: Option<SignOutVm>,
+    /// "Resets available" pill on the sign-out row, when the account has
+    /// saved usage-limit resets.
+    pub saved_resets: Option<SavedResetsVm>,
+}
+
+/// "Resets available" pill with the count of saved usage-limit resets. The
+/// tooltip names the next expiry where the provider reports one.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SavedResetsVm {
+    /// Pill label.
+    pub label: &'static str,
+    /// The count, as a number.
+    pub count_text: String,
+    /// Tooltip: `Next expires <date>`, or the generic text without a date.
+    pub help: String,
+    /// Provider accent the pill is tinted with.
+    pub accent: Srgb,
+}
+
+impl SavedResetsVm {
+    /// The pill's label.
+    pub const LABEL: &'static str = "Resets available";
+    /// Tooltip when the provider reports no expiry.
+    pub const GENERIC_HELP: &'static str = "Saved usage-limit resets";
+
+    /// The pill for `resets`, tinted with `provider`'s accent; the expiry is
+    /// shown in the local zone of `ctx`.
+    pub fn new(resets: &SavedResets, provider: ProviderId, ctx: &PanelContext) -> Self {
+        let help = resets.next_expiry().map_or_else(
+            || Self::GENERIC_HELP.to_owned(),
+            |at| {
+                format!(
+                    "Next expires {}",
+                    Format::reset_date(
+                        at,
+                        Format::DEFAULT_RESET_PATTERN,
+                        ctx.calendar.offset_at(at)
+                    )
+                )
+            },
+        );
+        Self {
+            label: Self::LABEL,
+            count_text: resets.count().to_string(),
+            help,
+            accent: provider.accent(),
+        }
+    }
+}
+
+/// "Update available" pill at the bottom of the panel: pressing it installs
+/// the release; the tooltip names the version.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UpdatePillVm {
+    /// `Update available`, or `Installing update…` while installing.
+    pub label: &'static str,
+    /// Tooltip with the version.
+    pub help: String,
+    /// The checker's status message, shown as a caption beneath the pill.
+    pub status: Option<String>,
+    /// False while a check or install is running.
+    pub enabled: bool,
+}
+
+impl UpdatePillVm {
+    /// The pill for the checker's `state`; `None` until a newer release is
+    /// found.
+    pub fn from_state(state: &UpdateState) -> Option<Self> {
+        let release = state.available_release.as_ref()?;
+        let (label, help) = if state.is_installing {
+            (
+                "Installing update\u{2026}",
+                format!("Installing TokenMon {}", release.version),
+            )
+        } else {
+            (
+                "Update available",
+                format!("Download, verify, and install TokenMon {}", release.version),
+            )
+        };
+        Some(Self {
+            label,
+            help,
+            status: state.status_message.clone(),
+            enabled: state.can_act(),
+        })
+    }
 }
 
 impl FooterVm {
@@ -341,6 +432,21 @@ impl FooterVm {
                 .needs_sign_in
                 .then(|| SignInAction::again(sign_in_provider)),
             sign_out: Some(SignOutVm::new(sign_out_provider)),
+            saved_resets: None,
+        }
+    }
+
+    /// Adds the "Resets available" pill when the account has saved resets.
+    #[must_use]
+    pub fn with_saved_resets(
+        self,
+        resets: Option<SavedResets>,
+        provider: ProviderId,
+        ctx: &PanelContext,
+    ) -> Self {
+        Self {
+            saved_resets: resets.map(|r| SavedResetsVm::new(&r, provider, ctx)),
+            ..self
         }
     }
 }

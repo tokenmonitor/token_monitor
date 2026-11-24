@@ -9,7 +9,7 @@ use tokenmon_core::{AppTheme, ProviderId, Srgb};
 use super::claude_chatgpt::{ChatGptUsage, ClaudePanelVm, ClaudeUsage};
 use super::common::{
     DailyBudgetVm, DayBarVm, FooterVm, HeaderVm, HoverCardVm, HoverTotalVm, HoverVm, MetricGridVm,
-    ModelsCardVm, PanelVm, TrackVm, geometry,
+    ModelsCardVm, PanelVm, TrackVm, UpdatePillVm, geometry,
 };
 use super::grok::GrokUsage;
 use super::grokbot_cursor::{CursorUsage, GrokbotUsage};
@@ -219,7 +219,22 @@ fn footer(f: &FooterVm, error_text: Option<&str>) -> ui::FooterData {
         sign_in_again: opt(f.sign_in_again.as_ref().map(|a| a.label.as_str())),
         error_text: opt(error_text),
         sign_out_confirm: opt(f.sign_out.as_ref().map(|s| s.confirm_text.as_str())),
+        pill_label: opt(f.saved_resets.as_ref().map(|s| s.label)),
+        pill_value: opt(f.saved_resets.as_ref().map(|s| s.count_text.as_str())),
+        pill_help: opt(f.saved_resets.as_ref().map(|s| s.help.as_str())),
+        pill_tint: f
+            .saved_resets
+            .as_ref()
+            .map_or(Color::default(), |s| color(s.accent)),
     }
+}
+
+/// Fills the panel window's "Update available" pill; `None` hides it.
+pub fn apply_update_pill(w: &ui::PanelWindow, pill: Option<&UpdatePillVm>) {
+    w.set_update_label(opt(pill.map(|p| p.label)));
+    w.set_update_help(opt(pill.map(|p| p.help.as_str())));
+    w.set_update_status(opt(pill.and_then(|p| p.status.as_deref())));
+    w.set_update_enabled(pill.is_some_and(|p| p.enabled));
 }
 
 fn frame_text<U>(p: &PanelVm<U>) -> (SharedString, SharedString) {
@@ -435,6 +450,7 @@ pub fn apply_openrouter(w: &ui::OpenRouterVm<'_>, v: &OpenRouterPanelVm) {
             stale: u.stale.clone(),
             sign_in_again: None,
             sign_out: v.sign_out.clone(),
+            saved_resets: None,
         };
         w.set_footer(footer(&f, None));
     }

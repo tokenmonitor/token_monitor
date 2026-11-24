@@ -107,6 +107,8 @@ pub enum Action {
     ToggleSection(PanelSection),
     /// Store this OpenRouter key.
     SubmitApiKey(String),
+    /// Install the available update.
+    InstallUpdate,
 }
 
 /// What the panels remember between redraws.
@@ -201,6 +203,7 @@ impl PanelState {
                 Vec::new()
             }
             PanelEvent::SubmitApiKey(key) => vec![Action::SubmitApiKey(key.clone())],
+            PanelEvent::InstallUpdate => vec![Action::InstallUpdate],
             PanelEvent::ReplaceApiKey => {
                 self.replacing_key = true;
                 vec![Action::Redraw]
