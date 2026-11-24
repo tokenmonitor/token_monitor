@@ -80,7 +80,7 @@ Sign-out (Core `ProviderAuthSession.signOut`): bumps `sessionGeneration`, remove
 
 | Field | Value |
 |---|---|
-| Method / URL | `GET https://claude.ai/api/organizations/{org}/usage` |
+| Method / URL | `GET https://claude.ai/api/organizations/{org}/usage?cedar_ember=1` (the flag asks for the saved-reset grants; upstream 217b8350) |
 | `{org}` | `ClaudeUsageClient.organizationID(fromCookieHeader:)` (below), inserted verbatim (no URL-encoding) |
 | Headers | defaults + `Cookie: <stored pruned header>` + `Referer: https://claude.ai/` |
 | No org id | throw `ProviderError.custom(message: "Claude organization id not found in session. Sign in again.", usage: .notSignedIn)` — counts as a strike |
@@ -1500,3 +1500,11 @@ Fixtures are inline in the Swift tests. "UTC cal" = Gregorian/UTC.
 | `ModelPalette` hash | arbitrary strings | index in 0..8 (watch `i64::MIN.abs()` — use `unsigned_abs`) |
 | OpenRouter `/key`, `/credits`, `/activity` decode + `OpenRouterSnapshot::build` | arbitrary JSON | used ≥ 0; percent in [0,100] or None; negative/huge numbers |
 | `canonical_slug` / `estimated_value_usd` | arbitrary slugs | no panic |
+
+
+## Saved resets (upstream 9a4365ac, 217b8350; Windows `SavedResets` in `tokenmon-core::usage`)
+
+A saved-reset inventory is a count in 1..=50 and the soonest expiry. Redemption ids are never read.
+
+* **ChatGPT**: `wham/usage` root `rate_limit_reset_credits.available_count`, a whole number in 1..=50; anything else (absent, 0, fractional, boolean, larger, non-object block) shows nothing. No expiry (it lives on a separate endpoint that is not requested).
+* **Claude**: the usage payload's `cedar_ember` block `{"eligible": true, "grants": [{"resets_left", "resets_total", "paused", "starts_at", "ends_at"}]}`. A grant counts `resets_left` while not paused, started (`starts_at` absent/null/past) and not expired (`ends_at` absent/null/future); the soonest `ends_at` is the next expiry. A grant is dropped (others kept) when `resets_left` is not a non-negative whole number, `paused` is not a bool, a bound is neither null nor a parseable date, or `resets_left > resets_total`. A total above 50, an ineligible or missing block shows nothing.

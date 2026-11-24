@@ -1420,3 +1420,8 @@ Fixtures:
 | 13 | `GrokDailyUsageBuilder.billingPeriodWeekBounds` / `week` | Arbitrary reset, now, and snapshot sequences (dates from untrusted payloads) | Terminates (520-iteration cap). The window has 7 or 8 days. No panic on extreme dates. |
 | 14 | `CursorUsagePoller.buildDailyBudgetDays` | Arbitrary observed and estimate maps with extreme values | Bar values finite and non-negative. When rescaled, the sum ≈ usedPercent. |
 | 15 | Cookie-header pruning (`ProviderAuthSession.pruneCookieHeader`, Core) for `sso`/`sso-rw`/`WorkosCursorSessionToken` | Header strings | Output contains only allowlisted names, or the input unchanged when none are present. |
+
+
+## Saved resets (upstream 6d622852)
+
+`POST https://grok.com/prod_mc_billing.ConsumerUiSvc/GetRemainingResets` takes the same empty gRPC-web request as billing (shared helper). Each unused coupon is a field-10 message holding the token id (10, never read), granted-at Timestamp (20) and expires-at Timestamp (30, seconds in its field 1); only path `[10, 30, 1]` with a value in 1_700_000_000..=2_100_000_000 is read. Unexpired tokens are counted into a `SavedResets` (soonest expiry). The poller requests it only after a successful usage refresh, at most every 30 minutes on its injected clock (the attempt time counts even on failure). Every error, including a challenge or 401, keeps the last value, surfaces nothing and never strikes the session; a result landing after sign-out or account switch is dropped; sign-out clears it. Windows: `GrokSavedResetsFetch` is an optional poller dependency.
