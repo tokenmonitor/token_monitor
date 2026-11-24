@@ -343,7 +343,7 @@ fn day_bar(day_start: DateTime<Utc>, samples: &WeekSamples<'_>, cal: &dyn DayCal
             // Mid-period rebase drop: restart with absolute week-to-date.
             bar.is_after_reset = true;
             if day_cumulative > NOISE_FLOOR {
-                bar.segments = segments_from_products(products, Some(day_cumulative));
+                bar.segments = distribute(day_cumulative, products);
             }
         } else {
             bar.segments = growth_segments(previous, day_cumulative, previous_products, products);
@@ -366,12 +366,12 @@ fn day_bar(day_start: DateTime<Utc>, samples: &WeekSamples<'_>, cal: &dyn DayCal
         if is_tracking_start || rolled_over(prior_any(None)) {
             bar.is_after_reset = true;
         }
-        bar.segments = segments_from_products(products, Some(day_cumulative));
+        bar.segments = distribute(day_cumulative, products);
     } else if day_cumulative > NOISE_FLOOR && rolled_over(prior_any(Some(samples.week_start))) {
         // Rollover observed between two days of this window: paint the
         // post-reset week-to-date only.
         bar.is_after_reset = true;
-        bar.segments = segments_from_products(products, Some(day_cumulative));
+        bar.segments = distribute(day_cumulative, products);
     }
     // First sample mid-period: the bar stays empty until a second day.
     bar
@@ -438,51 +438,38 @@ fn sorted_visible(products: &[ProductUsage]) -> Vec<ProductUsage> {
     visible
 }
 
-/// Absolute product slices above the noise floor; one `other` segment for
-/// `fallback_total` when none remain.
-fn segments_from_products(
-    products: &[ProductUsage],
-    fallback_total: Option<f64>,
-) -> Vec<DailyUsageSegment> {
-    let visible = sorted_visible(products);
-    if !visible.is_empty() {
-        return visible.iter().map(to_segment).collect();
-    }
-    match fallback_total {
-        Some(total) if total > NOISE_FLOOR => vec![other_segment(total)],
-        _ => Vec::new(),
-    }
-}
-
-/// Day-over-day growth: per-product increases when available, else the total
-/// delta weighted by the product mix.
+/// Day-over-day growth in the headline used%, split by the per-product
+/// increases, or by the day's product mix when no product grew.
+///
+/// The headline is the total so the bars add up to the pool's used% even when
+/// the breakdown does not (rounded product values, or a day without a
+/// breakdown before a day with one).
 fn growth_segments(
     previous_used: f64,
     day_used: f64,
     previous_products: &[ProductUsage],
     products: &[ProductUsage],
 ) -> Vec<DailyUsageSegment> {
-    let by_product = product_delta_segments(previous_products, products);
-    let product_sum: f64 = by_product.iter().map(|s| s.percent_of_weekly).sum();
     let total_delta = (day_used - previous_used).max(0.0);
-    if !by_product.is_empty() && product_sum > NOISE_FLOOR {
-        by_product
-    } else if total_delta > NOISE_FLOOR {
-        distribute(total_delta, products)
-    } else {
-        Vec::new()
-    }
+    let grown = product_deltas(previous_products, products);
+    let grown_sum: f64 = grown.iter().map(|p| p.percent_of_pool).sum();
+    distribute(
+        total_delta,
+        if grown_sum > NOISE_FLOOR {
+            &grown
+        } else {
+            products
+        },
+    )
 }
 
-fn product_delta_segments(
-    previous: &[ProductUsage],
-    current: &[ProductUsage],
-) -> Vec<DailyUsageSegment> {
+/// Day-over-day growth per product, for the products that increased.
+fn product_deltas(previous: &[ProductUsage], current: &[ProductUsage]) -> Vec<ProductUsage> {
     let previous_by_id: BTreeMap<String, f64> = previous
         .iter()
         .map(|p| (p.id.to_lowercase(), p.percent_of_pool))
         .collect();
-    let mut deltas: Vec<ProductUsage> = current
+    current
         .iter()
         .filter_map(|p| {
             let before = previous_by_id
@@ -494,13 +481,12 @@ fn product_delta_segments(
                 ProductUsage::new(&p.id, p.display_name.clone(), delta).with_color(p.color_token)
             })
         })
-        .collect();
-    ProductCatalog::sort_for_display(&mut deltas);
-    deltas.iter().map(to_segment).collect()
+        .collect()
 }
 
-/// Proportional split of `total` over the current mix; one `other` segment
-/// when no products exist.
+/// Splits `total` across `products` in proportion to their values, so the
+/// segments always add up to `total`. With no usable weights, the whole total
+/// is one `other` segment.
 fn distribute(total: f64, products: &[ProductUsage]) -> Vec<DailyUsageSegment> {
     if total <= NOISE_FLOOR {
         return Vec::new();
@@ -512,12 +498,9 @@ fn distribute(total: f64, products: &[ProductUsage]) -> Vec<DailyUsageSegment> {
     }
     visible
         .iter()
-        .filter_map(|p| {
-            let share = total * (p.percent_of_pool / sum);
-            (share > NOISE_FLOOR).then(|| DailyUsageSegment {
-                percent_of_weekly: share,
-                ..to_segment(p)
-            })
+        .map(|p| DailyUsageSegment {
+            percent_of_weekly: total * p.percent_of_pool / sum,
+            ..to_segment(p)
         })
         .collect()
 }

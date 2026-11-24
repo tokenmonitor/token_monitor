@@ -13,7 +13,7 @@ use common::{clock_at, clock_with_offset, utc};
 use tokenmon_provider_grok::calendar::{DayCalendar, LocalCalendar};
 use tokenmon_provider_grok::daily::{billing_period_week_bounds, preview, week};
 use tokenmon_provider_grok::models::{
-    DailyUsageDay, DailyUsageWeek, ProductUsage, WeeklyUsageSnapshot,
+    DailyUsageDay, DailyUsageWeek, ProductUsage, WeeklyUsageSnapshot, synthesize_products,
 };
 
 fn product(id: &str, pct: f64) -> ProductUsage {
@@ -208,6 +208,63 @@ fn test_daily_usage_only_shows_products_that_grew() {
     assert_near(today.total_percent(), 3.0, 0.2);
     assert_eq!(today.segments.len(), 1);
     assert_eq!(today.segments[0].product_id, "chat");
+}
+
+/// A day's bar is the growth in the headline used%, even when the product
+/// breakdown does not add up to it: yesterday had no breakdown (a synthesized
+/// `other` slice) and today has one, so the per-product increases (25)
+/// overstate the day's real use (5). The split still follows the products
+/// that grew.
+#[test]
+fn test_daily_usage_total_follows_headline_when_breakdown_changes() {
+    let now = utc(2026, 7, 15, 12, 0);
+    let reset = utc(2026, 7, 16, 18, 57);
+    let history = [
+        WeeklyUsageSnapshot::new(utc(2026, 7, 14, 12, 0), 20.0)
+            .with_resets_at(Some(reset))
+            .with_products(synthesize_products(20.0)),
+        snap(
+            utc(2026, 7, 15, 10, 0),
+            25.0,
+            Some(reset),
+            &[("chat", 15.0), ("build", 10.0)],
+        ),
+    ];
+    let w = build_week(&history, 0, Some(reset), now).unwrap();
+    let today = day_on(&w, now).unwrap();
+    assert_near(today.total_percent(), 5.0, 0.01);
+    let ids: Vec<&str> = today
+        .segments
+        .iter()
+        .map(|s| s.product_id.as_str())
+        .collect();
+    assert_eq!(ids, ["chat", "build"]);
+    assert_near(today.segments[0].percent_of_weekly, 3.0, 0.01);
+}
+
+/// Product percentages rounded below the headline used% still give a day bar
+/// equal to the headline's growth.
+#[test]
+fn test_daily_usage_total_follows_headline_when_products_undercount() {
+    let now = utc(2026, 7, 15, 12, 0);
+    let reset = utc(2026, 7, 16, 18, 57);
+    let history = [
+        snap(
+            utc(2026, 7, 14, 12, 0),
+            10.4,
+            Some(reset),
+            &[("chat", 10.0)],
+        ),
+        snap(
+            utc(2026, 7, 15, 10, 0),
+            16.8,
+            Some(reset),
+            &[("chat", 16.0)],
+        ),
+    ];
+    let w = build_week(&history, 0, Some(reset), now).unwrap();
+    let today = day_on(&w, now).unwrap();
+    assert_near(today.total_percent(), 6.4, 0.01);
 }
 
 /// Flat usage across the day rollover leaves both bars empty.
