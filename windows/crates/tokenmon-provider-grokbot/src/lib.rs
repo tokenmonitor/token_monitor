@@ -6,6 +6,7 @@
 //!
 //! * [`models`]: [`GrokbotSnapshot`] and [`GrokbotEntitlement`].
 //! * [`parse`]: [`parse_usage_status`], the untrusted-body parser.
+//! * [`breakdown`]: [`GrokbotUsageBreakdown`], the usage-by-source parser.
 //! * [`client`]: [`GrokbotUsageClient`] and the session-aware
 //!   [`GrokbotFetcher`].
 //! * [`poller`]: [`GrokbotUsagePoller`], the `ProviderUsagePoller` on core's
@@ -13,12 +14,14 @@
 //! * [`publish`]: [`GrokbotPublisher`], the poller-side state: history stores,
 //!   window transitions and the daily budget bars.
 
+pub mod breakdown;
 pub mod client;
 pub mod models;
 pub mod parse;
 pub mod poller;
 pub mod publish;
 
+pub use breakdown::*;
 pub use client::*;
 pub use models::*;
 pub use parse::*;

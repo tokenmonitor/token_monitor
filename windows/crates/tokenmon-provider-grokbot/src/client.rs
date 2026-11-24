@@ -12,6 +12,7 @@ use serde_json::json;
 use tokenmon_core::{AuthSession, Clock, ProviderError, ProviderErrorContext, UsageFetcher};
 use tokenmon_provider_cursor::CursorHttp;
 
+use crate::breakdown::GrokbotUsageBreakdown;
 use crate::models::GrokbotSnapshot;
 use crate::parse::parse_usage_status;
 
@@ -20,17 +21,35 @@ const CTX: ProviderErrorContext = ProviderErrorContext::Grokbot;
 pub const USAGE_PATH: &str = "/api/dashboard/get-sand-usage-status";
 /// `Referer` sent with the request.
 pub const REFERER: &str = "https://cursor.com/bot";
+/// Connect RPC host for the usage breakdown, which the dashboard's REST
+/// wrapper does not expose.
+pub const RPC_BASE_URL: &str = "https://api2.cursor.sh";
+/// Path of the usage breakdown RPC.
+pub const BREAKDOWN_PATH: &str = "/aiserver.v1.DashboardService/GetGrokBotUsageBreakdown";
+
+const SESSION_COOKIE_PREFIX: &str = "workoscursorsessiontoken=";
 
 /// Talks to `cursor.com` for the Grokbot allowance.
 #[derive(Debug, Clone)]
 pub struct GrokbotUsageClient {
     http: CursorHttp,
+    rpc_base_url: String,
 }
 
 impl GrokbotUsageClient {
     /// A client over `http`.
     pub fn new(http: CursorHttp) -> Self {
-        Self { http }
+        Self {
+            http,
+            rpc_base_url: RPC_BASE_URL.to_owned(),
+        }
+    }
+
+    /// Replaces the RPC host (tests point it at a mock server).
+    #[must_use]
+    pub fn with_rpc_base_url(mut self, base_url: &str) -> Self {
+        base_url.clone_into(&mut self.rpc_base_url);
+        self
     }
 
     /// Production client for `https://cursor.com`; `app_version` feeds the
@@ -63,6 +82,77 @@ impl GrokbotUsageClient {
             .await?;
         parse_usage_status(&body, account_email, now)
     }
+
+    /// This period's usage by source (You, Routines, Bot to Bot, ...), or
+    /// `None` when the session cookie holds no access token or the account
+    /// has no breakdown.
+    ///
+    /// The RPC host authenticates with a bearer token rather than the cookie;
+    /// the token is the one inside the session cookie.
+    ///
+    /// # Errors
+    /// Transport, status and body errors, as for [`Self::fetch_usage_status`].
+    pub async fn fetch_breakdown(
+        &self,
+        cookie: &str,
+    ) -> Result<Option<GrokbotUsageBreakdown>, ProviderError> {
+        let Some(token) = access_token_from_cookie_header(cookie) else {
+            return Ok(None);
+        };
+        let body = self
+            .http
+            .post_json_bearer(
+                &self.rpc_base_url,
+                BREAKDOWN_PATH,
+                &token,
+                &[("Connect-Protocol-Version", "1")],
+                &json!({}),
+            )
+            .await?;
+        let root = tokenmon_core::net::json_object(&body, CTX)?;
+        Ok(GrokbotUsageBreakdown::parse(&root))
+    }
+}
+
+/// The access token inside `WorkosCursorSessionToken`, whose value is
+/// `<user id>::<JWT>` (percent-encoded); `None` when the cookie is missing or
+/// holds no JWT.
+///
+/// # Examples
+///
+/// ```
+/// use tokenmon_provider_grokbot::access_token_from_cookie_header;
+/// let header = "other=1; WorkosCursorSessionToken=u1%3A%3Aa.b.c; theme=dark";
+/// assert_eq!(access_token_from_cookie_header(header).as_deref(), Some("a.b.c"));
+/// assert_eq!(access_token_from_cookie_header("WorkosCursorSessionToken=live"), None);
+/// ```
+pub fn access_token_from_cookie_header(header: &str) -> Option<String> {
+    let value = header.split(';').map(str::trim).find_map(|pair| {
+        let head = pair.get(..SESSION_COOKIE_PREFIX.len())?;
+        head.eq_ignore_ascii_case(SESSION_COOKIE_PREFIX)
+            .then(|| &pair[SESSION_COOKIE_PREFIX.len()..])
+    })?;
+    let decoded = percent_decode(value)?;
+    let token = decoded.rsplit("::").next().unwrap_or(&decoded);
+    (token.split('.').count() == 3).then(|| token.to_owned())
+}
+
+/// Decodes `%XX` escapes; `None` for a malformed escape or non-UTF-8 result.
+fn percent_decode(text: &str) -> Option<String> {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' {
+            let hex = text.get(i + 1..i + 3)?;
+            out.push(u8::from_str_radix(hex, 16).ok()?);
+            i += 3;
+        } else {
+            out.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
 }
 
 /// [`UsageFetcher`] for Grokbot bound to the shared Cursor session.

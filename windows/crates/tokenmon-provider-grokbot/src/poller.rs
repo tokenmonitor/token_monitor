@@ -21,6 +21,7 @@ use tokenmon_core::{
     ProviderErrorContext, ProviderId, ProviderUsagePoller,
 };
 
+use crate::breakdown::GrokbotUsageBreakdown;
 use crate::client::GrokbotUsageClient;
 use crate::models::GrokbotSnapshot;
 use crate::publish::GrokbotPublisher;
@@ -35,6 +36,14 @@ pub type FetchFn = Arc<
         + Sync,
 >;
 
+/// One breakdown fetch with the Cursor cookie header (live:
+/// [`GrokbotUsageClient::fetch_breakdown`]; tests: a fake).
+pub type BreakdownFetchFn = Arc<
+    dyn Fn(String) -> BoxFuture<'static, Result<Option<GrokbotUsageBreakdown>, ProviderError>>
+        + Send
+        + Sync,
+>;
+
 /// Everything a [`GrokbotUsagePoller`] is wired to.
 pub struct GrokbotPollerConfig {
     /// The shared Cursor session.
@@ -45,6 +54,9 @@ pub struct GrokbotPollerConfig {
     pub clock: Arc<dyn Clock>,
     /// The fetch seam.
     pub fetch: FetchFn,
+    /// The breakdown fetch seam; `None` never fetches one, so a test that
+    /// fakes only the snapshot never reaches the live endpoint.
+    pub fetch_breakdown: Option<BreakdownFetchFn>,
     /// `AppSettings.isProviderEnabled(.grokbot)`.
     pub is_enabled: Arc<dyn Fn() -> bool + Send + Sync>,
     /// `AppSettings.pollInterval(for: .grokbot, menuIsOpen:)`; `None` parks.
@@ -63,6 +75,7 @@ impl GrokbotPollerConfig {
     ) -> Self {
         let client = Arc::new(client);
         let fetch_clock = Arc::clone(&clock);
+        let breakdown_client = Arc::clone(&client);
         Self {
             session,
             publisher,
@@ -76,6 +89,10 @@ impl GrokbotPollerConfig {
                         .await
                 })
             }),
+            fetch_breakdown: Some(Arc::new(move |cookie| {
+                let client = Arc::clone(&breakdown_client);
+                Box::pin(async move { client.fetch_breakdown(&cookie).await })
+            })),
             is_enabled,
             poll_interval,
         }
@@ -121,6 +138,8 @@ pub struct GrokbotUsagePoller {
     publisher: Mutex<GrokbotPublisher>,
     clock: Arc<dyn Clock>,
     fetch: FetchFn,
+    fetch_breakdown: Option<BreakdownFetchFn>,
+    breakdown: Mutex<Option<GrokbotUsageBreakdown>>,
     is_enabled: Arc<dyn Fn() -> bool + Send + Sync>,
     poll_interval: Arc<dyn Fn(bool) -> Option<Duration> + Send + Sync>,
     status: Mutex<Status>,
@@ -161,6 +180,8 @@ impl GrokbotUsagePoller {
                 publisher: Mutex::new(config.publisher),
                 clock: config.clock,
                 fetch: config.fetch,
+                fetch_breakdown: config.fetch_breakdown,
+                breakdown: Mutex::new(None),
                 is_enabled: config.is_enabled,
                 poll_interval: config.poll_interval,
                 status: Mutex::new(Status::default()),
@@ -183,6 +204,12 @@ impl GrokbotUsagePoller {
     /// The last published snapshot.
     pub fn snapshot(&self) -> Option<GrokbotSnapshot> {
         lock(&self.publisher).snapshot().cloned()
+    }
+
+    /// This period's usage by source: the last one fetched, kept when a later
+    /// fetch fails and dropped on sign-out.
+    pub fn breakdown(&self) -> Option<GrokbotUsageBreakdown> {
+        lock(&self.breakdown).clone()
     }
 
     /// The Monday-week bars `week_offset` steps from the current week.
@@ -228,7 +255,8 @@ impl GrokbotUsagePoller {
         };
         let email = self.session.state().account_email;
         let failure: Mutex<Option<ProviderError>> = Mutex::new(None);
-        ProviderRefresh::run(
+        let breakdown_cookie = cookie.clone();
+        let outcome = ProviderRefresh::run(
             &*self.session,
             "Grokbot",
             || async {
@@ -242,7 +270,31 @@ impl GrokbotUsagePoller {
             || {},
             |_message| lock(&self.status).last_error = lock(&failure).take(),
         )
-        .await
+        .await;
+        if outcome == PollOutcome::Success {
+            self.refresh_breakdown(breakdown_cookie).await;
+        }
+        outcome
+    }
+
+    /// Fetches the usage breakdown after a successful snapshot.
+    ///
+    /// The breakdown only adds detail to the panel, so a failure keeps the
+    /// last one, is logged, and neither reports an error nor counts against
+    /// the shared Cursor session. A result that arrives after a sign-out or
+    /// account switch is dropped.
+    async fn refresh_breakdown(&self, cookie: String) {
+        let Some(fetch) = &self.fetch_breakdown else {
+            return;
+        };
+        let generation = self.session.state().session_generation;
+        match fetch(cookie).await {
+            Ok(Some(fresh)) if self.session.is_current(generation) => {
+                *lock(&self.breakdown) = Some(fresh);
+            }
+            Ok(_) => {}
+            Err(error) => tracing::info!("Grokbot usage breakdown unavailable: {error}"),
+        }
     }
 
     fn publish(&self, snapshot: GrokbotSnapshot) -> PollOutcome {
@@ -307,6 +359,7 @@ impl ProviderUsagePoller for GrokbotUsagePoller {
 
     fn clear_snapshot(&self) {
         lock(&self.publisher).clear_snapshot();
+        *lock(&self.breakdown) = None;
         *lock(&self.status) = Status::default();
     }
 }

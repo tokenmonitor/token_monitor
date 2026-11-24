@@ -81,3 +81,44 @@ fn test_negative_nanos_do_not_underflow() {
     .unwrap();
     assert!(s.resets_at.is_none_or(|r| r.timestamp() >= -10));
 }
+
+/// The harness invariants of the `tokenmon_provider_grokbot_usage_breakdown`
+/// fuzz target for one input.
+fn check_breakdown(data: &[u8]) {
+    use tokenmon_provider_grokbot::{GrokbotUsageBreakdown, access_token_from_cookie_header};
+    if let Ok(serde_json::Value::Object(root)) = serde_json::from_slice(data)
+        && let Some(b) = GrokbotUsageBreakdown::parse(&root)
+    {
+        let mut seen = Vec::new();
+        for slice in &b.slices {
+            assert!(slice.value.is_finite() && slice.value > 0.0);
+            assert!(!seen.contains(&slice.source), "duplicate source");
+            seen.push(slice.source);
+        }
+        for pair in b.slices.windows(2) {
+            assert!(
+                pair[0].value > pair[1].value
+                    || (pair[0].value.total_cmp(&pair[1].value).is_eq()
+                        && pair[0].source < pair[1].source)
+            );
+        }
+    }
+    if let Ok(text) = std::str::from_utf8(data)
+        && let Some(token) = access_token_from_cookie_header(text)
+    {
+        assert_eq!(token.split('.').count(), 3);
+    }
+}
+
+/// Every committed breakdown corpus input satisfies the invariants.
+#[test]
+fn test_breakdown_corpus_inputs_satisfy_fuzz_invariants() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fuzz/corpus/tokenmon_provider_grokbot_usage_breakdown");
+    let mut count = 0;
+    for entry in std::fs::read_dir(dir).unwrap() {
+        check_breakdown(&std::fs::read(entry.unwrap().path()).unwrap());
+        count += 1;
+    }
+    assert!(count >= 8, "corpus unexpectedly small: {count}");
+}

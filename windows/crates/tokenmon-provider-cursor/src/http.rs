@@ -120,6 +120,34 @@ impl CursorHttp {
             .body)
     }
 
+    /// `POST <base><path>` with a JSON body, a bearer token and `headers`,
+    /// and no cookie (for Cursor's RPC host, which authenticates by token);
+    /// returns the 2xx body.
+    ///
+    /// # Errors
+    /// See [`ProviderHttp::get_with_response`].
+    pub async fn post_json_bearer(
+        &self,
+        base_url: &str,
+        path: &str,
+        token: &str,
+        headers: &[(&str, &str)],
+        body: &Value,
+    ) -> Result<Vec<u8>, ProviderError> {
+        let options = RequestOptions {
+            bearer_token: Some(token),
+            origin: Some(CURSOR_BASE_URL),
+            headers,
+            max_response_bytes: Some(MAX_RESPONSE_BYTES),
+            ..RequestOptions::default()
+        };
+        Ok(self
+            .http
+            .post_json(base_url.trim_end_matches('/'), path, body, options)
+            .await?
+            .body)
+    }
+
     fn options<'a>(
         cookie: &'a str,
         referer: &'a str,

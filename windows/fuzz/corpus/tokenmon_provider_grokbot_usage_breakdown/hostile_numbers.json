@@ -1,0 +1,1 @@
+{"weeklyLimitPpm":{"periodStartMs":1e300,"periodEndMs":-5,"bySource":[{"source":1e300,"ppm":1e308},{"source":"USER","ppm":1e308},{"source":"USER","ppm":1e308},{"source":null,"ppm":"NaN"},7]}}

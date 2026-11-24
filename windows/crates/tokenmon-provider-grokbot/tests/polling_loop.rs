@@ -145,6 +145,7 @@ fn harness(
         publisher: GrokbotPublisher::new(&store, clock.clone()),
         clock,
         fetch,
+        fetch_breakdown: None,
         is_enabled: Arc::new(move || flag.load(Ordering::SeqCst)),
         poll_interval: Arc::new(move |open| if open { interval } else { None }),
     });
