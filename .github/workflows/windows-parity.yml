@@ -43,6 +43,10 @@ jobs:
       - name: Check windows/docs/PARITY.md against the Swift tests
         run: python3 -I windows/scripts/parity/check_parity.py --summary "$GITHUB_STEP_SUMMARY"
 
+      - name: Windows and macOS ship the same version
+        if: ${{ !cancelled() }}
+        run: python3 -I windows/scripts/parity/check_versions.py
+
       - name: Unit tests for the parity scripts
         if: ${{ !cancelled() }}
         run: python3 -I -m unittest discover -s windows/scripts/parity/tests -v
