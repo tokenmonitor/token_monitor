@@ -305,7 +305,6 @@ pub fn apply_grok(w: &ui::GrokVm<'_>, p: &PanelVm<GrokUsage>) {
                 })
                 .collect(),
         ));
-        w.set_extra_credits(opt(u.extra_credits.as_deref()));
         w.set_daily(daily(u.daily.as_ref()));
         w.set_footer(footer(&u.footer, None));
     }

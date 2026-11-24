@@ -1,9 +1,8 @@
 //! Grok usage client (spec 02 sections 1.2.1 and 1.2.6).
 //!
-//! The gRPC-web billing endpoint behind grok.com Settings, Usage is the source
-//! of truth and is called first. The REST paths are probed only when that call
-//! fails for a reason other than a rejected session; only the billing
-//! endpoint decides whether the session is valid.
+//! The gRPC-web billing endpoint behind grok.com Settings, Usage is the only
+//! usage source; a failure backs off like every other provider (upstream
+//! 8175790e dropped the guessed REST probes).
 //!
 //! HTTP goes through the small [`HttpTransport`] trait so the logic is tested
 //! with a fake; [`ReqwestTransport`] is the production implementation (no
@@ -16,19 +15,10 @@ use tokenmon_core::{BoxFuture, Clock, ProviderError, ProviderErrorContext, Usage
 
 use crate::grpc::{self, Parsed};
 use crate::models::{WeeklyUsageSnapshot, synthesize_products};
-use crate::rest;
 
 /// gRPC-web billing endpoint.
 pub const BILLING_ENDPOINT: &str =
     "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig";
-
-/// REST fallback probes, tried in this order.
-pub const REST_CANDIDATES: [&str; 4] = [
-    "https://grok.com/rest/subscriptions",
-    "https://grok.com/rest/user",
-    "https://grok.com/rest/billing/usage",
-    "https://grok.com/rest/usage",
-];
 
 /// Per-request timeout.
 pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
@@ -200,15 +190,12 @@ pub fn bot_challenge_error(status: u16) -> ProviderError {
 pub struct GrokEndpoints {
     /// The gRPC-web billing URL.
     pub billing: String,
-    /// REST probe URLs in order.
-    pub rest: Vec<String>,
 }
 
 impl Default for GrokEndpoints {
     fn default() -> Self {
         Self {
             billing: BILLING_ENDPOINT.to_owned(),
-            rest: REST_CANDIDATES.iter().map(|s| (*s).to_owned()).collect(),
         }
     }
 }
@@ -250,26 +237,17 @@ impl GrokUsageClient {
         self
     }
 
-    /// Fetches usage from gRPC-web billing, falling back to the REST probes
-    /// when billing fails transiently.
+    /// Fetches usage from the gRPC-web billing endpoint.
     ///
     /// # Errors
     ///
-    /// `NotSignedIn` without a cookie header. `Unauthorized` only when the
-    /// billing endpoint rejects the session (REST probes never decide that).
-    /// Otherwise the billing error when no probe yields usage.
+    /// `NotSignedIn` without a cookie header, `Unauthorized` when the endpoint
+    /// rejects the session, otherwise the request or parse error.
     pub async fn fetch_usage(&self) -> Result<WeeklyUsageSnapshot, ProviderError> {
         if self.cookie_header.is_none() {
             return Err(ProviderError::NotSignedIn(CTX));
         }
-        match self.fetch_grpc_web_billing().await {
-            Err(error @ ProviderError::Unauthorized(_)) => Err(error),
-            Err(error) => {
-                tracing::warn!("gRPC-web billing failed: {error}");
-                self.fetch_rest_breakdown().await.ok_or(error)
-            }
-            ok => ok,
-        }
+        self.fetch_grpc_web_billing().await
     }
 
     fn headers(&self, extra: &[(&str, &str)]) -> Vec<(String, String)> {
@@ -288,34 +266,6 @@ impl GrokUsageClient {
         ]
         .map(|(k, v)| (k.to_owned(), v.to_owned()));
         cookie.chain(extra).chain(tail).collect()
-    }
-
-    /// First REST probe returning parseable usage. Every failure, including
-    /// 401/403 and bot challenges, only moves on to the next path.
-    async fn fetch_rest_breakdown(&self) -> Option<WeeklyUsageSnapshot> {
-        for url in &self.endpoints.rest {
-            let request = HttpRequest {
-                method: HttpMethod::Get,
-                url: url.clone(),
-                headers: self.headers(&[("Accept", "application/json")]),
-                body: Vec::new(),
-                timeout: REQUEST_TIMEOUT,
-            };
-            let Ok(response) = self.transport.send(request).await else {
-                continue;
-            };
-            if response.status != 200 || response.body.is_empty() {
-                continue;
-            }
-            if let Some(snapshot) = rest::parse_json(
-                &response.body,
-                self.account_email.as_deref(),
-                self.clock.now(),
-            ) {
-                return Some(snapshot);
-            }
-        }
-        None
     }
 
     async fn fetch_grpc_web_billing(&self) -> Result<WeeklyUsageSnapshot, ProviderError> {

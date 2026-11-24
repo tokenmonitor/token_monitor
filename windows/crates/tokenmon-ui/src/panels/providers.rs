@@ -15,9 +15,7 @@ use tokenmon_provider_claude::{
     ClaudeCodeUsageSummary, ClaudeSnapshot, ClaudeUsageWindow, UsageTotals,
 };
 use tokenmon_provider_cursor::{CursorSnapshot, PoolKind};
-use tokenmon_provider_grok::models::{
-    CreditBalance, ProductCatalog, ProductUsage, WeeklyUsageSnapshot,
-};
+use tokenmon_provider_grok::models::{ProductCatalog, ProductUsage, WeeklyUsageSnapshot};
 use tokenmon_provider_grokbot::GrokbotSnapshot;
 use tokenmon_provider_opencode::snapshot::{
     ModelUsage as OpenCodeModel, OpenCodeSnapshot, WindowKind, WindowUsage,
@@ -73,10 +71,6 @@ impl GrokSnapshotInput {
                 .iter()
                 .map(product)
                 .collect(),
-            extra_credits_balance: s
-                .extra_credits_balance
-                .as_ref()
-                .map_or(0.0, CreditBalance::value),
             week,
         }
     }

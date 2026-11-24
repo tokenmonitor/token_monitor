@@ -32,8 +32,6 @@ pub struct GrokSnapshotInput {
     pub pool_products: Vec<ProductInput>,
     /// `categoryProducts(...)` chips (Chat, Build, Imagine, Voice order).
     pub category_products: Vec<ProductInput>,
-    /// Extra credits balance in USD.
-    pub extra_credits_balance: f64,
     /// Daily chart for the selected week, if any.
     pub week: Option<DailyBudgetInput>,
 }
@@ -84,8 +82,6 @@ pub struct GrokUsage {
     pub reset_caption: Option<String>,
     /// Category chips; `None` when the card is hidden.
     pub categories: Option<Vec<ChipVm>>,
-    /// `Extra credits` amount.
-    pub extra_credits: Option<String>,
     /// Daily chart.
     pub daily: Option<DailyBudgetVm>,
     /// Footer controls.
@@ -177,8 +173,6 @@ pub fn build(input: &GrokInput, ctx: &PanelContext) -> PanelVm<GrokUsage> {
             segments: pool_segments(&snap.pool_products, geometry::CARD_INNER_WIDTH),
             reset_caption: ctx.limit_reset_caption(snap.resets_at, snap.used_percent),
             categories,
-            extra_credits: (snap.extra_credits_balance > 0.0)
-                .then(|| format::usd(snap.extra_credits_balance)),
             daily: snap.week.as_ref().and_then(|w| build_daily_budget(w, ctx)),
             footer: FooterVm::standard(s, ctx, ProviderId::Grok, ProviderId::Grok),
         },

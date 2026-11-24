@@ -20,7 +20,6 @@ export global GrokVm {
     in property <string> reset-caption;
     in property <bool> has-categories;
     in property <[CategoryItem]> chips;
-    in property <string> extra-credits;
     in property <DailyData> daily;
     in property <FooterData> footer;
 }
@@ -53,12 +52,6 @@ export component GrokBody inherits VerticalLayout {
                 percent-text: chip.percent-text;
                 dot: chip.color;
             }
-        }
-    }
-    if GrokVm.has-usage && GrokVm.extra-credits != "": PanelCard {
-        HorizontalLayout {
-            PanelSectionHeader { title: "Extra Credits"; horizontal-stretch: 1; }
-            DigitText { text: GrokVm.extra-credits; }
         }
     }
     if GrokVm.has-usage && GrokVm.daily.present: DailyCard {

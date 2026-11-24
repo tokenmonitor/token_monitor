@@ -6,7 +6,6 @@
 //! the other.
 
 use std::collections::HashSet;
-use std::fmt;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -283,51 +282,6 @@ impl ProductUsage {
     }
 }
 
-/// A finite decimal amount (extra credits) kept as its shortest written form.
-///
-/// Serialized as a JSON number. Non-finite values cannot be constructed.
-///
-/// # Examples
-///
-/// ```
-/// use tokenmon_provider_grok::models::CreditBalance;
-/// assert_eq!(CreditBalance::from_f64(4.1).unwrap().to_string(), "4.1");
-/// assert!(CreditBalance::from_f64(f64::NAN).is_none());
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub struct CreditBalance(f64);
-
-impl CreditBalance {
-    /// A balance, or `None` when `value` is NaN or infinite.
-    pub fn from_f64(value: f64) -> Option<Self> {
-        value.is_finite().then_some(Self(value))
-    }
-
-    /// The numeric value.
-    pub fn value(&self) -> f64 {
-        self.0
-    }
-}
-
-impl fmt::Display for CreditBalance {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Serialize for CreditBalance {
-    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        s.serialize_f64(self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for CreditBalance {
-    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let v = f64::deserialize(d)?;
-        Self::from_f64(v).ok_or_else(|| serde::de::Error::custom("non-finite credit balance"))
-    }
-}
-
 /// Serde adapter for dates stored as seconds since 2001-01-01T00:00:00Z
 /// (Swift's default `JSONEncoder` `Date` strategy).
 pub mod apple_date {
@@ -427,9 +381,6 @@ pub struct WeeklyUsageSnapshot {
     pub resets_at: Option<DateTime<Utc>>,
     /// Product breakdown.
     pub products: Vec<ProductUsage>,
-    /// Extra credits balance, when reported.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub extra_credits_balance: Option<CreditBalance>,
     /// Account email, when known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub account_email: Option<String>,
@@ -451,7 +402,6 @@ impl WeeklyUsageSnapshot {
             remaining_percent: clamp_percent(100.0 - used),
             resets_at: None,
             products: Vec::new(),
-            extra_credits_balance: None,
             account_email: None,
         }
     }
@@ -481,13 +431,6 @@ impl WeeklyUsageSnapshot {
     #[must_use]
     pub fn with_account(mut self, email: Option<String>) -> Self {
         self.account_email = email;
-        self
-    }
-
-    /// Sets the extra credits balance.
-    #[must_use]
-    pub fn with_credits(mut self, credits: Option<CreditBalance>) -> Self {
-        self.extra_credits_balance = credits;
         self
     }
 }

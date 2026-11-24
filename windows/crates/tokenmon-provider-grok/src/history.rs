@@ -266,6 +266,5 @@ fn has_same_usage(current: &WeeklyUsageSnapshot, next: &WeeklyUsageSnapshot) -> 
         && (current.remaining_percent - next.remaining_percent).abs() < NOISE_PERCENT
         && current.resets_at == next.resets_at
         && current.products == next.products
-        && current.extra_credits_balance == next.extra_credits_balance
         && current.account_email == next.account_email
 }

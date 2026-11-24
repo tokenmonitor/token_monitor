@@ -35,7 +35,6 @@ fn grok_snap() -> GrokSnapshotInput {
             product("Imagine", 0.0),
             product("Voice", 0.4),
         ],
-        extra_credits_balance: 4.1,
         week: Some(daily(week([1.0; 7]))),
     }
 }
@@ -119,28 +118,21 @@ fn test_grok_usage_body() {
         .map(|c| format!("{} {}", c.name, c.percent_text))
         .collect();
     assert_eq!(chips, ["Chat 23%", "Build 13%", "Imagine 0%", "Voice 0%"]);
-    assert_eq!(u.extra_credits.as_deref(), Some("$4.10"));
     assert!(u.daily.is_some());
     assert_eq!(u.footer.sign_out.unwrap().confirm_text, "Sign out of Grok?");
 }
 
-/// Hidden cards: no categories, no extra credits, no week.
+/// Hidden cards: no categories, no week.
 #[test]
 fn test_grok_optional_cards_hidden() {
     let mut snap = grok_snap();
     snap.category_products.clear();
-    snap.extra_credits_balance = 0.0;
     snap.week = None;
     snap.resets_at = None;
     let u = grok::build(&grok_input(Some(snap), status(), true), &ctx())
         .usage
         .unwrap();
-    assert!(
-        u.categories.is_none()
-            && u.extra_credits.is_none()
-            && u.daily.is_none()
-            && u.reset_caption.is_none()
-    );
+    assert!(u.categories.is_none() && u.daily.is_none() && u.reset_caption.is_none());
 }
 
 /// Stale caption appears under the usage body.

@@ -17,7 +17,7 @@ use common::{FIXTURE_A_HEX, clock_at, hex, utc};
 use tokenmon_core::{BoxFuture, ProviderError, UsageError};
 use tokenmon_provider_grok::client::{
     BILLING_ENDPOINT, GrokEndpoints, GrokUsageClient, HttpMethod, HttpRequest, HttpResponse,
-    HttpTransport, REST_CANDIDATES, ReqwestTransport, is_bot_challenge,
+    HttpTransport, ReqwestTransport, is_bot_challenge,
 };
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -97,9 +97,9 @@ fn is_unauthorized(e: &ProviderError) -> bool {
     matches!(e.usage_error(), UsageError::Unauthorized)
 }
 
-/// Billing 200 with fixture A gives used 36; no REST probe is requested.
+/// Billing 200 with fixture A gives used 36; no other path is requested.
 #[tokio::test]
-async fn test_billing_success_skips_rest_probes() {
+async fn test_billing_success_requests_only_billing() {
     let t = Arc::new(FakeTransport::default());
     t.route(BILLING_ENDPOINT, resp(200, &hex(FIXTURE_A_HEX)));
     let snapshot = client(&t, Some("sso=a")).fetch_usage().await.unwrap();
@@ -143,9 +143,9 @@ async fn test_not_signed_in_makes_no_request() {
     assert!(t.paths().is_empty());
 }
 
-/// Billing 401 is unauthorized without probing.
+/// Billing 401 is unauthorized and nothing else is requested.
 #[tokio::test]
-async fn test_billing_unauthorized_rejects_without_probing() {
+async fn test_billing_unauthorized_is_unauthorized() {
     let t = Arc::new(FakeTransport::default());
     t.route(BILLING_ENDPOINT, resp(401, b""));
     let err = client(&t, Some("sso=a")).fetch_usage().await.unwrap_err();
@@ -186,7 +186,7 @@ async fn test_body_trailer_unauthenticated_is_unauthorized() {
     assert!(is_unauthorized(&err));
 }
 
-/// A 403 HTML challenge is transient, not unauthorized; the probes run.
+/// A 403 HTML challenge is transient, not unauthorized.
 #[tokio::test]
 async fn test_billing_challenge_is_transient() {
     let t = Arc::new(FakeTransport::default());
@@ -197,7 +197,7 @@ async fn test_billing_challenge_is_transient() {
     let err = client(&t, Some("sso=a")).fetch_usage().await.unwrap_err();
     assert!(!is_unauthorized(&err));
     assert!(err.to_string().contains("bot-protection"));
-    assert_eq!(t.paths().len(), 1 + REST_CANDIDATES.len());
+    assert_eq!(t.paths(), [BILLING_ENDPOINT]);
     assert!(is_bot_challenge(&HttpResponse {
         status: 200,
         headers: vec![("CF-Mitigated".into(), "challenge".into())],
@@ -205,59 +205,25 @@ async fn test_billing_challenge_is_transient() {
     }));
 }
 
-/// Billing 500 and every REST probe 401: not unauthorized; billing then all
-/// four REST paths were requested in order.
+/// A billing server error is reported without requesting any other path, and
+/// never counts against the session.
 #[tokio::test]
-async fn test_rest_probe_rejection_never_invalidates() {
+async fn test_billing_server_error_requests_nothing_else() {
     let t = Arc::new(FakeTransport::default());
     t.route(BILLING_ENDPOINT, resp(500, b"boom"));
-    for url in REST_CANDIDATES {
-        t.route(url, resp(401, b""));
-    }
     let err = client(&t, Some("sso=a")).fetch_usage().await.unwrap_err();
     assert!(!is_unauthorized(&err));
     assert_eq!(err.to_string(), "Usage request failed (HTTP 500).");
-    let mut expected = vec![BILLING_ENDPOINT.to_owned()];
-    expected.extend(REST_CANDIDATES.map(str::to_owned));
-    assert_eq!(t.paths(), expected);
+    assert_eq!(t.paths(), [BILLING_ENDPOINT]);
 }
 
-/// Billing 503 and REST #3 returning usage supplies the snapshot.
-#[tokio::test]
-async fn test_rest_probe_supplies_usage_when_billing_fails() {
-    let t = Arc::new(FakeTransport::default());
-    t.route(BILLING_ENDPOINT, resp(503, b""));
-    t.route(
-        "https://grok.com/rest/billing/usage",
-        resp(200, br#"{"usage":{"usedPercent":42}}"#),
-    );
-    let snapshot = client(&t, Some("sso=a")).fetch_usage().await.unwrap();
-    assert_eq!(snapshot.used_percent, 42.0);
-    assert_eq!(snapshot.account_email.as_deref(), Some("me@example.com"));
-    assert_eq!(t.paths().len(), 4);
-    let probe = t.requests.lock().unwrap()[3].clone();
-    assert_eq!(probe.method, HttpMethod::Get);
-    assert_eq!(probe.header("Accept"), Some("application/json"));
-}
-
-/// A transport failure on billing is a Network error, then REST is probed;
-/// the original error is returned when nothing succeeds.
+/// A transport failure on billing is a Network error.
 #[tokio::test]
 async fn test_transport_failure_reports_network_error() {
     let t = Arc::new(FakeTransport::default());
     t.fail(BILLING_ENDPOINT, "offline");
     let err = client(&t, Some("sso=a")).fetch_usage().await.unwrap_err();
     assert_eq!(err.to_string(), "Grok network error: offline");
-}
-
-/// An empty 200 REST body or a non-200 REST status does not count.
-#[tokio::test]
-async fn test_rest_probe_requires_200_and_body() {
-    let t = Arc::new(FakeTransport::default());
-    t.route(BILLING_ENDPOINT, resp(500, b""));
-    t.route(REST_CANDIDATES[0], resp(200, b""));
-    t.route(REST_CANDIDATES[1], resp(201, br#"{"usedPercent":9}"#));
-    assert!(client(&t, Some("sso=a")).fetch_usage().await.is_err());
 }
 
 /// Cancellation is future drop: a never-responding request can be abandoned
@@ -300,7 +266,6 @@ async fn test_reqwest_transport_against_mock_server() {
     )
     .with_endpoints(GrokEndpoints {
         billing: format!("{}/billing", server.uri()),
-        rest: Vec::new(),
     });
     let snapshot = c.fetch_usage().await.unwrap();
     assert!((snapshot.used_percent - 36.0).abs() < 0.01);

@@ -37,7 +37,7 @@ pub enum ExportError {
 
 /// CSV header line.
 pub const CSV_HEADER: &str =
-    "fetchedAt,usedPercent,remainingPercent,resetsAt,products,extraCredits,accountEmail";
+    "fetchedAt,usedPercent,remainingPercent,resetsAt,products,accountEmail";
 
 /// Encodes `snapshots` in `format`.
 ///
@@ -109,11 +109,6 @@ fn csv_line(snap: &WeeklyUsageSnapshot) -> String {
         .collect::<Vec<_>>()
         .join("|");
     let resets = snap.resets_at.map(iso).unwrap_or_default();
-    let credits = snap
-        .extra_credits_balance
-        .as_ref()
-        .map(ToString::to_string)
-        .unwrap_or_default();
     let email = snap.account_email.clone().unwrap_or_default();
     [
         iso(snap.fetched_at),
@@ -121,7 +116,6 @@ fn csv_line(snap: &WeeklyUsageSnapshot) -> String {
         format!("{:.2}", snap.remaining_percent),
         csv_escape(&resets),
         csv_escape(&products),
-        csv_escape(&credits),
         csv_escape(&email),
     ]
     .join(",")
@@ -186,9 +180,6 @@ fn json_row(snap: &WeeklyUsageSnapshot) -> Value {
     row.insert("products".into(), Value::Array(products));
     if let Some(at) = snap.resets_at {
         row.insert("resetsAt".into(), json!(iso(at)));
-    }
-    if let Some(credits) = &snap.extra_credits_balance {
-        row.insert("extraCreditsBalance".into(), json!(credits.value()));
     }
     if let Some(email) = &snap.account_email {
         row.insert("accountEmail".into(), json!(email));

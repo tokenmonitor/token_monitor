@@ -17,9 +17,7 @@ use tokenmon_provider_grok::export::{
 use tokenmon_provider_grok::history::{
     FileBacking, GrokHistoryStore, HISTORY_FILE_NAME, RECENT_CAP,
 };
-use tokenmon_provider_grok::models::{
-    CreditBalance, ProductUsage, WeeklyUsageSnapshot, apple_date,
-};
+use tokenmon_provider_grok::models::{ProductUsage, WeeklyUsageSnapshot, apple_date};
 
 fn store() -> GrokHistoryStore {
     GrokHistoryStore::in_memory(clock_at(utc(2026, 7, 15, 12, 0)))
@@ -159,7 +157,6 @@ fn test_history_is_saved_and_reloaded() {
     s.append(
         snap(utc(2026, 7, 15, 9, 0), 42.0)
             .with_resets_at(Some(utc(2026, 7, 16, 18, 57)))
-            .with_credits(CreditBalance::from_f64(4.1))
             .with_account(Some("a@x.co".into())),
     );
     assert!(s.is_dirty());
@@ -240,7 +237,6 @@ fn export_fixture() -> Vec<WeeklyUsageSnapshot> {
                 ProductUsage::new("build", "Grok Build", 25.0),
                 ProductUsage::new("api", "API", 9.5),
             ])
-            .with_credits(CreditBalance::from_f64(4.1))
             .with_account(Some("user@example.com".into())),
     ]
 }
@@ -254,7 +250,7 @@ fn test_export_csv_contains_header_and_products() {
     assert!(!csv.ends_with('\n'));
     assert_eq!(
         lines[1],
-        "2026-07-15T09:00:00Z,35.00,65.00,2026-07-20T00:00:00Z,build:25.0|api:9.5,4.1,user@example.com"
+        "2026-07-15T09:00:00Z,35.00,65.00,2026-07-20T00:00:00Z,build:25.0|api:9.5,user@example.com"
     );
     assert!(csv.contains("fetchedAt,usedPercent") && csv.contains("build:25"));
 }
@@ -295,7 +291,7 @@ fn test_export_json_round_trip() {
     let json: serde_json::Value = serde_json::from_str(&text).unwrap();
     let row = &json.as_array().unwrap()[0];
     assert_eq!(row["fetchedAt"], "2026-07-15T09:00:00Z");
-    assert_eq!(row["extraCreditsBalance"], 4.1);
+    assert!(row.get("extraCreditsBalance").is_none());
     assert!(row.get("id").is_none());
     let keys: Vec<&String> = row.as_object().unwrap().keys().collect();
     let mut sorted = keys.clone();

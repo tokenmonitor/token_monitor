@@ -16,7 +16,6 @@ use tokenmon_provider_grok::grpc::{
     data_frames, parse_usage, scan_protobuf, trailer_fields, validate_headers,
 };
 use tokenmon_provider_grok::models::ProductCatalog;
-use tokenmon_provider_grok::rest::parse_json;
 
 fn check_parsed(bytes: &[u8]) {
     if let Ok(parsed) = parse_usage(bytes, Utc::now()) {
@@ -70,15 +69,6 @@ proptest! {
     #[test]
     fn prop_validate_headers_total(status in ".{0,24}", message in ".{0,40}") {
         let _ = validate_headers(Some(&status), Some(&message));
-    }
-
-    /// The REST parser is total; a result stays within 0..=100.
-    #[test]
-    fn prop_rest_parser_total(bytes in proptest::collection::vec(any::<u8>(), 0..256)) {
-        if let Some(s) = parse_json(&bytes, None, Utc::now()) {
-            prop_assert!((0.0..=100.0).contains(&s.used_percent));
-            prop_assert!((0.0..=100.0).contains(&s.remaining_percent));
-        }
     }
 
     /// CSV cells never start with a formula trigger (outside the `'` guard),

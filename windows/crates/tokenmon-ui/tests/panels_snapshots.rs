@@ -212,7 +212,6 @@ fn render_all_states(last: &Rc<RefCell<Option<Rc<MinimalSoftwareWindow>>>>) {
             product("Imagine", 0.0),
             product("Voice", 0.0),
         ],
-        extra_credits_balance: 4.1,
         week: days(),
     };
     let mut expired = signed_out();

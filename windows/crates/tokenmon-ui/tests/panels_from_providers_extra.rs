@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, HashSet};
 use chrono::{TimeZone, Utc};
 use tokenmon_provider_claude::{ClaudeCodeUsageSummary, ModelUsageRow, UsageTotals};
 use tokenmon_provider_cursor::{CursorCostStats, CursorPoolUsage, CursorSnapshot, PoolKind};
-use tokenmon_provider_grok::models::{CreditBalance, ProductUsage, WeeklyUsageSnapshot};
+use tokenmon_provider_grok::models::{ProductUsage, WeeklyUsageSnapshot};
 use tokenmon_provider_opencode::snapshot::{ModelUsage as OcModel, OpenCodeSnapshot};
 use tokenmon_provider_openrouter::{
     BudgetSource as ProviderBudget, ModelUsage as OrModel, OpenRouterSnapshot,
@@ -24,21 +24,18 @@ fn now() -> chrono::DateTime<Utc> {
     Utc.with_ymd_and_hms(2026, 7, 15, 12, 0, 0).unwrap()
 }
 
-/// Only visible products appear, and the credit balance is carried over.
+/// Only visible products appear.
 #[test]
-fn test_grok_from_snapshot_honours_visible_set_and_credits() {
-    let snap = WeeklyUsageSnapshot::new(now(), 40.0)
-        .with_products(vec![
-            ProductUsage::new("chat", "Chat", 30.0),
-            ProductUsage::new("build", "Build", 10.0),
-        ])
-        .with_credits(CreditBalance::from_f64(12.5));
+fn test_grok_from_snapshot_honours_visible_set() {
+    let snap = WeeklyUsageSnapshot::new(now(), 40.0).with_products(vec![
+        ProductUsage::new("chat", "Chat", 30.0),
+        ProductUsage::new("build", "Build", 10.0),
+    ]);
     let visible: HashSet<String> = ["chat".to_owned()].into();
     let input = GrokSnapshotInput::from_snapshot(&snap, &visible, None);
     assert_eq!(input.pool_products.len(), 1);
     assert_eq!(input.pool_products[0].percent, 30.0);
     assert_eq!(input.category_products.len(), 1);
-    assert_eq!(input.extra_credits_balance, 12.5);
 }
 
 /// An empty visible set hides every product.

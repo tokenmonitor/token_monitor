@@ -1,4 +1,4 @@
-//! REST JSON parser, snapshot model, product catalog and auth-policy tests.
+//! Snapshot model, product catalog and auth-policy tests.
 #![allow(
     clippy::unwrap_used,
     clippy::assert_is_empty,
@@ -10,7 +10,6 @@ mod common;
 use std::collections::HashSet;
 
 use common::utc;
-use serde_json::json;
 use tokenmon_core::net::Domain;
 use tokenmon_provider_grok::auth::{
     CookieRecord, auth_config, is_auth_host, is_grok_domain, is_preferred_session_cookie,
@@ -20,11 +19,6 @@ use tokenmon_provider_grok::models::{
     ProductCatalog, ProductColor, ProductUsage, WeeklyUsageSnapshot, clamp_percent, fill_fraction,
     synthesize_products,
 };
-use tokenmon_provider_grok::rest::parse_json;
-
-fn parse(value: &serde_json::Value) -> Option<WeeklyUsageSnapshot> {
-    parse_json(value.to_string().as_bytes(), None, utc(2026, 7, 15, 0, 0))
-}
 
 fn visible(ids: &[&str]) -> HashSet<String> {
     ids.iter().map(|s| (*s).to_owned()).collect()
@@ -36,118 +30,6 @@ fn p(id: &str, pct: f64) -> ProductUsage {
 
 fn ids(products: &[ProductUsage]) -> Vec<&str> {
     products.iter().map(|p| p.id.as_str()).collect()
-}
-
-/// REST fixture: used 35 / remaining 65, reset, products kept in array order.
-#[test]
-fn test_parse_fixture_json() {
-    let s = parse(&json!({
-        "usedPercent": 35, "remainingPercent": 65, "resetsAt": "2026-07-16T20:25:00Z",
-        "products": [
-            {"id": "build", "percentOfPool": 25},
-            {"id": "api", "percentOfPool": 9},
-            {"id": "chat", "percentOfPool": 1},
-        ]
-    }))
-    .unwrap();
-    assert_eq!(s.used_percent, 35.0);
-    assert_eq!(s.remaining_percent, 65.0);
-    assert_eq!(s.products.len(), 3);
-    assert_eq!(s.products[0].id, "build");
-    assert_eq!(s.products[0].color_token, ProductColor::Build);
-    assert_eq!(s.resets_at, Some(utc(2026, 7, 16, 20, 25)));
-}
-
-/// `byProduct` map form yields one product per key.
-#[test]
-fn test_by_product_map_parse() {
-    let s = parse(&json!({"usedPercent": 35, "byProduct": {"build": 25, "api": 9, "chat": 1}}))
-        .unwrap();
-    assert_eq!(s.products.len(), 3);
-    let nested =
-        parse(&json!({"usedPercent": 35, "productUsage": {"chat": {"usagePercent": 5}}})).unwrap();
-    assert_eq!(ids(&nested.products), ["chat"]);
-}
-
-/// Booleans are not numbers (divergence 4): a boolean map value is dropped.
-#[test]
-fn test_boolean_map_values_are_ignored() {
-    let s = parse(&json!({"usedPercent": 35, "byProduct": {"build": true, "api": 9}})).unwrap();
-    assert_eq!(ids(&s.products), ["api"]);
-}
-
-/// A nested wrapper (`usage`) is followed; numeric strings and `val` wrappers
-/// are accepted.
-#[test]
-fn test_wrapper_and_number_coercion() {
-    let s = parse(&json!({"usage": {"usedPercent": 42}})).unwrap();
-    assert_eq!(s.used_percent, 42.0);
-    let s = parse(&json!({"data": {"usage_percent": " 12.5 "}})).unwrap();
-    assert_eq!(s.used_percent, 12.5);
-    let s = parse(&json!({"usedPercent": {"val": 8}})).unwrap();
-    assert_eq!(s.used_percent, 8.0);
-}
-
-/// A bare `percent` key is not usage.
-#[test]
-fn test_unrelated_percent_key_is_not_usage() {
-    assert!(parse(&json!({"data": {"percent": 50, "name": "profile completion"}})).is_none());
-}
-
-/// Out-of-range usage is rejected (above 100.5 or negative).
-#[test]
-fn test_out_of_range_usage_is_rejected() {
-    assert!(parse(&json!({"usedPercent": 1500})).is_none());
-    assert!(parse(&json!({"usedPercent": -3})).is_none());
-    assert!(parse(&json!({"usedPercent": 10, "remainingPercent": 200})).is_none());
-}
-
-/// Products with only `value`/`percent` keys do not make usage.
-#[test]
-fn test_products_without_usage_keys_are_ignored() {
-    assert!(
-        parse(&json!({"products": [{"id": "chat", "value": 20}, {"id": "api", "percent": 5}]}))
-            .is_none()
-    );
-}
-
-/// Without a used% key, the product sum is the used% and remaining derives.
-#[test]
-fn test_used_inferred_from_products() {
-    let s = parse(&json!({"products": [{"id": "chat", "percentOfPool": 20}, {"id": "api", "usagePercent": 5}]})).unwrap();
-    assert_eq!(s.used_percent, 25.0);
-    assert_eq!(s.remaining_percent, 75.0);
-}
-
-/// No products synthesizes an `other` slice; credits and email are read.
-#[test]
-fn test_synthesized_products_credits_and_email() {
-    let s = parse(&json!({"usedPercent": 40, "extraCredits": 4.1, "email": "a@b.co"})).unwrap();
-    assert_eq!(ids(&s.products), ["other"]);
-    assert_eq!(s.extra_credits_balance.unwrap().to_string(), "4.1");
-    assert_eq!(s.account_email.as_deref(), Some("a@b.co"));
-    let given = parse_json(
-        b"{\"usedPercent\":1,\"email\":\"x@y.zz\"}",
-        Some("me@e.co"),
-        utc(2026, 1, 1, 0, 0),
-    )
-    .unwrap();
-    assert_eq!(given.account_email.as_deref(), Some("me@e.co"));
-}
-
-/// Garbage and non-object roots return `None`; very deep wrappers terminate.
-#[test]
-fn test_garbage_and_deep_nesting_terminate() {
-    assert!(parse_json(b"not json", None, utc(2026, 1, 1, 0, 0)).is_none());
-    assert!(parse(&json!([1, 2, 3])).is_none());
-    let mut text = String::new();
-    for _ in 0..100 {
-        text.push_str("{\"usage\":");
-    }
-    text.push_str("{\"usedPercent\":5}");
-    text.push_str(&"}".repeat(100));
-    // Beyond the wrapper cap: rejected rather than recursing forever.
-    assert!(parse_json(text.as_bytes(), None, utc(2026, 1, 1, 0, 0)).is_none());
 }
 
 /// `WeeklyUsageSnapshot::new` derives remaining; values clamp at the boundary.
