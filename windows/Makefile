@@ -166,30 +166,37 @@ release: ## Release build of TokenMon.exe
 	$(CARGO) build $(LOCKED) --release -p tokenmon-app $(TARGET_FLAG)
 	$(call ok,$(RELEASE_EXE))
 
-# Stops a running TokenMon (single instance) and starts $(1) detached.
-define launch
-	$(call windows_only)
+# Stops a running TokenMon (single instance). This has to happen BEFORE the build:
+# Windows refuses to let cargo replace the exe while it is running.
+define stop_app
 	@taskkill //IM $(APP_NAME).exe >/dev/null 2>&1 || true; \
 	i=0; while tasklist //FI "IMAGENAME eq $(APP_NAME).exe" 2>/dev/null | grep -qi "$(APP_NAME).exe" && [ $$i -lt 25 ]; do \
 		sleep 0.2; i=$$((i + 1)); \
 	done; \
 	taskkill //F //IM $(APP_NAME).exe >/dev/null 2>&1 || true
+endef
+
+# Starts $(1) detached.
+define launch
 	@cmd //c start "" "$$(cygpath -w "$(1)")" $(ARGS)
 	$(call ok,Launched $(1) (look for the tray icon))
 endef
 
 run: ## [W] Release build, then launch TokenMon.exe (ARGS=--debug-panel logs panel placement)
 	$(call windows_only)
+	$(call stop_app)
 	@"$(MAKE)" --no-print-directory release
 	$(call launch,$(RELEASE_EXE))
 
 run-debug: ## [W] Debug build, then launch TokenMon.exe
 	$(call windows_only)
+	$(call stop_app)
 	@"$(MAKE)" --no-print-directory build
 	$(call launch,$(DEBUG_EXE))
 
 smoke: ## [W] Release build, then TokenMon.exe --smoke (headless, one refresh)
 	$(call windows_only)
+	$(call stop_app)
 	@"$(MAKE)" --no-print-directory release
 	"$(RELEASE_EXE)" --smoke
 	$(call ok,smoke passed)
