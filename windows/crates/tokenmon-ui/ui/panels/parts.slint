@@ -1,7 +1,7 @@
 // Panel building blocks composed from the ws-ui-kit components. Every string
 // is decided in Rust (src/panels); these only lay out what they are given.
-import { Theme, Typo, PanelCard, PanelSectionHeader, DigitText, SlimUsageTrack, MetricStatGrid, ProviderHeaderRow, StaleDataCaption, CollapsibleSectionHeader, SourceTag, DailyBudgetBars, HoverOverlay } from "../components/kit.slint";
-import { TrackData, ModelsData, DailyData, FooterData, HeaderData } from "types.slint";
+import { Theme, Typo, PanelCard, PanelSectionHeader, DigitText, SlimUsageTrack, SegmentedUsageBar, UsageLegendChip, MetricStatGrid, ProviderHeaderRow, StaleDataCaption, CollapsibleSectionHeader, SourceTag, DailyBudgetBars, HoverOverlay } from "../components/kit.slint";
+import { TrackData, ModelsData, DailyData, FooterData, HeaderData, BreakdownData } from "types.slint";
 
 /// Plain 12pt caption (secondary, or warning orange).
 export component Caption inherits Text {
@@ -132,6 +132,27 @@ export component UsageTrack inherits SlimUsageTrack {
     percent: root.data.percent;
     fill: root.data.color;
     caption: root.data.caption-warning ? "" : root.data.caption;
+}
+
+/// "Usage Breakdown" card: one bar split by what spent the pool, then the
+/// legend chips, placed by `kit::breakdown` so long legends wrap and each full
+/// row spans the card.
+export component BreakdownCard inherits PanelCard {
+    in property <BreakdownData> data;
+    PanelSectionHeader { title: "Usage Breakdown"; }
+    SegmentedUsageBar { segments: root.data.segments; }
+    Rectangle {
+        height: root.data.chips-height;
+        for chip in root.data.chips: UsageLegendChip {
+            x: chip.x;
+            y: chip.y;
+            width: self.preferred-width;
+            height: 16px;
+            name: chip.name;
+            value: chip.value;
+            dot: chip.color;
+        }
+    }
 }
 
 /// Pool header row plus tracks: "Usage Pool Weekly ........ 36% Used".

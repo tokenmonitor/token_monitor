@@ -194,6 +194,33 @@ export component SegmentedUsageBar inherits Rectangle {
     }
 }
 
+/// Legend chip for a segmented usage bar: 7px color mark, name and value on
+/// one line at the same size (12pt semibold), the name grey and the value
+/// primary so the numbers stand out. It keeps its natural width; the host
+/// places chips (`kit::flow`) so long legends wrap instead of truncating.
+export component UsageLegendChip inherits HorizontalLayout {
+    in property <string> name;
+    in property <string> value;
+    in property <color> dot: Theme.product-other;
+    spacing: 5px;
+    alignment: start;
+    Rectangle {
+        width: 7px;
+        height: 7px;
+        y: (parent.height - 7px) / 2;
+        border-radius: 3.5px;
+        background: root.dot;
+    }
+    Text {
+        text: root.name;
+        font-family: Typo.family;
+        font-size: Typo.body-size;
+        font-weight: Typo.semibold;
+        color: Theme.secondary;
+    }
+    DigitText { text: root.value; }
+}
+
 /// Legend entry: 7px dot, product name and rounded percentage.
 export component CategoryRow inherits HorizontalLayout {
     in property <string> name;

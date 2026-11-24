@@ -2,8 +2,25 @@
 // The .slint panels only lay out these values; every string is decided in Rust.
 // The kit structs are re-exported so the bridge builds them from this compile
 // unit (generated Slint structs are per compile unit).
-import { DayBar, HoverCardData } from "../components/kit.slint";
+import { DayBar, HoverCardData, BarSegment } from "../components/kit.slint";
 export { DayBar, BarSegment, CategoryItem, MetricItem, LabelValue, HoverCardData } from "../components/kit.slint";
+
+/// One placed legend chip of the Usage Breakdown card (`kit::breakdown`).
+export struct BreakdownChipData {
+    name: string,
+    value: string,
+    color: color,
+    x: length,
+    y: length,
+}
+
+/// The Usage Breakdown card: the bar, then the placed legend chips.
+export struct BreakdownData {
+    present: bool,
+    segments: [BarSegment],
+    chips: [BreakdownChipData],
+    chips-height: length,
+}
 
 export struct TrackData {
     label: string,
