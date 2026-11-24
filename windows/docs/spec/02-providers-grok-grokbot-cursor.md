@@ -582,7 +582,7 @@ Usage view, as a vertical stack with spacing 10:
    - **Hover label** (shared `DailyBudgetHoverLabel`), for each day as `DailyBudgetDay(date: dayStart, spent: totalPercent, budget: 100/7)` with allowance noun `weekly`:
      - Line 1: `EEEE, MMM d`.
      - Line 2 (not for future days):
-       - prior-window day: `"%.1f%% of the weekly pool before the provider reset it early"`
+       - prior-window day: `"%.1f%% of the previous weekly pool"`
        - budget ≤ 0: `No budget`
        - spent ≤ 0.001: `"0% of the %.1f%% daily allowance"`
        - otherwise: `"%.1f%% of weekly · %d%% of daily allowance"`

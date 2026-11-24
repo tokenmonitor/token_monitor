@@ -124,7 +124,7 @@ fn test_usage_line_describes_the_day() {
     assert_eq!(usage_line(usage(5.0, 0.0, false), "weekly"), "No budget");
     assert_eq!(
         usage_line(usage(12.34, budget, true), "monthly"),
-        "12.3% of the monthly pool before the provider reset it early"
+        "12.3% of the previous monthly pool"
     );
 }
 

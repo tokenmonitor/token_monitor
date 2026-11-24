@@ -352,3 +352,46 @@ fn test_open_code_single_window_keeps_its_cadence() {
         UsagePool::Hourly
     );
 }
+
+/// Days of the current week before the billing period show the previous
+/// period's spend, flagged as the prior window, instead of 0%.
+#[test]
+fn test_month_daily_budget_shows_previous_period_days_on_the_current_week() {
+    let mut f = Fixture::new();
+    f.insert(
+        "a",
+        Msg::go("a", day(11, 16, 12).timestamp(), "m", 3.0),
+        false,
+    );
+    f.insert(
+        "b",
+        Msg::go("b", day(11, 19, 12).timestamp(), "m", 2.0),
+        false,
+    );
+    let load = scan_fn(&f);
+    let now = day(11, 19, 12);
+    let budget = month_daily_budget_days(
+        &request(now, 10.0 / 3.0, Some(day(12, 18, 0))),
+        load.as_ref(),
+        &Calendar::utc(),
+    )
+    .unwrap();
+    let monday = budget
+        .days
+        .iter()
+        .find(|d| d.date == day(11, 16, 0))
+        .unwrap();
+    assert!(
+        (monday.spent_usd - 5.0).abs() < 0.001,
+        "{}",
+        monday.spent_usd
+    );
+    assert!(monday.is_prior_window);
+    let thursday = budget
+        .days
+        .iter()
+        .find(|d| d.date == day(11, 19, 0))
+        .unwrap();
+    assert!((thursday.spent_usd - 10.0 / 3.0).abs() < 0.001);
+    assert!(!thursday.is_prior_window);
+}

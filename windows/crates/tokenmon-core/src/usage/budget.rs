@@ -227,8 +227,11 @@ impl DailyBudget {
         shift(cal, today, -from_monday)
     }
 
-    /// Monday-to-Sunday bars for a subscription month. Days outside the billing
-    /// period are present with 0 spend (or preserved history, see the spec).
+    /// Monday-to-Sunday bars for a subscription month. Days before the billing
+    /// period are present so the week still starts on Monday. On the current
+    /// week they are flagged `is_prior_window` and carry spend from
+    /// `prior_window_spent_by_day`, else `history_by_day`, else 0; on earlier
+    /// weeks they draw at full strength from the same sources.
     #[must_use]
     #[allow(clippy::too_many_arguments)]
     pub fn build_monday_week_days(
@@ -269,21 +272,18 @@ impl DailyBudget {
         (0..7)
             .map(|o| {
                 let key = cal.start_of_day(shift(cal, week_start, o));
-                if week_offset != WeekOffset::CURRENT && key < period_start_day {
+                if key < period_start_day {
                     let spent = prior_window_spent_by_day
                         .get(&key)
                         .or_else(|| history_by_day.get(&key))
                         .copied()
                         .unwrap_or(0.0);
-                    return DailyBudgetDay::new(key, spent, per_day);
-                }
-                if let Some(prior) = prior_window_spent_by_day
-                    .get(&key)
-                    .filter(|_| key < period_start_day)
-                {
                     return DailyBudgetDay {
-                        is_prior_window: true,
-                        ..DailyBudgetDay::new(key, *prior, per_day)
+                        // On the current week these days are the previous
+                        // period (dimmed, outside pace); on earlier weeks
+                        // they are the chart's subject and draw at full strength.
+                        is_prior_window: week_offset == WeekOffset::CURRENT,
+                        ..DailyBudgetDay::new(key, spent, per_day)
                     };
                 }
                 DailyBudgetDay::new(

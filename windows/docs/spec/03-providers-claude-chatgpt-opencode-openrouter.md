@@ -423,7 +423,7 @@ rounded half-away → `NK` if `<1000`; else millions with 1 decimal if rounded `
 show no token block):
 
 - Title: date `EEEE, MMM d` (e.g. `Monday, Nov 2`).
-- Usage line (not for future days): prior-window day → `%.1f%% of the weekly pool before the provider reset it early`;
+- Usage line (not for future days): prior-window day → `%.1f%% of the previous weekly pool`;
   budget ≤ 0 → `No budget`; spent ≤ 0.001 → `0% of the %.1f%% daily allowance`; else
   `%.1f%% of weekly · %d%% of daily allowance` (allowance % = round(spent/budget×100)).
 - When `tokens.totalTokens > 0`: divider; `<Format.tokens(total)> tokens` and, when `costUSD > 0`,

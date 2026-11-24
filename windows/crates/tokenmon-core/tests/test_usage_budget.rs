@@ -798,7 +798,9 @@ fn test_monday_week_shows_prior_window_days_before_new_cycle_start() {
     );
     assert_eq!(days.len(), 7);
     let flags: Vec<bool> = days.iter().map(|d| d.is_prior_window).collect();
-    assert_eq!(flags, [false, false, true, true, false, false, false]);
+    // Sep 28 and 29 have no recorded spend but still belong to the prior window.
+    assert_eq!(flags, [true, true, true, true, false, false, false]);
+    assert_eq!(days[0].spent_usd, 0.0);
     assert_eq!(days[2].spent_usd, 4.0);
     assert_eq!(days[3].spent_usd, 6.0);
     assert_eq!(days[5].spent_usd, 1.5);
@@ -887,9 +889,9 @@ fn test_monday_week_offset_shows_previous_week_inside_period() {
     assert!(!days[1].is_prior_window);
 }
 
-/// The current week ignores pre-period history.
+/// The current week shows pre-period history as the previous period.
 #[test]
-fn test_monday_week_offset_zero_ignores_history_before_period() {
+fn test_monday_week_offset_zero_shows_history_before_period_as_prior_window() {
     let days = DailyBudget::build_monday_week_days(
         date(2026, 10, 2, 18),
         date(2026, 11, 2, 18),
@@ -905,8 +907,8 @@ fn test_monday_week_offset_zero_ignores_history_before_period() {
         .iter()
         .find(|d| same_day(d.date, noon(2026, 9, 30)))
         .unwrap();
-    assert_eq!(sep30.spent_usd, 0.0);
-    assert!(!sep30.is_prior_window);
+    assert_eq!(sep30.spent_usd, 9.0);
+    assert!(sep30.is_prior_window);
 }
 
 /// Earlier weeks use history for pre-period days.

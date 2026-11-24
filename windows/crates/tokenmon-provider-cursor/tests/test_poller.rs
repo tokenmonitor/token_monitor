@@ -127,10 +127,10 @@ fn test_early_reset_keeps_old_cycle_days_as_history_and_restarts_pool_math() {
     assert!(live <= 4.001, "{live}");
 }
 
-/// With no early reset, days of the displayed week before the cycle start read
-/// 0 and nothing is flagged.
+/// With no early reset, days of the displayed week before the cycle start show
+/// the previous cycle's observed use, flagged as the prior window.
 #[test]
-fn test_without_early_reset_old_days_stay_hidden() {
+fn test_without_early_reset_old_days_show_as_previous_cycle() {
     let days = bars(
         &[(day(2026, 10, 1), 5.0), (day(2026, 10, 3), 4.0)],
         None,
@@ -140,8 +140,9 @@ fn test_without_early_reset_old_days_stay_hidden() {
         at(2026, 10, 4, 12, 0),
     )
     .unwrap();
-    assert!(days.iter().all(|d| !d.is_prior_window));
-    assert_eq!(days[3].spent_usd, 0.0);
+    let flags: Vec<bool> = days.iter().map(|d| d.is_prior_window).collect();
+    assert_eq!(flags, [true, true, true, true, false, false, false]);
+    assert!((days[3].spent_usd - 5.0).abs() < 0.001);
 }
 
 /// Chevron-left shows the previous Monday week; a day before the cycle start

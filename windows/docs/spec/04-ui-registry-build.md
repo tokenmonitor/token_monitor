@@ -427,7 +427,7 @@ State is not persisted (resets to 0 when the panel is rebuilt, i.e. on every ope
   1pt border `primary @ 0.12`, shadow black @ 0.25 radius 6 y-offset 2:
   1. Date `"EEEE, MMM d"` (e.g. "Tuesday, Oct 14"), captionSemibold primary.
   2. Unless future: `usageLine(day, noun)` (caption secondary):
-     - prior window: `"%.1f%% of the <noun> pool before the provider reset it early"`;
+     - prior window: `"%.1f%% of the previous <noun> pool"`;
      - budget ≤ 0: `"No budget"`;
      - spent ≤ 0.001: `"0% of the %.1f%% daily allowance"` (e.g. "0% of the 14.3% daily allowance");
      - else `"%.1f%% of <noun> · %d%% of daily allowance"` with `round(spent/budget×100)` (e.g. "31.0% of weekly · 217% of daily allowance").

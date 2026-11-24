@@ -41,7 +41,7 @@ fn test_usage_line_describes_the_day() {
     d.spent = 12.0;
     assert_eq!(
         usage_line(&d, AllowanceNoun::Monthly),
-        "12.0% of the monthly pool before the provider reset it early"
+        "12.0% of the previous monthly pool"
     );
 }
 

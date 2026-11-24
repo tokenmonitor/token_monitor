@@ -75,10 +75,7 @@ pub struct DayUsage {
 /// ```
 pub fn usage_line(day: DayUsage, noun: &str) -> String {
     if day.is_prior_window {
-        format!(
-            "{:.1}% of the {noun} pool before the provider reset it early",
-            day.spent
-        )
+        format!("{:.1}% of the previous {noun} pool", day.spent)
     } else if day.budget <= 0.0 {
         "No budget".to_owned()
     } else if day.spent <= 0.001 {
