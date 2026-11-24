@@ -40,6 +40,7 @@ on:
     # Path filters do not apply to tag pushes.
     paths:
       - "windows/installer/**"
+      - ".github/actions/windows-*/**"
       - ".github/workflows/windows-release.yml"
   workflow_dispatch:
     inputs:
@@ -58,14 +59,6 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
-  # WiX Toolset v3 binaries (cargo-wix drives candle/light from WiX 3).
-  WIX_VERSION: "3.14.1"
-  WIX_URL: https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip
-  WIX_SHA256: "6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31"
-  # cargo-wix publishes no binaries: build the crates.io source, checked
-  # against the checksum crates.io records, with its own Cargo.lock.
-  CARGO_WIX_VERSION: "0.3.9"
-  CARGO_WIX_SHA256: "7023fb5f51309588c35ef9323b58a805e6a9bad4be4d4e3054264fea9a1cdbad"
   TARGET: x86_64-pc-windows-msvc
 
 defaults:
@@ -229,54 +222,29 @@ jobs:
 
       - name: Sign TokenMon.exe
         if: steps.signing.outputs.enabled == 'true'
-        env:
-          PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
-          PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
-        run: bash installer/sign.sh "$APP_EXE"
-
-      - name: Install WiX Toolset (pinned, checksummed)
-        run: |
-          set -euo pipefail
-          curl -fsSL --retry 3 "$WIX_URL" -o "$RUNNER_TEMP/wix.zip"
-          echo "${WIX_SHA256}  $RUNNER_TEMP/wix.zip" | sha256sum -c -
-          python -I -m zipfile -e "$RUNNER_TEMP/wix.zip" "$RUNNER_TEMP/wix"
-          banner=$("$RUNNER_TEMP/wix/candle.exe" -? || true)
-          head -n 1 <<<"$banner"
-          grep -qF "version $WIX_VERSION" <<<"$banner"
-          echo "WIX_BIN=$(cygpath -w "$RUNNER_TEMP/wix")" >> "$GITHUB_ENV"
-
-      - name: Install cargo-wix (pinned, checksummed)
-        run: |
-          set -euo pipefail
-          curl -fsSL --retry 3 "https://static.crates.io/crates/cargo-wix/cargo-wix-${CARGO_WIX_VERSION}.crate" \
-            -o "$RUNNER_TEMP/cargo-wix.crate"
-          echo "${CARGO_WIX_SHA256}  $RUNNER_TEMP/cargo-wix.crate" | sha256sum -c -
-          # Git Bash tar takes "D:\..." for a remote host; Python does not.
-          python -I -m tarfile -e "$RUNNER_TEMP/cargo-wix.crate" "$RUNNER_TEMP"
-          cargo install --locked --path "$RUNNER_TEMP/cargo-wix-${CARGO_WIX_VERSION}" --root "$RUNNER_TEMP/cargo-wix"
-          echo "$RUNNER_TEMP/cargo-wix/bin" >> "$GITHUB_PATH"
-          "$RUNNER_TEMP/cargo-wix/bin/cargo-wix" wix --version | grep -F "$CARGO_WIX_VERSION"
+        uses: ./.github/actions/windows-sign
+        with:
+          files: ${{ env.APP_EXE }}
+          pfx-base64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
+          pfx-password: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
 
       - name: Build the MSI (and a higher-version upgrade probe)
-        run: |
-          set -euo pipefail
-          wxs=$(cygpath -w "$PWD/installer/main.wxs")
-          wix() { # <install-version> <output>
-            cargo wix -p tokenmon-app --no-build --nocapture --target "$TARGET" \
-              --bin-path "$WIX_BIN" --include "$wxs" \
-              --install-version "$1" --output "$(cygpath -w "$2")"
-          }
-          wix "$VERSION" "$RUNNER_TEMP/dist/$MSI"
+        uses: ./.github/actions/windows-msi
+        with:
+          version: ${{ env.VERSION }}
+          output: ${{ runner.temp }}/dist/${{ env.MSI }}
           # Only for the smoke test's major-upgrade check; never published.
-          wix "$PROBE_VERSION" "$RUNNER_TEMP/probe/tokenmon-upgrade-probe.msi"
-          ls -l "$RUNNER_TEMP/dist" "$RUNNER_TEMP/probe"
+          probe-version: ${{ env.PROBE_VERSION }}
+          probe-output: ${{ runner.temp }}/probe/tokenmon-upgrade-probe.msi
+          target: ${{ env.TARGET }}
 
       - name: Sign the MSI
         if: steps.signing.outputs.enabled == 'true'
-        env:
-          PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
-          PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
-        run: bash installer/sign.sh "$RUNNER_TEMP/dist/$MSI"
+        uses: ./.github/actions/windows-sign
+        with:
+          files: ${{ runner.temp }}/dist/${{ env.MSI }}
+          pfx-base64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
+          pfx-password: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
 
       - name: Build the portable zip and SHA256SUMS
         run: |
@@ -296,7 +264,7 @@ jobs:
             "$RUNNER_TEMP/dist/$MSI" "$RUNNER_TEMP/dist/$ZIP" "$RUNNER_TEMP/dist/$SUMS" >> "$GITHUB_STEP_SUMMARY"
           {
             echo
-            echo "Built with $(rustc --version), WiX $WIX_VERSION, cargo-wix $CARGO_WIX_VERSION."
+            echo "Built with $(rustc --version); WiX and cargo-wix are pinned in .github/actions/windows-msi."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload the release files

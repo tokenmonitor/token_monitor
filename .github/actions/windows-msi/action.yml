@@ -1,0 +1,119 @@
+name: Windows MSI
+description: >-
+  Builds the per-user TokenMon MSI from an already built TokenMon.exe with
+  cargo-wix and WiX Toolset 3, both downloaded by version and checked against a
+  SHA-256. Optionally also builds a higher-version MSI, used only by the
+  install/upgrade smoke test. Signing is a separate step: see windows-sign.
+  Run `cargo build --release -p tokenmon-app --target <target>` first (and sign
+  the exe if it is to be signed): cargo-wix packages the exe from target/.
+
+inputs:
+  version:
+    description: MSI version (X.Y.Z).
+    required: true
+  output:
+    description: Where to write the MSI (absolute path).
+    required: true
+  probe-version:
+    description: Version of an extra upgrade-probe MSI. Empty builds none.
+    required: false
+    default: ""
+  probe-output:
+    description: Where to write the upgrade probe (absolute path).
+    required: false
+    default: ""
+  target:
+    description: Rust target triple the exe was built for.
+    required: false
+    default: x86_64-pc-windows-msvc
+  working-directory:
+    description: The `windows` directory of the checkout.
+    required: false
+    default: windows
+  wix-version:
+    description: WiX Toolset 3 version.
+    required: false
+    default: "3.14.1"
+  wix-url:
+    description: Download URL of the WiX binaries zip.
+    required: false
+    default: https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip
+  wix-sha256:
+    description: SHA-256 of the WiX binaries zip.
+    required: false
+    default: "6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31"
+  cargo-wix-version:
+    description: cargo-wix version (built from the crates.io source).
+    required: false
+    default: "0.3.9"
+  cargo-wix-sha256:
+    description: SHA-256 of the cargo-wix .crate.
+    required: false
+    default: "7023fb5f51309588c35ef9323b58a805e6a9bad4be4d4e3054264fea9a1cdbad"
+
+outputs:
+  msi-path:
+    description: The MSI that was written.
+    value: ${{ inputs.output }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install WiX Toolset (pinned, checksummed)
+      shell: bash
+      env:
+        WIX_VERSION: ${{ inputs.wix-version }}
+        WIX_URL: ${{ inputs.wix-url }}
+        WIX_SHA256: ${{ inputs.wix-sha256 }}
+      run: |
+        set -euo pipefail
+        curl -fsSL --retry 3 "$WIX_URL" -o "$RUNNER_TEMP/wix.zip"
+        echo "${WIX_SHA256}  $RUNNER_TEMP/wix.zip" | sha256sum -c -
+        python -I -m zipfile -e "$RUNNER_TEMP/wix.zip" "$RUNNER_TEMP/wix"
+        banner=$("$RUNNER_TEMP/wix/candle.exe" -? || true)
+        head -n 1 <<<"$banner"
+        grep -qF "version $WIX_VERSION" <<<"$banner"
+        echo "WIX_BIN=$(cygpath -w "$RUNNER_TEMP/wix")" >> "$GITHUB_ENV"
+
+    - name: Install cargo-wix (pinned, checksummed)
+      shell: bash
+      env:
+        CARGO_WIX_VERSION: ${{ inputs.cargo-wix-version }}
+        CARGO_WIX_SHA256: ${{ inputs.cargo-wix-sha256 }}
+      run: |
+        set -euo pipefail
+        curl -fsSL --retry 3 "https://static.crates.io/crates/cargo-wix/cargo-wix-${CARGO_WIX_VERSION}.crate" \
+          -o "$RUNNER_TEMP/cargo-wix.crate"
+        echo "${CARGO_WIX_SHA256}  $RUNNER_TEMP/cargo-wix.crate" | sha256sum -c -
+        # Git Bash tar takes "D:\..." for a remote host; Python does not.
+        python -I -m tarfile -e "$RUNNER_TEMP/cargo-wix.crate" "$RUNNER_TEMP"
+        cargo install --locked --path "$RUNNER_TEMP/cargo-wix-${CARGO_WIX_VERSION}" --root "$RUNNER_TEMP/cargo-wix"
+        echo "$RUNNER_TEMP/cargo-wix/bin" >> "$GITHUB_PATH"
+        "$RUNNER_TEMP/cargo-wix/bin/cargo-wix" wix --version | grep -F "$CARGO_WIX_VERSION"
+
+    - name: Build the MSI
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        TARGET: ${{ inputs.target }}
+        VERSION: ${{ inputs.version }}
+        OUTPUT: ${{ inputs.output }}
+        PROBE_VERSION: ${{ inputs.probe-version }}
+        PROBE_OUTPUT: ${{ inputs.probe-output }}
+      run: |
+        set -euo pipefail
+        wxs=$(cygpath -w "$PWD/installer/main.wxs")
+        wix() { # <install-version> <output>
+          cargo wix -p tokenmon-app --no-build --nocapture --target "$TARGET" \
+            --bin-path "$WIX_BIN" --include "$wxs" \
+            --install-version "$1" --output "$(cygpath -w "$2")"
+        }
+        mkdir -p "$(dirname "$OUTPUT")"
+        wix "$VERSION" "$OUTPUT"
+        if [ -n "$PROBE_VERSION" ]; then
+          : "${PROBE_OUTPUT:?probe-output is required with probe-version}"
+          # Only for the smoke test's major-upgrade check; never published.
+          mkdir -p "$(dirname "$PROBE_OUTPUT")"
+          wix "$PROBE_VERSION" "$PROBE_OUTPUT"
+        fi
+        ls -l "$(dirname "$OUTPUT")"
