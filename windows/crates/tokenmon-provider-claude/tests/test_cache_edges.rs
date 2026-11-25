@@ -9,7 +9,7 @@ use std::path::Path;
 use chrono::{FixedOffset, TimeZone, Utc};
 use tokenmon_core::usage::Calendar;
 use tokenmon_provider_claude::cache::{
-    DailyTokenTally, MAX_ADDED_LOG, MAX_FILE_BYTES, MAX_FILES, daily_tokens_from_entries,
+    DailyTokenTally, MAX_ADDED_LOG, MAX_FILES, daily_tokens_from_entries,
 };
 use tokenmon_provider_claude::{ClaudeCodeFileCache, DailyTokens, Entry};
 
@@ -219,7 +219,8 @@ fn test_symlinks_and_oversized_files_are_ignored() {
     std::os::unix::fs::symlink(dir.path().join("real.jsonl"), dir.path().join("link.jsonl"))
         .unwrap();
     let huge = File::create(dir.path().join("huge.jsonl")).unwrap();
-    huge.set_len(MAX_FILE_BYTES + 1).unwrap();
+    huge.set_len(tokenmon_provider_claude::cache::MAX_FILE_BYTES + 1)
+        .unwrap();
     let cache = ClaudeCodeFileCache::new();
     assert_eq!(total(&cache, dir.path()), 1);
 }
