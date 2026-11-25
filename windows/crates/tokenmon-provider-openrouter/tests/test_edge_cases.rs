@@ -8,14 +8,16 @@ use std::time::Duration;
 
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use tokenmon_core::polling::PollOutcome;
+use tokenmon_core::usage::{Calendar, WeekOffset};
 use tokenmon_core::{
     BoxFuture, InMemoryCredentialStore, ManualClock, ProviderError, ProviderErrorContext,
     ProviderUsagePoller,
 };
 use tokenmon_provider_openrouter::{
     ActivityRow, ApiKey, BudgetSource, CostEstimator, CreditsData, Endpoint, EndpointFetcher,
-    KeyData, LimitReset, NoCostEstimator, OpenRouterAuthSession, OpenRouterSnapshot,
-    OpenRouterUsageClient, OpenRouterUsagePoller, models_from_rows, parse_activity,
+    KeyData, LimitReset, NoCostEstimator, OpenRouterAuthSession, OpenRouterDailyChart,
+    OpenRouterSnapshot, OpenRouterUsageClient, OpenRouterUsagePoller, models_from_rows,
+    parse_activity,
 };
 
 fn now() -> DateTime<Utc> {
@@ -261,4 +263,32 @@ async fn test_menu_state_and_clear_snapshot() {
     assert!(p.snapshot().is_some() && p.last_refreshed_at().is_some());
     p.clear_snapshot();
     assert!(p.snapshot().is_none() && p.last_refreshed_at().is_none());
+}
+
+/// A budget and spend that are both infinite produce zero percent rather
+/// than NaN.
+#[test]
+fn test_indeterminate_budget_ratio_is_reported_as_zero_percent() {
+    let mut s = OpenRouterSnapshot::build(&key(1.0), None, None, now(), &NoCostEstimator);
+    s.budget_usd = Some(f64::INFINITY);
+    s.used_usd = f64::INFINITY;
+    assert_eq!(s.used_percent(), Some(0.0));
+}
+
+/// At the end of the representable calendar no window end exists, so weekly
+/// and monthly charts show no bars instead of panicking.
+#[test]
+fn test_charts_at_the_end_of_time_have_no_bars() {
+    for reset in ["weekly", "monthly"] {
+        let mut k = key(10.0);
+        k.limit = Some(100.0);
+        k.limit_reset = Some(reset.to_owned());
+        let snap = OpenRouterSnapshot::build(&k, None, None, now(), &NoCostEstimator);
+        let end = DateTime::<Utc>::MAX_UTC;
+        let chart = OpenRouterDailyChart::make(&snap, end).expect("budget exists");
+        assert!(
+            chart.days(WeekOffset::CURRENT, &Calendar::utc()).is_empty(),
+            "{reset}"
+        );
+    }
 }
