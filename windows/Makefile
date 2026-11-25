@@ -132,7 +132,7 @@ define windows_only
 	fi
 endef
 
-.PHONY: help version build release run run-debug smoke test lint coverage fmt fuzz-check parity xcheck \
+.PHONY: help version build release run run-debug smoke test clippy lint coverage fmt fuzz-check parity xcheck \
 	tools installer zip dist install uninstall clean distclean
 
 ##@ Help
@@ -206,9 +206,21 @@ smoke: ## [W] Release build, then TokenMon.exe --smoke (headless, one refresh)
 test: ## cargo test --workspace
 	$(CARGO) test $(LOCKED) --workspace
 
-lint: ## fmt check, clippy -D warnings, cargo deny (if installed)
-	$(CARGO) fmt --all -- --check
+# The gate before every push: format, then clippy with every warning an error
+# over all targets (src, tests, benches, examples) of the workspace and of the
+# separate fuzz workspace, whose harnesses are test code too.
+clippy: ## cargo fmt, then clippy -D warnings on every target, fuzz harnesses included
+	$(CARGO) fmt --all
+	$(CARGO) fmt --manifest-path fuzz/Cargo.toml
 	$(CARGO) clippy $(LOCKED) --workspace --all-targets -- -D warnings
+	$(CARGO) clippy --manifest-path fuzz/Cargo.toml --all-targets -- -D warnings
+	$(call ok,clippy clean)
+
+lint: ## fmt check, clippy -D warnings (fuzz harnesses too), cargo deny (if installed)
+	$(CARGO) fmt --all -- --check
+	$(CARGO) fmt --manifest-path fuzz/Cargo.toml -- --check
+	$(CARGO) clippy $(LOCKED) --workspace --all-targets -- -D warnings
+	$(CARGO) clippy --manifest-path fuzz/Cargo.toml --all-targets -- -D warnings
 	@if $(CARGO) deny --version >/dev/null 2>&1; then \
 		echo "$(CARGO) deny --manifest-path Cargo.toml check advisories bans licenses sources"; \
 		$(CARGO) deny --manifest-path Cargo.toml check advisories bans licenses sources; \
