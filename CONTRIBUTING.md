@@ -88,10 +88,9 @@ To satisfy it, do one of these:
    row: `python3 windows/scripts/parity/check_parity.py --print-missing-rows`
    prints the rows to paste.
 
-Changes merged from upstream (tokenmonitor/token_monitor) into `master`
-cannot carry a reference, so the guard fails on that push and says so. Open a
-`windows-parity` issue that names the merge commit SHA and the upstream pull
-request, then re-run the failed job; an open `windows-parity` issue that
+A push that is already on a branch cannot carry a reference afterwards, so the
+guard fails on it and says so. Open a `windows-parity` issue that names the
+commit SHA, then re-run the failed job; an open `windows-parity` issue that
 mentions the commit satisfies the guard.
 
 The two apps also ship **one version number**: `MARKETING_VERSION` in

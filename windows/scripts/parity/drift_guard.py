@@ -28,8 +28,7 @@ Either rule is also met by an **open** issue labeled ``windows-parity`` that
 the change references (``#123``, ``owner/repo#123`` or an issue URL, in the PR
 title/body or a commit message), or that names one of the change's commit SHAs
 (7 or more hex characters). The SHA route is how a push that cannot be amended
-any more (for example an upstream faulknerpearce/token_monitor merge on
-``master``) is acknowledged after the fact: open the issue, then re-run the job.
+any more is acknowledged after the fact: open the issue, then re-run the job.
 
 The workflow passes the changed paths, the text and the SHAs as files, and the
 base and head commits; the guard reads both revisions of the touched Swift
@@ -390,9 +389,8 @@ def render_summary(result: Result, event: str, base: str, head: str, repo: str) 
                 "do, then reference it (`Refs #123`) in the pull request description, or in a commit message for "
                 "a direct push.",
                 "",
-                "For a push that is already on the branch and cannot be amended (for example an upstream",
-                "faulknerpearce/token_monitor merge arriving on `master`), open the `windows-parity` issue, put this",
-                f"commit SHA (`{head[:12]}`) and the upstream PR link in its description, and re-run this job.",
+                "For a push that is already on the branch and cannot be amended, open the `windows-parity` issue,",
+                f"put this commit SHA (`{head[:12]}`) in its description, and re-run this job.",
                 "",
             ]
         )
