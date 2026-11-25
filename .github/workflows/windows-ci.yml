@@ -312,6 +312,11 @@ jobs:
     env:
       PYTHON: ${{ matrix.os == 'windows-latest' && 'python' || 'python3' }}
       SUMMARY_ARTIFACT: windows-coverage-summary-${{ matrix.os }}
+      # Branch coverage (`--branch`) needs a nightly rustc. Pinned so a nightly
+      # regression cannot move the numbers; RUSTUP_TOOLCHAIN overrides
+      # windows/rust-toolchain.toml for this job only (the other jobs keep it).
+      COVERAGE_TOOLCHAIN: nightly-2026-11-03
+      RUSTUP_TOOLCHAIN: nightly-2026-11-03
     defaults:
       run:
         # A job-level `defaults.run` replaces the workflow-level one, so the
@@ -325,7 +330,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master (2026-10-16)
         with:
-          toolchain: ${{ needs.detect.outputs.toolchain }}
+          toolchain: ${{ env.COVERAGE_TOOLCHAIN }}
           components: llvm-tools-preview
 
       - name: Install Linux build dependencies (Slint)
@@ -361,11 +366,11 @@ jobs:
           ignore=$("$PYTHON" -I scripts/ci/coverage_excludes.py regex) || exit 1
           cfg=$(bash scripts/ci/nextest-config.sh . "$RUNNER_TEMP/nextest.toml")
           # shellcheck disable=SC2086 # LOCKED is empty or one flag
-          if ! cargo llvm-cov nextest $LOCKED --workspace --no-report --no-tests=warn \
+          if ! cargo llvm-cov nextest $LOCKED --workspace --branch --no-report --no-tests=warn \
               --config-file "$cfg" --profile ws-ci; then
             echo "::warning title=coverage::some tests failed; see the Tests job. Coverage is still reported."
           fi
-          if ! cargo llvm-cov report --ignore-filename-regex "$ignore" \
+          if ! cargo llvm-cov report --branch --ignore-filename-regex "$ignore" \
               --json --summary-only --output-path "$RUNNER_TEMP/cov.json"; then
             # No profile data: the workspace did not compile, so no test ran.
             {
@@ -376,7 +381,7 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          cargo llvm-cov report --ignore-filename-regex "$ignore" \
+          cargo llvm-cov report --branch --ignore-filename-regex "$ignore" \
             --lcov --output-path "$RUNNER_TEMP/lcov.info"
 
       - name: Fetch the master baseline
