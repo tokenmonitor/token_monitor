@@ -114,7 +114,7 @@ impl IpcMessage {
     /// [`IpcParseError::TooLong`] past the size bound, otherwise as
     /// [`IpcMessage::decode`] (read errors count as `Unknown`).
     pub fn read_with_deadline(
-        reader: &mut impl DeadlineRead,
+        reader: &mut dyn DeadlineRead,
         deadline: Duration,
     ) -> Result<Self, IpcParseError> {
         let start = Instant::now();
