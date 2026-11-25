@@ -89,6 +89,11 @@ struct Rig {
 /// Grok refreshed at `t0` with an error, Cursor refreshed at `t0`, the rest
 /// never refreshed.
 fn rig() -> Rig {
+    rig_with(true)
+}
+
+/// As [`rig`], but with `refreshed` false no poller has ever refreshed.
+fn rig_with(refreshed_pollers: bool) -> Rig {
     let dir = tempfile::tempdir().expect("tempdir");
     let web = Arc::new(FakeWebAuthHost::default());
     let vault = Arc::new(Vault::new(dir.path(), Arc::new(FakeEncryptor::default())));
@@ -108,7 +113,9 @@ fn rig() -> Rig {
             provider: *provider,
             poller: Arc::new(Stamped {
                 provider: *provider,
-                refreshed: matches!(provider, ProviderId::Grok | ProviderId::Cursor).then(t0),
+                refreshed: (refreshed_pollers
+                    && matches!(provider, ProviderId::Grok | ProviderId::Cursor))
+                .then(t0),
                 error: (*provider == ProviderId::Grok).then_some("offline"),
             }),
             session: SessionKey::of(anchor),
@@ -257,4 +264,30 @@ async fn test_host_signs_in_and_out_through_the_service() {
             .expect("lock")
             .contains(&"grok".to_owned())
     );
+}
+
+/// With the Overview selected and nothing refreshed yet there are no lines.
+#[tokio::test]
+async fn test_refresh_status_on_the_overview_is_empty_before_any_refresh() {
+    let r = rig_with(false);
+    r.settings.set_selected_provider(ProviderId::Overview);
+    assert_eq!(r.host.status().refresh, RefreshStatus::None);
+}
+
+/// Providers can be switched back on for alerts and for polling after being
+/// switched off.
+#[tokio::test]
+async fn test_backend_re_enables_alerts_and_providers() {
+    let r = rig();
+    let backend = AppSettingsBackend::new(Arc::clone(&r.settings));
+    let alerts = |b: &AppSettingsBackend| b.snapshot().alert_providers;
+    let enabled = |b: &AppSettingsBackend| b.snapshot().enabled_providers;
+    backend.apply(SettingsChange::AlertProvider(ProviderId::Claude, false));
+    assert!(!alerts(&backend).contains(&ProviderId::Claude));
+    backend.apply(SettingsChange::AlertProvider(ProviderId::Claude, true));
+    assert!(alerts(&backend).contains(&ProviderId::Claude));
+    backend.apply(SettingsChange::ProviderEnabled(ProviderId::Cursor, false));
+    assert!(!enabled(&backend).contains(&ProviderId::Cursor));
+    backend.apply(SettingsChange::ProviderEnabled(ProviderId::Cursor, true));
+    assert!(enabled(&backend).contains(&ProviderId::Cursor));
 }

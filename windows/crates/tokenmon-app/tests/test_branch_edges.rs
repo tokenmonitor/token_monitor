@@ -163,6 +163,22 @@ fn test_overview_store_survives_a_failed_save() {
     assert!(store.series(day).is_some());
 }
 
+/// Non-finite and non-positive weights draw no activity.
+#[test]
+fn test_hour_columns_skip_non_finite_and_non_positive_weights() {
+    let mut weights = vec![0.0; 24];
+    weights[0] = f64::NAN;
+    weights[1] = f64::INFINITY;
+    weights[2] = -1.0;
+    weights[3] = 1.0;
+    let series = OverviewDaySeries::default().with_weights(OverviewSeries::Claude, weights);
+    let columns = hour_columns(&series);
+    assert_eq!(
+        (0..4).map(|h| columns[h].len()).collect::<Vec<_>>(),
+        vec![0, 0, 0, 1]
+    );
+}
+
 /// A series shorter than 24 hours simply has no activity in the missing hours.
 #[test]
 fn test_hour_columns_tolerate_short_series() {
