@@ -72,7 +72,7 @@ async fn test_update_loop_idles_when_checks_are_disabled() {
     )
     .expect("updates");
     let task = service.spawn_loop(&tokio::runtime::Handle::current());
-    tokio::time::sleep(Duration::from_secs(60 * 60 * 24)).await;
+    tokio::time::sleep(Duration::from_hours(24)).await;
     assert!(!task.is_finished(), "the loop keeps running");
     assert!(service.checker.state().last_error.is_none());
     task.abort();
