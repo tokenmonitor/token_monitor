@@ -22,11 +22,8 @@ const DIGITS: [[u8; 5]; 11] = [
 
 /// Pixel width of `n` digits at `scale` (3 px per glyph, 1 px gap, scaled).
 pub fn digits_width(n: usize, scale: u32) -> u32 {
-    if n == 0 {
-        0
-    } else {
-        n as u32 * 3 * scale + (n as u32 - 1) * scale
-    }
+    let n = n as u32;
+    n * 3 * scale + n.saturating_sub(1) * scale
 }
 
 /// Pixel height of the digit font at `scale`.
@@ -93,17 +90,46 @@ fn stroke(pm: &mut Pixmap, path: &Path, width: f32, paint: &Paint<'_>, t: Transf
     pm.stroke_path(path, paint, &s, t, None);
 }
 
-fn poly(points: &[(f32, f32)], closed: bool) -> Option<Path> {
+/// Strokes the polyline through `points` (a degenerate path draws nothing).
+fn stroke_poly(
+    pm: &mut Pixmap,
+    points: &[(f32, f32)],
+    closed: bool,
+    width: f32,
+    paint: &Paint<'_>,
+    t: Transform,
+) {
     let mut pb = PathBuilder::new();
-    let (first, rest) = points.split_first()?;
-    pb.move_to(first.0, first.1);
-    for p in rest {
-        pb.line_to(p.0, p.1);
+    for (i, (px, py)) in points.iter().enumerate() {
+        if i == 0 {
+            pb.move_to(*px, *py);
+        } else {
+            pb.line_to(*px, *py);
+        }
     }
     if closed {
         pb.close();
     }
-    pb.finish()
+    if let Some(path) = pb.finish() {
+        stroke(pm, &path, width, paint, t);
+    }
+}
+
+/// Strokes (`width = Some`) or fills (`None`) a circle in unit coordinates.
+fn circle(
+    pm: &mut Pixmap,
+    (cx, cy, r): (f32, f32, f32),
+    width: Option<f32>,
+    paint: &Paint<'_>,
+    t: Transform,
+) {
+    let Some(path) = PathBuilder::from_circle(cx, cy, r) else {
+        return;
+    };
+    match width {
+        Some(w) => stroke(pm, &path, w, paint, t),
+        None => pm.fill_path(&path, paint, FillRule::Winding, t, None),
+    }
 }
 
 /// Draws the silhouette for `provider` (Overview = the TokenMon mark) in a
@@ -118,53 +144,46 @@ pub fn draw_logo(
 ) {
     let t = Transform::from_translate(x, y).pre_scale(side, side);
     let w = 0.16; // stroke width in unit coordinates
+    let line = |pm: &mut Pixmap, pts: &[(f32, f32)], closed: bool| {
+        stroke_poly(pm, pts, closed, w, paint, t);
+    };
     match provider {
         ProviderId::Grok => {
-            if let Some(c) = PathBuilder::from_circle(0.5, 0.5, 0.38) {
-                stroke(pm, &c, w, paint, t);
-            }
-            if let Some(l) = poly(&[(0.18, 0.88), (0.82, 0.12)], false) {
-                stroke(pm, &l, w, paint, t);
-            }
+            circle(pm, (0.5, 0.5, 0.38), Some(w), paint, t);
+            line(pm, &[(0.18, 0.88), (0.82, 0.12)], false);
         }
-        ProviderId::Cursor => {
-            if let Some(p) = poly(
-                &[
-                    (0.5, 0.04),
-                    (0.92, 0.28),
-                    (0.92, 0.72),
-                    (0.5, 0.96),
-                    (0.08, 0.72),
-                    (0.08, 0.28),
-                ],
-                true,
-            ) {
-                stroke(pm, &p, w, paint, t);
-            }
-        }
+        ProviderId::Cursor => line(
+            pm,
+            &[
+                (0.5, 0.04),
+                (0.92, 0.28),
+                (0.92, 0.72),
+                (0.5, 0.96),
+                (0.08, 0.72),
+                (0.08, 0.28),
+            ],
+            true,
+        ),
         ProviderId::OpenCode => {
-            for pts in [
-                [(0.34, 0.12), (0.12, 0.12), (0.12, 0.88), (0.34, 0.88)],
-                [(0.66, 0.12), (0.88, 0.12), (0.88, 0.88), (0.66, 0.88)],
-            ] {
-                if let Some(p) = poly(&pts, false) {
-                    stroke(pm, &p, w, paint, t);
-                }
-            }
+            line(
+                pm,
+                &[(0.34, 0.12), (0.12, 0.12), (0.12, 0.88), (0.34, 0.88)],
+                false,
+            );
+            line(
+                pm,
+                &[(0.66, 0.12), (0.88, 0.12), (0.88, 0.88), (0.66, 0.88)],
+                false,
+            );
         }
         ProviderId::Claude => {
-            for (a, b) in [
-                ((0.5, 0.06), (0.5, 0.94)),
-                ((0.1, 0.28), (0.9, 0.72)),
-                ((0.1, 0.72), (0.9, 0.28)),
-            ] {
-                if let Some(l) = poly(&[a, b], false) {
-                    stroke(pm, &l, w, paint, t);
-                }
-            }
+            line(pm, &[(0.5, 0.06), (0.5, 0.94)], false);
+            line(pm, &[(0.1, 0.28), (0.9, 0.72)], false);
+            line(pm, &[(0.1, 0.72), (0.9, 0.28)], false);
         }
         ProviderId::ChatGpt => {
-            if let Some(p) = poly(
+            line(
+                pm,
                 &[
                     (0.5, 0.04),
                     (0.9, 0.27),
@@ -174,41 +193,23 @@ pub fn draw_logo(
                     (0.1, 0.27),
                 ],
                 true,
-            ) {
-                stroke(pm, &p, w, paint, t);
-            }
-            if let Some(c) = PathBuilder::from_circle(0.5, 0.5, 0.12) {
-                pm.fill_path(&c, paint, FillRule::Winding, t, None);
-            }
+            );
+            circle(pm, (0.5, 0.5, 0.12), None, paint, t);
         }
         ProviderId::OpenRouter => {
-            for pts in [
-                [(0.08, 0.3), (0.5, 0.3), (0.5, 0.3)],
-                [(0.08, 0.7), (0.5, 0.7), (0.5, 0.7)],
-            ] {
-                if let Some(p) = poly(&pts, false) {
-                    stroke(pm, &p, w, paint, t);
-                }
-            }
-            if let Some(p) = poly(&[(0.55, 0.12), (0.92, 0.5), (0.55, 0.88)], false) {
-                stroke(pm, &p, w, paint, t);
-            }
+            line(pm, &[(0.08, 0.3), (0.5, 0.3), (0.5, 0.3)], false);
+            line(pm, &[(0.08, 0.7), (0.5, 0.7), (0.5, 0.7)], false);
+            line(pm, &[(0.55, 0.12), (0.92, 0.5), (0.55, 0.88)], false);
         }
         ProviderId::Grokbot => {
-            if let Some(p) = poly(
+            line(
+                pm,
                 &[(0.12, 0.25), (0.88, 0.25), (0.88, 0.9), (0.12, 0.9)],
                 true,
-            ) {
-                stroke(pm, &p, w, paint, t);
-            }
-            if let Some(l) = poly(&[(0.5, 0.25), (0.5, 0.05)], false) {
-                stroke(pm, &l, w, paint, t);
-            }
-            for cx in [0.34, 0.66] {
-                if let Some(c) = PathBuilder::from_circle(cx, 0.55, 0.07) {
-                    pm.fill_path(&c, paint, FillRule::Winding, t, None);
-                }
-            }
+            );
+            line(pm, &[(0.5, 0.25), (0.5, 0.05)], false);
+            circle(pm, (0.34, 0.55, 0.07), None, paint, t);
+            circle(pm, (0.66, 0.55, 0.07), None, paint, t);
         }
         ProviderId::Overview => {
             fill_rrect(pm, x, y, side, side, side * 0.28, paint);
