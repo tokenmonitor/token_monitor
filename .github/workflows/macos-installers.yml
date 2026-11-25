@@ -10,7 +10,7 @@ name: macOS installers
 # Used three ways:
 #   * release.yml calls it (workflow_call) after the CI gates, then publishes
 #     the artifact to the GitHub Release;
-#   * a dry run on every push to windows-port that touches the installer
+#   * a dry run on every push to master that touches the installer
 #     pipeline, and on manual dispatch (Actions tab);
 #   * the steps are the same ones to reuse from any other workflow:
 #       macos-import-signing -> macos-build-app -> macos-notarize (app)
@@ -51,7 +51,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - windows-port
+      - master
     paths:
       - ".github/actions/macos-*/**"
       - ".github/workflows/macos-installers.yml"

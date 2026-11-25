@@ -17,10 +17,10 @@ name: Windows release
 # prefix (so this release and the macOS ones never mix).
 #
 # Dry runs build and test the same files without creating a release:
-#   * every push to windows-port that touches windows/installer/ or this file
+#   * every push to master that touches windows/installer/ or this file
 #     (the gates already run in windows-ci.yml for that push);
 #   * workflow_dispatch (Actions tab or `gh workflow run windows-release.yml
-#     --ref windows-port`), with the gates unless `gates` is false.
+#     --ref master`), with the gates unless `gates` is false.
 # The files are kept as workflow artifacts for 14 days.
 #
 # Authenticode signing is off until signing secrets exist (see the "Sign"
@@ -36,7 +36,7 @@ on:
     tags:
       - "windows-v*"
     branches:
-      - windows-port
+      - master
     # Path filters do not apply to tag pushes.
     paths:
       - "windows/installer/**"

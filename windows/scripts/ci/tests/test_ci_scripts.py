@@ -105,7 +105,7 @@ class RenderCoverageTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("| lines | 11 | 20 | 55.00% | -0.40 |", r.stdout)
         self.assertIn("**Delta gate** (OK)", r.stdout)
-        self.assertIn("[previous windows-port run](https://x/runs/1)", r.stdout)
+        self.assertIn("[previous master run](https://x/runs/1)", r.stdout)
 
     def test_drop_over_half_a_point_fails(self):
         _, base = self.cov()
@@ -328,11 +328,11 @@ class FetchBaselineTest(unittest.TestCase):
 
     def test_newest_matching_artifact_is_downloaded(self):
         got, dest = self.fetch([
-            self.artifact(9, 50, "windows-port"),        # this run: skipped
+            self.artifact(9, 50, "master"),              # this run: skipped
             self.artifact(8, 49, "feature"),             # other branch: skipped
-            self.artifact(7, 48, "windows-port", True),  # expired: skipped
-            self.artifact(6, 47, "windows-port"),
-            self.artifact(5, 46, "windows-port"),
+            self.artifact(7, 48, "master", True),        # expired: skipped
+            self.artifact(6, 47, "master"),
+            self.artifact(5, 46, "master"),
         ])
         self.assertEqual(got["found"], "true")
         self.assertEqual(got["run_id"], "47")
@@ -340,7 +340,7 @@ class FetchBaselineTest(unittest.TestCase):
         self.assertTrue((dest / "coverage-summary.json").is_file())
 
     def test_any_branch(self):
-        got, _ = self.fetch([self.artifact(8, 49, "master")], branch="*")
+        got, _ = self.fetch([self.artifact(8, 49, "feature")], branch="*")
         self.assertEqual(got["run_id"], "49")
 
     def test_nothing_found(self):

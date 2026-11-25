@@ -13,7 +13,7 @@ Input is `cargo llvm-cov report --json --summary-only` output. The script
 prints Markdown to stdout with:
 
 * total line / region / function coverage, and the delta against the
-  baseline (the coverage-summary.json of the latest windows-port run),
+  baseline (the coverage-summary.json of the latest master run),
 * a per-crate table (files under `crates/<name>/` belong to crate `<name>`),
 * a per-file table inside a collapsed <details> block.
 
@@ -234,7 +234,7 @@ def render(args, total: Unit, crates: dict[str, Unit], files: dict[str, Unit],
     out.append("")
     if baseline:
         before = base_pct(base_totals, "lines")
-        src = args.baseline_label or baseline.get("source") or "previous windows-port run"
+        src = args.baseline_label or baseline.get("source") or "previous master run"
         if args.baseline_url:
             src = f"[{src}]({args.baseline_url})"
         if before is not None:
@@ -253,7 +253,7 @@ def render(args, total: Unit, crates: dict[str, Unit], files: dict[str, Unit],
     elif baseline_note:
         out.append(f"**Delta gate**: skipped. {baseline_note}")
     else:
-        out.append("**Delta gate**: no baseline yet (first run on windows-port, or its artifact expired); skipped.")
+        out.append("**Delta gate**: no baseline yet (first run on master, or its artifact expired); skipped.")
     if baseline and baseline_note:
         out += ["", baseline_note]
 

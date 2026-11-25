@@ -5,12 +5,11 @@ name: Windows fuzz (nightly)
 # grown corpus is minimized with `cargo fuzz cmin` and uploaded as an artifact
 # for the next run. A crash fails the run, prints the input as hex and base64
 # in the job summary, and opens (or comments on) a GitHub issue labeled
-# windows-port with the same details, so it gets triaged without anyone
+# windows with the same details, so it gets triaged without anyone
 # downloading artifacts.
 #
-# Scheduled workflows only fire from the default branch (master); until this
-# file is there, run it by hand: `gh workflow run windows-fuzz-nightly.yml
-# --ref windows-port`. A push that edits this file runs a 30 s self-test.
+# Run it by hand with `gh workflow run windows-fuzz-nightly.yml`. A push that
+# edits this file runs a 30 s self-test.
 
 on:
   schedule:
@@ -22,7 +21,7 @@ on:
         required: false
         default: "600"
   push:
-    branches: [windows-port]
+    branches: [master]
     paths:
       - ".github/workflows/windows-fuzz-nightly.yml"
 
@@ -56,8 +55,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          # A scheduled run starts on master; the port lives on windows-port.
-          ref: ${{ github.event_name == 'schedule' && 'windows-port' || '' }}
 
       - name: List targets in windows/fuzz
         id: list
@@ -101,7 +98,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ github.event_name == 'schedule' && 'windows-port' || '' }}
 
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master (2026-10-16)
         with:
@@ -130,8 +126,7 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           set -euo pipefail
-          # Any branch: scheduled runs are recorded against master, dispatches
-          # against windows-port; the corpus is valid for both.
+          # Any branch: the corpus is valid for every branch.
           bash scripts/ci/fetch_baseline.sh "$CORPUS_ARTIFACT" "$RUNNER_TEMP/prev-corpus" "*"
           mkdir -p "fuzz/corpus/$TARGET"
           committed=$(find "fuzz/corpus/$TARGET" -maxdepth 1 -type f | wc -l)
@@ -199,7 +194,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ github.event_name == 'schedule' && 'windows-port' || '' }}
           sparse-checkout: windows/scripts/ci
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -223,7 +217,7 @@ jobs:
           # The per-target jobs already show crash details; keep the table only.
           sed '/^#### /,$d' "$RUNNER_TEMP/table.md" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Open or update a windows-port issue per crashing target
+      - name: Open or update a windows issue per crashing target
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -243,14 +237,14 @@ jobs:
               echo
               echo "Owner: the workstream that owns this parser (windows/docs/IMPLEMENTATION_PLAN.md)."
             } > "$body"
-            existing=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --label windows-port \
+            existing=$(gh issue list -R "$GITHUB_REPOSITORY" --state open --label windows \
               --search "\"[fuzz] $target:\" in:title" --json number,title \
               --jq "[.[] | select(.title == \"$title\")][0].number // empty")
             if [ -n "$existing" ]; then
               gh issue comment "$existing" -R "$GITHUB_REPOSITORY" --body-file "$body"
               echo "- \`$target\`: commented on #$existing" >> "$GITHUB_STEP_SUMMARY"
             else
-              url=$(gh issue create -R "$GITHUB_REPOSITORY" --title "$title" --label windows-port --body-file "$body")
+              url=$(gh issue create -R "$GITHUB_REPOSITORY" --title "$title" --label windows --body-file "$body")
               echo "- \`$target\`: opened $url" >> "$GITHUB_STEP_SUMMARY"
             fi
           done

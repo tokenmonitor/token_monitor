@@ -4,7 +4,7 @@ name: Windows CI
 # windows/docs/IMPLEMENTATION_PLAN.md). Every job writes its results to the
 # run page (job summary): test tables per crate with failing-test output,
 # coverage per crate and per file with the delta against the latest
-# windows-port run, fuzz stats with crash inputs as hex/base64, and binary
+# master run, fuzz stats with crash inputs as hex/base64, and binary
 # sizes. Nothing needs an artifact download to read; artifacts exist only for
 # the next run's coverage baseline and for crash inputs.
 #
@@ -14,7 +14,7 @@ name: Windows CI
 
 on:
   push:
-    branches: [windows-port]
+    branches: [master]
     paths:
       - "windows/**"
       - ".github/workflows/windows-ci.yml"
@@ -29,7 +29,7 @@ on:
 permissions:
   contents: read
 
-# Many workstreams push to windows-port, so every push gets its own run
+# Every push gets its own run
 # (grouped by commit, never cancelled): each commit gets a lint and test
 # verdict. Only the expensive jobs (coverage, fuzz smoke, release build) are
 # superseded by a newer push to the same branch, through job-level
@@ -53,7 +53,7 @@ env:
   CARGO_DENY_VERSION: "0.20.2"
   CARGO_FUZZ_VERSION: "0.13.2"
   CARGO_FUZZ_SHA256: "b5b704018b63e0f151c17a057ac53b5111e1db545d1b9f72fee79f08a545931c"
-  # Total line coverage may drop at most this many points vs windows-port.
+  # Total line coverage may drop at most this many points vs master.
   # Loosened from 0.5 to 2.0 for now (maintainer, 2026-11-13, #4); tighten
   # back to 0.5 once the port settles.
   # What is not measured (test/bench/fuzz/example code and the Windows-only
@@ -377,11 +377,11 @@ jobs:
           cargo llvm-cov report --ignore-filename-regex "$ignore" \
             --lcov --output-path "$RUNNER_TEMP/lcov.info"
 
-      - name: Fetch the windows-port baseline
+      - name: Fetch the master baseline
         id: baseline
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash scripts/ci/fetch_baseline.sh "$SUMMARY_ARTIFACT" "$RUNNER_TEMP/baseline" windows-port
+        run: bash scripts/ci/fetch_baseline.sh "$SUMMARY_ARTIFACT" "$RUNNER_TEMP/baseline" master
 
       - name: Coverage summary and gates
         env:

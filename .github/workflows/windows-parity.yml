@@ -12,8 +12,7 @@ name: Windows parity
 #   `Windows-Parity: <reason>` trailer. An open `windows-parity` issue that the
 #   change references (or that names its commit) covers both.
 #
-# Runs on every branch, master included, because macOS changes (including
-# upstream tokenmonitor/token_monitor merges) land there first.
+# Runs on every branch, master included.
 on:
   push:
   pull_request:
@@ -94,7 +93,7 @@ jobs:
               || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
               # New branch or force push: only the commits no other branch
               # has. Comparing with the default branch instead would count
-              # every commit of a branch cut from windows-port as "touches
+              # every commit of a branch cut from another branch as "touches
               # windows/" and let a macOS-only change through.
               others="$(git for-each-ref --format='%(refname)' refs/remotes/origin \
                 | grep -vx -e "refs/remotes/origin/$GITHUB_REF_NAME" -e 'refs/remotes/origin/HEAD' || true)"

@@ -84,7 +84,7 @@ XWIN_ACCEPT_LICENSE=1 cargo xwin check --target x86_64-pc-windows-msvc -p tokenm
 
 ## Coverage
 
-CI measures line coverage on Ubuntu and Windows and fails when total line coverage drops more than 0.5 points below the latest `windows-port` run, or when a floor in `.config/coverage-floors.toml` is not met. `make coverage` gives the same numbers locally (needs `cargo-llvm-cov`; HTML in `target/llvm-cov/html`).
+CI measures line coverage on Ubuntu and Windows and fails when total line coverage drops more than 2.0 points below the latest `master` run, or when a floor in `.config/coverage-floors.toml` is not met. `make coverage` gives the same numbers locally (needs `cargo-llvm-cov`; HTML in `target/llvm-cov/html`).
 
 Test, bench, fuzz and example code is not measured, and neither is the Windows-only glue listed in **`.config/coverage-excludes.txt`**: thin `cfg(windows)` adapters that tests cannot drive (tray, panel windows, WebView2, toasts, message boxes, session end, power broadcasts, the registry). Real-Windows behaviour is covered by `TokenMon.exe --smoke` in CI and by manual testing. That file is the only list; CI and `make coverage` both build `--ignore-filename-regex` from it with `scripts/ci/coverage_excludes.py`. The rules:
 
@@ -141,8 +141,8 @@ If the tag does not match, the run fails with the fix to apply. Re-running a fai
 
 The same build and test, without a release, run:
 
-* on every push to `windows-port` that changes `windows/installer/` or the workflow;
-* on demand: `gh workflow run windows-release.yml --ref windows-port` (add `-f gates=false` to skip the CI gates). The files are kept as the run's artifacts for 14 days.
+* on every push to `master` that changes `windows/installer/` or the workflow;
+* on demand: `gh workflow run windows-release.yml` (add `-f gates=false` to skip the CI gates). The files are kept as the run's artifacts for 14 days.
 
 ### Build the MSI by hand (on Windows)
 

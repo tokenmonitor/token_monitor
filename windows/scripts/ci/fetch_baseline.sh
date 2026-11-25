@@ -4,7 +4,7 @@
 #
 #   fetch_baseline.sh <artifact-name> <dest-dir> [branch]
 #
-# BRANCH defaults to windows-port; "*" accepts an artifact from any branch.
+# BRANCH defaults to master; "*" accepts an artifact from any branch.
 # Needs GH_TOKEN with actions: read, GITHUB_REPOSITORY and GITHUB_RUN_ID;
 # PYTHON names the interpreter that unzips (default python3).
 # Writes found=true|false, run_id and run_url to $GITHUB_OUTPUT (or stdout).
@@ -13,7 +13,7 @@ set -uo pipefail
 
 name=${1:?usage: fetch_baseline.sh <artifact-name> <dest-dir> [branch]}
 dest=${2:?usage: fetch_baseline.sh <artifact-name> <dest-dir> [branch]}
-branch=${3:-windows-port}
+branch=${3:-master}
 out=${GITHUB_OUTPUT:-/dev/stdout}
 repo=${GITHUB_REPOSITORY:?}
 self=${GITHUB_RUN_ID:-0}
