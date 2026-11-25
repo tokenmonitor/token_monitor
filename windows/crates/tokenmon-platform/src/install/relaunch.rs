@@ -56,10 +56,24 @@ pub fn system_directory() -> String {
     if let Some(dir) = os_system_directory() {
         return dir;
     }
-    let root = std::env::var("SystemRoot")
-        .ok()
+    system_directory_from(std::env::var("SystemRoot").ok().as_deref())
+}
+
+/// The system directory derived from a `%SystemRoot%` value: the value when it
+/// is an absolute Windows path, otherwise `C:\Windows`, plus `\System32`.
+///
+/// # Examples
+///
+/// ```
+/// use tokenmon_platform::install::relaunch::system_directory_from;
+///
+/// assert_eq!(system_directory_from(Some(r"D:\Win\")), r"D:\Win\System32");
+/// assert_eq!(system_directory_from(Some("relative")), r"C:\Windows\System32");
+/// ```
+pub fn system_directory_from(system_root: Option<&str>) -> String {
+    let root = system_root
         .filter(|r| is_absolute_windows_path(r))
-        .unwrap_or_else(|| r"C:\Windows".to_owned());
+        .unwrap_or(r"C:\Windows");
     format!("{}\\System32", root.trim_end_matches(['\\', '/']))
 }
 
@@ -77,7 +91,7 @@ fn os_system_directory() -> Option<String> {
 }
 
 /// `X:\...` or `\\server\...`.
-fn is_absolute_windows_path(p: &str) -> bool {
+pub fn is_absolute_windows_path(p: &str) -> bool {
     let b = p.as_bytes();
     (b.len() >= 3 && b[0].is_ascii_alphabetic() && b[1] == b':' && (b[2] == b'\\' || b[2] == b'/'))
         || p.starts_with("\\\\")
@@ -162,11 +176,14 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
-    let mut it = args.into_iter();
+    // Type-erased so the parser exists once, however callers spell their args.
+    parse_wait_for_pid_from(&mut args.into_iter().map(|a| a.as_ref().to_owned()))
+}
+
+fn parse_wait_for_pid_from(it: &mut dyn Iterator<Item = String>) -> Option<u32> {
     while let Some(arg) = it.next() {
-        let arg = arg.as_ref();
         let value = if arg == RELAUNCH_WAIT_ARG {
-            it.next().map(|v| v.as_ref().to_owned())
+            it.next()
         } else {
             arg.strip_prefix("--wait-for-pid=").map(str::to_owned)
         };
@@ -202,7 +219,10 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
-    let waited = parse_wait_for_pid(args);
+    run_startup(parse_wait_for_pid(args), running_exe)
+}
+
+fn run_startup(waited: Option<u32>, running_exe: &Path) -> Option<u32> {
     if let Some(pid) = waited {
         wait_for_pid_exit(pid, WAIT_FOR_PID_TIMEOUT);
     }
