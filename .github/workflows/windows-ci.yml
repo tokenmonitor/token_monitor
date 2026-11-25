@@ -128,7 +128,11 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          cargo fmt --all -- --check 2>&1 | tee "$RUNNER_TEMP/fmt.log"
+          {
+            cargo fmt --all -- --check
+            # The fuzz crate is its own workspace; --all does not reach it.
+            cargo fmt --manifest-path fuzz/Cargo.toml -- --check
+          } 2>&1 | tee "$RUNNER_TEMP/fmt.log"
 
       - name: cargo clippy -D warnings
         id: clippy
@@ -137,16 +141,14 @@ jobs:
           LOCKED: ${{ needs.detect.outputs.locked }}
         run: |
           set -o pipefail
-          # shellcheck disable=SC2086 # LOCKED is empty or one flag
-          cargo clippy $LOCKED --workspace --all-targets --message-format short -- -D warnings \
-            2>&1 | tee "$RUNNER_TEMP/clippy.log"
-
-      - name: Fuzz crate still compiles on stable
-        # The fuzz crate is outside the workspace, so nothing else type-checks
-        # it before the 60 s nightly smoke job. libfuzzer-sys compiles on
-        # stable for `check`, which catches stale paths and missing deps cheaply.
-        if: hashFiles('windows/fuzz/Cargo.toml') != ''
-        run: cargo check --manifest-path fuzz/Cargo.toml --bins
+          {
+            # shellcheck disable=SC2086 # LOCKED is empty or one flag
+            cargo clippy $LOCKED --workspace --all-targets --message-format short -- -D warnings
+            # The fuzz harnesses are test code in their own workspace, so
+            # --workspace never reaches them; clippy also type-checks them on
+            # stable (libfuzzer-sys builds for check) before the nightly smoke.
+            cargo clippy --manifest-path fuzz/Cargo.toml --all-targets --message-format short -- -D warnings
+          } 2>&1 | tee "$RUNNER_TEMP/clippy.log"
 
       # Coverage leaves out the files in .config/coverage-excludes.txt. This
       # keeps that list honest: every entry must match a file that is
@@ -192,8 +194,8 @@ jobs:
             echo
             echo "| check | result |"
             echo "|---|---|"
-            echo "| \`cargo fmt --all -- --check\` | $(mark "$FMT") |"
-            echo "| \`cargo clippy --workspace --all-targets -- -D warnings\` | $(mark "$CLIPPY") |"
+            echo "| \`cargo fmt --check\` (workspace and fuzz harnesses) | $(mark "$FMT") |"
+            echo "| \`cargo clippy --all-targets -- -D warnings\` (workspace and fuzz harnesses) | $(mark "$CLIPPY") |"
             echo "| \`cargo deny check\` (advisories, bans, licenses, sources) | $deny_note |"
             echo "| coverage exclusions (\`scripts/ci/coverage_excludes.py check\`) | $(mark "$EXCLUDES") |"
             details "cargo fmt" "$RUNNER_TEMP/fmt.log" "$FMT"
