@@ -1,0 +1,30 @@
+name: macOS build app
+description: >-
+  Builds the Release TokenMon.app and stages it as dist/TokenMon.app (the input
+  of the macos-pkg action and of zips). Uses a Developer ID Application
+  identity when one is in the keychain (see macos-import-signing), otherwise
+  signs ad hoc.
+
+outputs:
+  app-path:
+    description: Path of the staged app, relative to the workspace.
+    value: ${{ steps.build.outputs.app-path }}
+  version:
+    description: MARKETING_VERSION from project.yml.
+    value: ${{ steps.build.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Build and stage the Release app
+      id: build
+      shell: bash
+      run: |
+        set -euo pipefail
+        make _release-app _stage-dist
+        test -d dist/TokenMon.app
+        version=$(sed -n 's/.*MARKETING_VERSION: *"\([^"]*\)".*/\1/p' project.yml | head -1)
+        {
+          echo "app-path=dist/TokenMon.app"
+          echo "version=$version"
+        } >> "$GITHUB_OUTPUT"

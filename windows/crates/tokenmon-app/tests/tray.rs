@@ -1,0 +1,336 @@
+//! Tray controller: NIM_MODIFY only when the rendered key or tooltip changes
+//! (spec 04 section 2) and the right-click menu.
+
+#![allow(clippy::chunks_exact_to_as_chunks)] // as_chunks needs a newer MSRV than rust-version guarantees
+
+use tokenmon_app::tray::{TrayBackend, TrayController, TrayData, context_menu, panel_target};
+use tokenmon_core::ProviderId;
+use tokenmon_core::settings::Settings;
+use tokenmon_ui::tray_icon::{MenuAction, MenuEntry, TaskbarTheme, TrayBitmap, TrayIconSize};
+
+#[derive(Default)]
+struct Recorder {
+    updates: Vec<String>,
+    /// Fail this many upcoming updates.
+    failures: u32,
+}
+
+impl TrayBackend for Recorder {
+    fn update(&mut self, bitmap: &TrayBitmap, tooltip: &str) -> bool {
+        assert!(bitmap.size > 0);
+        self.updates.push(tooltip.to_owned());
+        if self.failures > 0 {
+            self.failures -= 1;
+            return false;
+        }
+        true
+    }
+}
+
+fn refresh(
+    c: &mut TrayController<Recorder>,
+    s: &Settings,
+    used: &[(ProviderId, f64)],
+    size: TrayIconSize,
+    theme: TaskbarTheme,
+) -> bool {
+    c.refresh(
+        &TrayData {
+            settings: s,
+            used_percent: used,
+            signed_in: &|_| true,
+        },
+        size,
+        theme,
+    )
+}
+
+/// An unchanged state never touches the OS again.
+#[test]
+fn test_unchanged_state_does_not_modify_the_icon() {
+    let s = Settings::default();
+    let mut c = TrayController::new(Recorder::default());
+    let used = [(ProviderId::Grok, 40.0)];
+    assert!(refresh(
+        &mut c,
+        &s,
+        &used,
+        TrayIconSize::Px16,
+        TaskbarTheme::Dark
+    ));
+    assert!(!refresh(
+        &mut c,
+        &s,
+        &used,
+        TrayIconSize::Px16,
+        TaskbarTheme::Dark
+    ));
+    assert_eq!(c.backend().updates.len(), 1);
+}
+
+/// A usage change, a theme change and a DPI change each re-render once.
+#[test]
+fn test_usage_theme_and_dpi_changes_rerender() {
+    let s = Settings::default();
+    let mut c = TrayController::new(Recorder::default());
+    let a = [(ProviderId::Grok, 40.0)];
+    let b = [(ProviderId::Grok, 80.0)];
+    assert!(refresh(
+        &mut c,
+        &s,
+        &a,
+        TrayIconSize::Px16,
+        TaskbarTheme::Dark
+    ));
+    assert!(refresh(
+        &mut c,
+        &s,
+        &b,
+        TrayIconSize::Px16,
+        TaskbarTheme::Dark
+    ));
+    assert!(refresh(
+        &mut c,
+        &s,
+        &b,
+        TrayIconSize::Px16,
+        TaskbarTheme::Light
+    ));
+    assert!(refresh(
+        &mut c,
+        &s,
+        &b,
+        TrayIconSize::Px32,
+        TaskbarTheme::Light
+    ));
+    assert_eq!(c.backend().updates.len(), 4);
+}
+
+/// The menu ends with Settings, Check for Updates and Quit, and menu actions
+/// map to the panel target.
+#[test]
+fn test_menu_and_panel_targets() {
+    let menu = context_menu(&Settings::default());
+    let actions: Vec<_> = menu
+        .iter()
+        .filter_map(|e| match e {
+            MenuEntry::Item { action, .. } => Some(*action),
+            MenuEntry::Separator => None,
+        })
+        .collect();
+    assert_eq!(actions.last(), Some(&MenuAction::Quit));
+    assert!(actions.contains(&MenuAction::Settings));
+    assert_eq!(
+        panel_target(MenuAction::OpenProvider(ProviderId::Claude)),
+        Some(ProviderId::Claude)
+    );
+    assert_eq!(
+        panel_target(MenuAction::OpenOverview),
+        Some(ProviderId::Overview)
+    );
+    assert_eq!(panel_target(MenuAction::Quit), None);
+}
+
+/// Every menu item maps to one command, Settings included.
+#[test]
+fn test_menu_items_map_to_commands() {
+    use tokenmon_app::tray::{MenuCommand, menu_command};
+    assert_eq!(
+        menu_command(MenuAction::OpenProvider(ProviderId::Claude)),
+        MenuCommand::Show(ProviderId::Claude)
+    );
+    assert_eq!(
+        menu_command(MenuAction::OpenOverview),
+        MenuCommand::Show(ProviderId::Overview)
+    );
+    assert_eq!(
+        menu_command(MenuAction::Settings),
+        MenuCommand::OpenSettings
+    );
+    assert_eq!(
+        menu_command(MenuAction::CheckForUpdates),
+        MenuCommand::CheckForUpdates
+    );
+    assert_eq!(menu_command(MenuAction::Quit), MenuCommand::Quit);
+}
+
+/// The menu lists Open items only for enabled providers, then Overview,
+/// Settings, Check for Updates and Quit.
+#[test]
+fn test_context_menu_lists_enabled_providers_and_fixed_items() {
+    let all = context_menu(&Settings::default());
+    let labels = |m: &[MenuEntry]| -> Vec<String> {
+        m.iter()
+            .filter_map(|e| match e {
+                MenuEntry::Item { label, .. } => Some(label.clone()),
+                MenuEntry::Separator => None,
+            })
+            .collect()
+    };
+    let l = labels(&all);
+    assert!(l.contains(&"Open Overview".to_owned()));
+    assert!(l.contains(&"Settings\u{2026}".to_owned()));
+    assert!(l.contains(&"Check for Updates".to_owned()));
+    assert_eq!(l.last().map(String::as_str), Some("Quit TokenMon"));
+    assert_eq!(l.iter().filter(|x| x.starts_with("Open ")).count(), 8);
+}
+
+/// The icon size follows `SM_CXSMICON` and falls back to DPI scaling.
+#[test]
+fn test_icon_size_follows_the_system_metric_and_dpi() {
+    use tokenmon_app::tray::icon_size;
+    assert_eq!(icon_size(16, 96), TrayIconSize::Px16);
+    assert_eq!(icon_size(20, 120), TrayIconSize::Px20);
+    assert_eq!(icon_size(0, 192), TrayIconSize::Px32);
+    assert_eq!(icon_size(0, 0), TrayIconSize::Px16);
+}
+
+/// Whatever the tray data, the backend gets the TokenMon logo as a square
+/// bitmap of exactly the requested edge: `size * size * 4` straight-RGBA
+/// bytes, with visible pixels spread across both axes, so the `HICON` is
+/// never the thin vertical line of #81 (a 2-4 px wide usage bar).
+#[test]
+fn test_backend_receives_the_logo_as_a_square_bitmap_at_every_size() {
+    #[derive(Default)]
+    struct Shapes(Vec<(u32, usize, (u32, u32))>);
+    impl TrayBackend for Shapes {
+        fn update(&mut self, bitmap: &TrayBitmap, _tooltip: &str) -> bool {
+            let n = bitmap.size as usize;
+            let (mut cols, mut rows) = (
+                std::collections::BTreeSet::new(),
+                std::collections::BTreeSet::new(),
+            );
+            for (i, p) in bitmap.rgba.chunks_exact(4).enumerate() {
+                if p[3] > 0 {
+                    cols.insert(i % n);
+                    rows.insert(i / n);
+                }
+            }
+            self.0.push((
+                bitmap.size,
+                bitmap.rgba.len(),
+                (cols.len() as u32, rows.len() as u32),
+            ));
+            true
+        }
+    }
+    let s = Settings::default();
+    for size in [
+        TrayIconSize::Px16,
+        TrayIconSize::Px20,
+        TrayIconSize::Px24,
+        TrayIconSize::Px32,
+        TrayIconSize::Px40,
+    ] {
+        let mut c = TrayController::new(Shapes::default());
+        let signed_in = |_: ProviderId| true;
+        let used = [(ProviderId::Grok, 40.0)];
+        assert!(c.refresh(
+            &TrayData {
+                settings: &s,
+                used_percent: &used,
+                signed_in: &signed_in,
+            },
+            size,
+            TaskbarTheme::Dark,
+        ));
+        let n = size.pixels();
+        let (edge, len, (cols, rows)) = c.backend().0[0];
+        assert_eq!((edge, len), (n, (n * n * 4) as usize));
+        assert!(cols * 2 > n && rows * 2 > n, "{n}px: {cols}x{rows} covered");
+    }
+}
+
+/// The panel never auto-hides: a click on the icon opens a closed panel,
+/// raises a covered one and closes only one that is already in front (#81).
+#[test]
+fn test_click_toggle_decisions() {
+    use tokenmon_app::tray::{ClickAction, click_action};
+    assert_eq!(click_action(false, false), ClickAction::Show);
+    assert_eq!(click_action(false, true), ClickAction::Show);
+    assert_eq!(click_action(true, false), ClickAction::BringToFront);
+    assert_eq!(click_action(true, true), ClickAction::Hide);
+}
+
+/// Pressing the icon moves focus to the taskbar, so a panel that lost focus
+/// within the last instant still counts as the foreground one; a panel that
+/// has been behind other windows for a while does not.
+#[test]
+fn test_was_foreground_accounts_for_the_press_stealing_focus() {
+    use std::time::Duration;
+    use tokenmon_app::tray::was_foreground;
+    assert!(was_foreground(true, None));
+    assert!(was_foreground(false, Some(Duration::ZERO)));
+    assert!(was_foreground(false, Some(Duration::from_millis(249))));
+    assert!(!was_foreground(false, Some(Duration::from_millis(250))));
+    assert!(!was_foreground(false, None));
+}
+
+/// A failed icon update is not remembered as done: the next refresh retries
+/// even though nothing else changed (#72).
+#[test]
+fn test_failed_icon_update_is_retried() {
+    let s = Settings::default();
+    let mut c = TrayController::new(Recorder {
+        failures: 2,
+        ..Recorder::default()
+    });
+    let used = [(ProviderId::Grok, 40.0)];
+    let go = |c: &mut TrayController<Recorder>| {
+        refresh(c, &s, &used, TrayIconSize::Px16, TaskbarTheme::Dark)
+    };
+    assert!(!go(&mut c));
+    assert!(!go(&mut c));
+    assert!(go(&mut c));
+    assert!(!go(&mut c), "settled once it succeeded");
+    assert_eq!(c.backend().updates.len(), 3);
+}
+
+/// #61: the tooltip describes the icon's own segments. A selected provider
+/// whose icon shows a percent (an OpenCode local estimate while signed out)
+/// never degrades to a bare name.
+#[test]
+fn test_tooltip_follows_the_icon_content_not_the_sign_in_state() {
+    let s = Settings {
+        selected_provider: ProviderId::OpenCode,
+        show_selected_provider_in_menu_bar: true,
+        ..Settings::default()
+    };
+    let mut c = TrayController::new(Recorder::default());
+    c.refresh(
+        &TrayData {
+            settings: &s,
+            used_percent: &[(ProviderId::OpenCode, 12.0), (ProviderId::Grok, 40.0)],
+            signed_in: &|p| p != ProviderId::OpenCode,
+        },
+        TrayIconSize::Px16,
+        TaskbarTheme::Dark,
+    );
+    assert_eq!(c.backend().updates, ["TokenMon \u{2014} OpenCode 12%"]);
+}
+
+/// The tooltip always starts with "TokenMon": just that when nothing has a
+/// value (signed out, no data), the percentages after it otherwise.
+#[test]
+fn test_tooltip_always_starts_with_the_product_name() {
+    let s = Settings::default();
+    let tip = |used: &[(ProviderId, f64)], grok_signed_in: bool| {
+        let mut c = TrayController::new(Recorder::default());
+        c.refresh(
+            &TrayData {
+                settings: &s,
+                used_percent: used,
+                signed_in: &|_| grok_signed_in,
+            },
+            TrayIconSize::Px16,
+            TaskbarTheme::Dark,
+        );
+        c.backend().updates[0].clone()
+    };
+    assert_eq!(tip(&[], false), "TokenMon");
+    assert_eq!(tip(&[(ProviderId::Grok, 40.0)], false), "TokenMon");
+    assert_eq!(
+        tip(&[(ProviderId::Grok, 41.2)], true),
+        "TokenMon \u{2014} Grok 41%"
+    );
+}

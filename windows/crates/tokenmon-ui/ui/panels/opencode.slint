@@ -1,0 +1,63 @@
+import { PanelHeader, PoolCard, DailyCard, ModelsCard, FooterBlock, MessageBlock, Caption, ActionButton } from "parts.slint";
+import { Theme, Typo, PanelCard, PanelSectionHeader, DigitText, ResetCaption, SegmentedUsageBar, MetricStatGrid } from "../components/kit.slint";
+import { TrackData, ModelsData, DailyData, FooterData, HeaderData, TabRowData, BarSegment, CategoryItem, MetricItem } from "types.slint";
+
+/// State and actions of the OpenCode panel body; the host sets and connects these once.
+export global OpenCodeVm {
+    callback open-settings();
+    callback sign-in();
+    callback sign-in-again();
+    callback sign-out();
+    in property <HeaderData> header;
+    in property <bool> has-usage;
+    in property <string> message;
+    in property <string> button;
+    callback previous-week();
+    callback next-week();
+    callback toggle-models();
+    callback toggle-show-all-models();
+    in property <string> pool-title;
+    in property <[TrackData]> tracks;
+    in property <string> estimate-note;
+    in property <DailyData> daily;
+    in property <ModelsData> models;
+    in property <bool> has-metrics;
+    in property <[MetricItem]> metrics;
+    in property <string> metrics-tag;
+    in property <string> sign-in-label;
+    in property <FooterData> footer;
+}
+
+// OpenCode Go panel (spec 03 section 3.12).
+export component OpenCodeBody inherits VerticalLayout {
+    spacing: 10px;
+    PanelHeader { data: OpenCodeVm.header; open-settings => { OpenCodeVm.open-settings(); } }
+    if !OpenCodeVm.has-usage: MessageBlock {
+        text: OpenCodeVm.message;
+        button: OpenCodeVm.button;
+        clicked => { OpenCodeVm.sign-in(); }
+    }
+    if OpenCodeVm.has-usage: PoolCard { title: OpenCodeVm.pool-title; tracks: OpenCodeVm.tracks; }
+    if OpenCodeVm.has-usage && OpenCodeVm.estimate-note != "": Caption { text: OpenCodeVm.estimate-note; warning: true; }
+    if OpenCodeVm.has-usage && OpenCodeVm.daily.present: DailyCard {
+        data: OpenCodeVm.daily;
+        previous-week => { OpenCodeVm.previous-week(); }
+        next-week => { OpenCodeVm.next-week(); }
+    }
+    if OpenCodeVm.has-usage && OpenCodeVm.models.present: ModelsCard {
+        data: OpenCodeVm.models;
+        toggle-expanded => { OpenCodeVm.toggle-models(); }
+        toggle-show-all => { OpenCodeVm.toggle-show-all-models(); }
+    }
+    if OpenCodeVm.has-usage && OpenCodeVm.has-metrics: MetricStatGrid { items: OpenCodeVm.metrics; source-tag: OpenCodeVm.metrics-tag; }
+    if OpenCodeVm.has-usage && OpenCodeVm.sign-in-label != "": ActionButton {
+        text: OpenCodeVm.sign-in-label;
+        width: 160px;
+        clicked => { OpenCodeVm.sign-in(); }
+    }
+    if OpenCodeVm.has-usage: FooterBlock {
+        data: OpenCodeVm.footer;
+        sign-in-again => { OpenCodeVm.sign-in-again(); }
+        sign-out => { OpenCodeVm.sign-out(); }
+    }
+}

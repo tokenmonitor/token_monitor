@@ -1,0 +1,25 @@
+[package]
+name = "tokenmon-provider-opencode"
+description = "TokenMon opencode provider"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tokenmon-core = { workspace = true }
+chrono = { workspace = true }
+# `hooks` for the progress handler that enforces the query time budget.
+rusqlite = { workspace = true, features = ["hooks"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros", "time"] }

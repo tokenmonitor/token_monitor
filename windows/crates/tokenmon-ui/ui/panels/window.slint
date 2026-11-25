@@ -1,0 +1,145 @@
+// The one panel window (issue #81): 420 wide, 12 padding, the 4-per-row
+// provider switcher, then the selected provider's body. Switching tabs changes
+// `selected`; no second window is ever created.
+import { Palette } from "std-widgets.slint";
+import { ProviderSwitcher } from "shell.slint";
+import { Theme, Typo, HoverOverlayHost } from "../components/kit.slint";
+import { TabRowData } from "types.slint";
+import { PanelPill } from "parts.slint";
+import { OverviewBody } from "overview.slint";
+import { GrokBody } from "grok.slint";
+import { GrokbotBody } from "grokbot.slint";
+import { CursorBody } from "cursor.slint";
+import { ClaudeBody } from "claude.slint";
+import { ChatGptBody } from "chatgpt.slint";
+import { OpenCodeBody } from "opencode.slint";
+import { OpenRouterBody } from "openrouter.slint";
+
+/// Which provider's body the panel window shows.
+export enum ProviderTab {
+    overview,
+    grok,
+    grokbot,
+    cursor,
+    claude,
+    chatgpt,
+    opencode,
+    openrouter,
+}
+
+export component PanelWindow inherits Window {
+    in property <[TabRowData]> tabs;
+    in property <ProviderTab> selected: ProviderTab.overview;
+    callback select-tab(int, int);
+    // The Windows panel does not dismiss itself when it loses focus, so it
+    // shows a close button (the host sets this; snapshots keep it off).
+    in property <bool> closable: false;
+    callback close-panel();
+    // The "Update available" pill under the body; an empty label hides it.
+    in property <string> update-label;
+    in property <string> update-help;
+    in property <string> update-status;
+    in property <bool> update-enabled: true;
+    callback update-pill-clicked();
+    // Anything that falls back to the std-widgets palette (default text
+    // color) follows the panel theme.
+    property <bool> palette-dark: Theme.dark;
+    changed palette-dark => {
+        Palette.color-scheme = root.palette-dark ? ColorScheme.dark : ColorScheme.light;
+    }
+    // The body's full height, whatever the window shows of it.
+    out property <length> content-height: layout.preferred-height;
+    // The tallest the host lets the window be (work area minus margins). Taller
+    // content scrolls inside the window (#87), like the Mac's one ScrollView.
+    in property <length> panel-max-height: 100000px;
+    out property <bool> clamped: root.content-height > root.panel-max-height;
+    // Undecorated: the panel is a popup, not a document window.
+    no-frame: true;
+    default-font-family: Typo.family;
+    icon: @image-url("../assets/logos/tokenmon-app-icon.png");
+    width: 420px;
+    height: min(root.content-height, root.panel-max-height);
+    background: Theme.window-background;
+    // A new tab starts at the top, so the switcher never scrolls out of view.
+    changed selected => { scroller.content-y = 0px; }
+    scroller := Flickable {
+        x: 0px;
+        y: 0px;
+        width: root.width;
+        height: root.height;
+        content-width: root.width;
+        content-height: root.content-height;
+        interactive: root.clamped;
+    layout := VerticalLayout {
+        width: root.width;
+        padding: 12px;
+        spacing: 0px;
+        if root.closable: HorizontalLayout {
+            height: 20px;
+            alignment: end;
+            Rectangle {
+                width: 20px;
+                height: 20px;
+                Text {
+                    text: "\u{00D7}";
+                    font-family: Typo.family;
+                    font-size: 16px;
+                    color: Theme.secondary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                TouchArea {
+                    clicked => { root.close-panel(); }
+                }
+            }
+        }
+        ProviderSwitcher {
+            rows: root.tabs;
+            select(r, c) => { root.select-tab(r, c); }
+        }
+        Rectangle { height: 12px; }
+        if root.selected == ProviderTab.overview: OverviewBody { }
+        if root.selected == ProviderTab.grok: GrokBody { }
+        if root.selected == ProviderTab.grokbot: GrokbotBody { }
+        if root.selected == ProviderTab.cursor: CursorBody { }
+        if root.selected == ProviderTab.claude: ClaudeBody { }
+        if root.selected == ProviderTab.chatgpt: ChatGptBody { }
+        if root.selected == ProviderTab.opencode: OpenCodeBody { }
+        if root.selected == ProviderTab.openrouter: OpenRouterBody { }
+        if root.update-label != "": VerticalLayout {
+            padding-top: 10px;
+            spacing: 4px;
+            HorizontalLayout {
+                alignment: start;
+                PanelPill {
+                    glyph: "\u{2193}";
+                    label: root.update-label;
+                    help: root.update-help;
+                    tint: rgb(10, 132, 255);
+                    enabled: root.update-enabled;
+                    pressable: true;
+                    clicked => { root.update-pill-clicked(); }
+                }
+            }
+            if root.update-status != "": Text {
+                text: root.update-status;
+                font-family: Typo.family;
+                font-size: Typo.caption-size;
+                color: Theme.secondary;
+                wrap: word-wrap;
+            }
+        }
+    }
+    }
+    // Scroll bar: only while the screen cuts the panel short.
+    if root.clamped: Rectangle {
+        x: root.width - 7px;
+        y: 2px + (root.height - 4px) * (-scroller.content-y / root.content-height);
+        width: 4px;
+        height: (root.height - 4px) * (root.height / root.content-height);
+        border-radius: 2px;
+        background: Theme.secondary.with-alpha(0.45);
+    }
+    // Last child, so a hover label paints above every card of the body.
+    HoverOverlayHost { x: 0px; y: 0px; width: root.width; height: root.height; }
+}

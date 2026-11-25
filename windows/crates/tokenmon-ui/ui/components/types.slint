@@ -1,0 +1,80 @@
+// Data structs shared by the kit components. All strings are pre-formatted by
+// the Rust view models in `tokenmon_ui::kit`, so components never format
+// numbers (Slint has no printf).
+
+/// A label/value pair (hover grid rows, token breakdown).
+export struct LabelValue {
+    label: string,
+    value: string,
+}
+
+/// One slot of a `SegmentedUsageBar`. `width` is precomputed for the bar's
+/// track width by `kit::segments::layout_segments`.
+export struct BarSegment {
+    width: length,
+    color: color,
+    /// True for the trailing "remaining" slot (drawn in the empty-track color).
+    remainder: bool,
+}
+
+/// One legend entry of a `UsageLegendChip`.
+export struct CategoryItem {
+    name: string,
+    /// Already rounded, e.g. "42%".
+    percent-text: string,
+    color: color,
+}
+
+/// One cell of a `MetricStatGrid`.
+export struct MetricItem {
+    title: string,
+    value: string,
+    /// The title as a screen reader says it, with "on this PC" when local.
+    spoken-title: string,
+}
+
+/// Content of a floating hover label. Daily bars and the Claude model rows
+/// both fill it, so every hover label looks the same (`HoverLabelCard`).
+/// Sections hide when their text is empty: the token block without `total`,
+/// the lower block without `extra-rows`, `note` and `verdict`.
+export struct HoverCardData {
+    /// First line naming what it describes, e.g. "Tuesday, Oct 14".
+    title: string,
+    /// Secondary one-line summary under the title (the day's usage line).
+    caption: string,
+    /// Large token total, e.g. "1.2M" (empty hides the token block).
+    total: string,
+    /// Words after the total: "tokens", or "tokens on this PC" when the
+    /// tokens were counted on this computer (empty reads "tokens").
+    unit: string,
+    /// Value beside the total, e.g. "≈ $4.20+" (empty hides it).
+    value: string,
+    /// Input / Output / Cache read / Cache write rows.
+    rows: [LabelValue],
+    /// Second grid under a rule, e.g. the day's top models.
+    extra-rows: [LabelValue],
+    /// Caption under a rule, e.g. last month's totals.
+    note: string,
+    /// Semibold closing line, e.g. "↑ 14% · +$212.40 vs October".
+    verdict: string,
+}
+
+/// One day column of the daily bar charts.
+export struct DayBar {
+    /// Fill height as a percentage of the day's allowance (can exceed 100;
+    /// the fill is capped at the stem height). Ignored unless `show-fill`.
+    fill-percent: float,
+    /// Draw a fill at all (value above 0.5% and the day is not in the future).
+    show-fill: bool,
+    /// The day belongs to the pool before an early provider reset (fill at 45% opacity).
+    prior-window: bool,
+    /// Future day: its labels render at 50% opacity and the hover has no usage line.
+    future: bool,
+    /// Top label, e.g. "31%".
+    label-percent: string,
+    /// Bottom label, e.g. "Mo".
+    label-weekday: string,
+    /// The floating label for this column (title "Tuesday, Oct 14", the
+    /// usage line, the token block and the top models).
+    hover: HoverCardData,
+}

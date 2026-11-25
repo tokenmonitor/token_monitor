@@ -1,0 +1,46 @@
+import { PanelHeader, PoolCard, DailyCard, ModelsCard, FooterBlock, MessageBlock, Caption, ActionButton } from "parts.slint";
+import { Theme, Typo, PanelCard, PanelSectionHeader, DigitText, ResetCaption, SegmentedUsageBar, MetricStatGrid } from "../components/kit.slint";
+import { TrackData, ModelsData, DailyData, FooterData, HeaderData, TabRowData, BarSegment, CategoryItem, MetricItem } from "types.slint";
+
+/// State and actions of the Cursor panel body; the host sets and connects these once.
+export global CursorVm {
+    callback open-settings();
+    callback sign-in();
+    callback sign-in-again();
+    callback sign-out();
+    in property <HeaderData> header;
+    in property <bool> has-usage;
+    in property <string> message;
+    in property <string> button;
+    callback previous-week();
+    callback next-week();
+    in property <string> pool-title;
+    in property <[TrackData]> tracks;
+    in property <DailyData> daily;
+    in property <bool> has-metrics;
+    in property <[MetricItem]> metrics;
+    in property <FooterData> footer;
+}
+
+// Cursor panel (spec 02 section 3.5).
+export component CursorBody inherits VerticalLayout {
+    spacing: 10px;
+    PanelHeader { data: CursorVm.header; open-settings => { CursorVm.open-settings(); } }
+    if !CursorVm.has-usage: MessageBlock {
+        text: CursorVm.message;
+        button: CursorVm.button;
+        clicked => { CursorVm.sign-in(); }
+    }
+    if CursorVm.has-usage: PoolCard { title: CursorVm.pool-title; tracks: CursorVm.tracks; }
+    if CursorVm.has-usage && CursorVm.daily.present: DailyCard {
+        data: CursorVm.daily;
+        previous-week => { CursorVm.previous-week(); }
+        next-week => { CursorVm.next-week(); }
+    }
+    if CursorVm.has-usage && CursorVm.has-metrics: MetricStatGrid { items: CursorVm.metrics; }
+    if CursorVm.has-usage: FooterBlock {
+        data: CursorVm.footer;
+        sign-in-again => { CursorVm.sign-in-again(); }
+        sign-out => { CursorVm.sign-out(); }
+    }
+}

@@ -1,0 +1,50 @@
+import { PanelHeader, PoolCard, DailyCard, BreakdownCard, FooterBlock, MessageBlock } from "parts.slint";
+import { TrackData, DailyData, FooterData, HeaderData, BreakdownData } from "types.slint";
+
+/// State and actions of the Grok panel body; the host sets and connects these once.
+export global GrokVm {
+    callback open-settings();
+    callback sign-in();
+    callback sign-in-again();
+    callback sign-out();
+    in property <HeaderData> header;
+    in property <bool> has-usage;
+    in property <string> message;
+    in property <string> button;
+    callback previous-week();
+    callback next-week();
+    in property <string> pool-title;
+    in property <string> pool-used;
+    in property <[TrackData]> tracks;
+    in property <BreakdownData> breakdown;
+    in property <DailyData> daily;
+    in property <FooterData> footer;
+}
+
+// Grok panel (spec 02 section 1.7): the weekly bar, the usage breakdown, then
+// the daily chart, as in the Grokbot panel.
+export component GrokBody inherits VerticalLayout {
+    spacing: 10px;
+    PanelHeader { data: GrokVm.header; open-settings => { GrokVm.open-settings(); } }
+    if !GrokVm.has-usage: MessageBlock {
+        text: GrokVm.message;
+        button: GrokVm.button;
+        clicked => { GrokVm.sign-in(); }
+    }
+    if GrokVm.has-usage: PoolCard {
+        title: GrokVm.pool-title;
+        trailing: GrokVm.pool-used;
+        tracks: GrokVm.tracks;
+    }
+    if GrokVm.has-usage && GrokVm.breakdown.present: BreakdownCard { data: GrokVm.breakdown; }
+    if GrokVm.has-usage && GrokVm.daily.present: DailyCard {
+        data: GrokVm.daily;
+        previous-week => { GrokVm.previous-week(); }
+        next-week => { GrokVm.next-week(); }
+    }
+    if GrokVm.has-usage: FooterBlock {
+        data: GrokVm.footer;
+        sign-in-again => { GrokVm.sign-in-again(); }
+        sign-out => { GrokVm.sign-out(); }
+    }
+}

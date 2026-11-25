@@ -47,6 +47,65 @@ make test
 make test-core
 ```
 
+## Windows parity (zero drift)
+
+TokenMon also has a Windows port, a Rust app under `windows/`. The two apps must
+not drift apart: every behavior change on macOS needs the same change on
+Windows, or an issue that tracks it. CI enforces this on every push and pull
+request, `master` included (`.github/workflows/windows-parity.yml`):
+
+- **Drift guard.** A change that touches the macOS app (`TokenMon/`,
+  `TokenMonTests/`, `Tests/`, `Scripts/`, `TokenMon.xcodeproj/`, `project.yml`
+  or `Makefile`) must carry its Windows parity:
+  - When you change the body of a Swift test whose `PARITY.md` row is
+    `ported` (a new expected value, say), update that row or the Rust test it
+    names in the same change, after checking the Rust test still matches.
+    Comments and formatting don't count as a change.
+  - Any other macOS change (app code, resources, build files, test helpers)
+    needs a change under `windows/crates/` or to `windows/docs/PARITY.md`. A
+    `windows/` README or docs edit is not enough. When Windows needs nothing
+    (a macOS-only tweak), add a `Windows-Parity: <reason>` line to the pull
+    request description or commit message instead.
+  - Either rule is also met by referencing an **open** issue labeled
+    `windows-parity` (for example `Refs #123` in the pull request description,
+    or in the commit message for a direct push).
+
+  Otherwise the check fails, and its job summary lists the exact tests and
+  paths.
+- **Parity ledger.** `windows/docs/PARITY.md` has one row per Swift test (every
+  XCTest method and every `make test-core` check) giving its status (`todo`,
+  `ported` or `n/a` with a reason) and the Rust test that covers it. Adding,
+  renaming or deleting a Swift test without updating the ledger fails CI.
+
+To satisfy it, do one of these:
+
+1. **Port it.** Make the same change under `windows/`, with Rust tests, and
+   update the matching `PARITY.md` rows in the same commit. See
+   `windows/docs/IMPLEMENTATION_PLAN.md`.
+2. **Track it.** If you are not porting it yourself, open an issue labeled
+   `windows-parity` that says what the Windows port must do, and reference it
+   from the pull request. For a new or renamed Swift test, also add its `todo`
+   row: `python3 windows/scripts/parity/check_parity.py --print-missing-rows`
+   prints the rows to paste.
+
+A push that is already on a branch cannot carry a reference afterwards, so the
+guard fails on it and says so. Open a `windows-parity` issue that names the
+commit SHA, then re-run the failed job; an open `windows-parity` issue that
+mentions the commit satisfies the guard.
+
+The two apps also ship **one version number**: `MARKETING_VERSION` in
+`project.yml` and `[workspace.package] version` in `windows/Cargo.toml` (which
+every crate and the MSI inherit) must be equal. Bump both together and refresh
+`windows/Cargo.lock` and `windows/fuzz/Cargo.lock`. CI fails on drift.
+
+Check locally before pushing:
+
+```bash
+python3 windows/scripts/parity/check_parity.py
+python3 windows/scripts/parity/check_versions.py
+python3 -m unittest discover -s windows/scripts/parity/tests
+```
+
 ## Pull requests
 
 1. Branch from `master`.

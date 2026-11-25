@@ -1,0 +1,63 @@
+name: macOS import signing identities
+description: >-
+  Imports Developer ID certificates (.p12) into a temporary keychain so that
+  `make` picks them up (it auto-detects Developer ID identities). Does nothing
+  when no certificate is given, so unsigned builds keep working until an Apple
+  Developer account exists. The keychain lives in RUNNER_TEMP and goes away with the ephemeral runner.
+
+inputs:
+  application-certificate-base64:
+    description: Base64 of the "Developer ID Application" .p12. Empty skips it.
+    required: false
+    default: ""
+  installer-certificate-base64:
+    description: Base64 of the "Developer ID Installer" .p12. Empty skips it.
+    required: false
+    default: ""
+  certificate-password:
+    description: Password of both .p12 files.
+    required: false
+    default: ""
+
+outputs:
+  signing:
+    description: "'true' when at least one certificate was imported."
+    value: ${{ steps.import.outputs.signing }}
+
+runs:
+  using: composite
+  steps:
+    - name: Import the certificates
+      id: import
+      shell: bash
+      env:
+        APP_CERT: ${{ inputs.application-certificate-base64 }}
+        PKG_CERT: ${{ inputs.installer-certificate-base64 }}
+        CERT_PASSWORD: ${{ inputs.certificate-password }}
+      run: |
+        set -euo pipefail
+        if [ -z "$APP_CERT" ] && [ -z "$PKG_CERT" ]; then
+          echo "No signing certificates given: this build is unsigned (ad hoc)."
+          echo "signing=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        : "${CERT_PASSWORD:?certificate-password is required with a certificate}"
+        keychain="$RUNNER_TEMP/tokenmon-signing.keychain-db"
+        keychain_password=$(uuidgen)
+        security create-keychain -p "$keychain_password" "$keychain"
+        security set-keychain-settings -lut 21600 "$keychain"
+        security unlock-keychain -p "$keychain_password" "$keychain"
+        for name in APP_CERT PKG_CERT; do
+          value="${!name}"
+          [ -n "$value" ] || continue
+          p12="$RUNNER_TEMP/$name.p12"
+          printf '%s' "$value" | base64 --decode > "$p12"
+          security import "$p12" -k "$keychain" -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/productsign -T /usr/bin/pkgbuild
+          rm -f "$p12"
+        done
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
+        # Put it first in the search list so `security find-identity` sees it.
+        security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+        security find-identity -v | sed 's/^/  /'
+        echo "signing=true" >> "$GITHUB_OUTPUT"

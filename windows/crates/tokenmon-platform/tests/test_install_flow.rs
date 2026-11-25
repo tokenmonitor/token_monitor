@@ -1,0 +1,524 @@
+//! End-to-end install flow with a fake downloader and launcher (port of the
+//! `AppInstallerTests` intent: failures leave the installed exe untouched and
+//! leave no siblings behind).
+#![allow(clippy::unwrap_used)]
+
+mod common;
+
+use std::fs;
+use std::io;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
+
+use common::{fake_msi, fake_pe, make_zip, make_zip_with_symlink, pe_with_version, sha};
+use tokenmon_core::BoxFuture;
+use tokenmon_core::update::{
+    AppVersion, AssetKind, InstallError, InstallOutcome, InstallRequest, ReleaseAsset,
+    ReleaseSource, UpdateInstaller,
+};
+use tokenmon_platform::install::{
+    CommandSpec, DownloadedFile, Downloader, PackageVersionReader, PeHeaderVerifier,
+    ProcessLauncher, SignatureVerifier, SystemVersionReader, WindowsUpdateInstaller,
+};
+
+const URL: &str = "https://github.com/tokenmonitor/token_monitor/releases/download/windows-v1.6.0/tokenmon-windows-x64.zip";
+
+struct FakeDownloader {
+    body: Vec<u8>,
+    calls: AtomicUsize,
+}
+impl Downloader for FakeDownloader {
+    fn download<'a>(
+        &'a self,
+        _url: &'a str,
+        dest: &'a Path,
+        max: u64,
+    ) -> BoxFuture<'a, Result<DownloadedFile, InstallError>> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        Box::pin(async move {
+            assert_eq!(max, 80 * 1024 * 1024);
+            fs::write(dest, &self.body).unwrap();
+            Ok(DownloadedFile {
+                path: dest.to_path_buf(),
+                size: self.body.len() as u64,
+                sha256: sha(&self.body),
+            })
+        })
+    }
+}
+
+#[derive(Default)]
+struct FakeLauncher {
+    spawned: Mutex<Vec<CommandSpec>>,
+    fail: bool,
+}
+impl ProcessLauncher for FakeLauncher {
+    fn spawn_detached(&self, spec: &CommandSpec) -> io::Result<()> {
+        self.spawned.lock().unwrap().push(spec.clone());
+        if self.fail {
+            Err(io::Error::other("boom"))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+struct Rig {
+    dir: tempfile::TempDir,
+    exe: PathBuf,
+    work: PathBuf,
+    downloader: Arc<FakeDownloader>,
+    launcher: Arc<FakeLauncher>,
+    installer: WindowsUpdateInstaller,
+}
+
+fn rig(body: Vec<u8>, fail_launch: bool) -> Rig {
+    let dir = tempfile::tempdir().unwrap();
+    let app = dir.path().join("app");
+    let work = dir.path().join("work");
+    fs::create_dir_all(&app).unwrap();
+    fs::create_dir_all(&work).unwrap();
+    let exe = app.join("TokenMon.exe");
+    fs::write(&exe, fake_pe("old")).unwrap();
+    let downloader = Arc::new(FakeDownloader {
+        body,
+        calls: AtomicUsize::new(0),
+    });
+    let launcher = Arc::new(FakeLauncher {
+        fail: fail_launch,
+        ..FakeLauncher::default()
+    });
+    let installer = WindowsUpdateInstaller::new(
+        ReleaseSource::default(),
+        exe.clone(),
+        4242,
+        work.clone(),
+        downloader.clone(),
+        Arc::new(PeHeaderVerifier),
+        launcher.clone(),
+    );
+    Rig {
+        dir,
+        exe,
+        work,
+        downloader,
+        launcher,
+        installer,
+    }
+}
+
+fn request(body: &[u8], kind: AssetKind, url: &str, current: &str, target: &str) -> InstallRequest {
+    InstallRequest {
+        asset: ReleaseAsset {
+            name: "x".into(),
+            url: url.into(),
+            sha256: Some(sha(body)),
+        },
+        kind,
+        expected_sha256: sha(body).to_uppercase(),
+        current: AppVersion::parse(current).unwrap(),
+        target: AppVersion::parse(target).unwrap(),
+    }
+}
+
+fn zip_req(body: &[u8]) -> InstallRequest {
+    request(body, AssetKind::Zip, URL, "1.5.0", "1.6.0")
+}
+
+fn siblings(r: &Rig) -> Vec<String> {
+    let mut v: Vec<String> = fs::read_dir(r.exe.parent().unwrap())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    v.sort();
+    v
+}
+
+fn assert_untouched(r: &Rig) {
+    assert_eq!(fs::read(&r.exe).unwrap(), fake_pe("old"));
+    assert_eq!(siblings(r), ["TokenMon.exe"]);
+    assert_eq!(
+        fs::read_dir(&r.work).unwrap().count(),
+        0,
+        "work dir cleaned"
+    );
+}
+
+/// A verified zip replaces the exe in place, schedules the relaunch and cleans up.
+#[tokio::test]
+async fn test_installs_verified_update_in_place() {
+    let body = make_zip(&[("TokenMon.exe", &fake_pe("new"))]);
+    let r = rig(body.clone(), false);
+    let out = r.installer.install(zip_req(&body)).await.unwrap();
+    assert_eq!(out, InstallOutcome::Relaunching);
+    assert_eq!(fs::read(&r.exe).unwrap(), fake_pe("new"));
+    let names = siblings(&r);
+    assert_eq!(names.len(), 2, "{names:?}");
+    assert_eq!(names[0], "TokenMon.exe");
+    assert!(names[1].starts_with("TokenMon.old-") && names[1].to_lowercase().ends_with(".exe"));
+    assert_eq!(fs::read_dir(&r.work).unwrap().count(), 0);
+    let spawned = r.launcher.spawned.lock().unwrap();
+    assert_eq!(spawned[0].program, r.exe.as_os_str());
+    assert_eq!(spawned[0].args, ["--wait-for-pid", "4242"]);
+}
+
+/// A failed relaunch still installs and asks for a manual restart.
+#[tokio::test]
+async fn test_launch_failure_asks_for_manual_restart() {
+    let body = make_zip(&[("TokenMon.exe", &fake_pe("new"))]);
+    let r = rig(body.clone(), true);
+    assert_eq!(
+        r.installer.install(zip_req(&body)).await.unwrap(),
+        InstallOutcome::InstalledNeedsManualRestart
+    );
+    assert_eq!(fs::read(&r.exe).unwrap(), fake_pe("new"));
+}
+
+/// A checksum mismatch is refused and nothing changes.
+#[tokio::test]
+async fn test_checksum_mismatch_is_refused() {
+    let body = make_zip(&[("TokenMon.exe", &fake_pe("new"))]);
+    let r = rig(body.clone(), false);
+    let mut req = zip_req(&body);
+    req.expected_sha256 = "0".repeat(64);
+    let e = r.installer.install(req).await.unwrap_err();
+    assert_eq!(
+        e,
+        InstallError::Verification("The download does not match the release checksum.".into())
+    );
+    assert_untouched(&r);
+    assert!(r.launcher.spawned.lock().unwrap().is_empty());
+}
+
+/// A non-PE exe is refused and nothing changes.
+#[tokio::test]
+async fn test_non_pe_exe_is_refused() {
+    let body = make_zip(&[("TokenMon.exe", b"#!/bin/sh\nrm -rf /")]);
+    let r = rig(body.clone(), false);
+    assert!(matches!(
+        r.installer.install(zip_req(&body)).await,
+        Err(InstallError::Verification(_))
+    ));
+    assert_untouched(&r);
+}
+
+/// A symlink in the archive is refused and nothing changes.
+#[tokio::test]
+async fn test_symlink_in_archive_is_refused() {
+    let body = make_zip_with_symlink();
+    let r = rig(body.clone(), false);
+    assert!(matches!(
+        r.installer.install(zip_req(&body)).await,
+        Err(InstallError::Archive(_))
+    ));
+    assert_untouched(&r);
+}
+
+/// A zip without a top-level exe is refused and nothing changes.
+#[tokio::test]
+async fn test_missing_exe_is_refused() {
+    let body = make_zip(&[("nested/TokenMon.exe", &fake_pe("new"))]);
+    let r = rig(body.clone(), false);
+    assert!(matches!(
+        r.installer.install(zip_req(&body)).await,
+        Err(InstallError::Archive(_))
+    ));
+    assert_untouched(&r);
+}
+
+/// Downloads outside this repository's releases are refused before any request.
+#[tokio::test]
+async fn test_download_outside_repository_is_refused_without_request() {
+    let body = make_zip(&[("TokenMon.exe", &fake_pe("new"))]);
+    let r = rig(body.clone(), false);
+    for url in [
+        "https://evil.example/tokenmon-windows-x64.zip",
+        "https://github.com/other/repo/releases/download/t/f.zip",
+        "https://github.com/tokenmonitor/token_monitor/releases/download/../x/y/f.zip",
+    ] {
+        let e = r
+            .installer
+            .install(request(&body, AssetKind::Zip, url, "1.5.0", "1.6.0"))
+            .await
+            .unwrap_err();
+        assert_eq!(
+            e,
+            InstallError::Download(
+                "The release file is not one of this project's GitHub releases.".into()
+            )
+        );
+    }
+    assert_eq!(r.downloader.calls.load(Ordering::SeqCst), 0);
+    assert_untouched(&r);
+}
+
+/// Same version and downgrades are refused before any request.
+#[tokio::test]
+async fn test_same_version_and_downgrade_are_refused() {
+    let body = make_zip(&[("TokenMon.exe", &fake_pe("new"))]);
+    let r = rig(body.clone(), false);
+    for target in ["1.5.0", "1.4.0"] {
+        let e = r
+            .installer
+            .install(request(&body, AssetKind::Zip, URL, "1.5.0", target))
+            .await
+            .unwrap_err();
+        assert_eq!(
+            e,
+            InstallError::Verification("The download is not newer than this version.".into())
+        );
+    }
+    assert_eq!(r.downloader.calls.load(Ordering::SeqCst), 0);
+}
+
+/// Swift `testDowngradeIsRefused`: the check is on the downloaded app's own
+/// version, not the release tag. The tag says 1.6.0 but the exe inside is
+/// 1.4.0 (the stand-in version resource is `version=1.4.0` after the PE
+/// header; the fix for #77 decides how the real resource is read). The
+/// installed exe stays untouched and no siblings or work files remain.
+#[tokio::test]
+async fn test_downgrade_of_the_downloaded_exe_is_refused() {
+    for downloaded in ["1.4.0", "1.5.0"] {
+        let body = make_zip(&[("TokenMon.exe", &fake_pe(&format!("version={downloaded}")))]);
+        let r = rig(body.clone(), false);
+        let e = r.installer.install(zip_req(&body)).await.unwrap_err();
+        assert_eq!(
+            e,
+            InstallError::Verification("The download is not newer than this version.".into()),
+            "downloaded exe {downloaded} must be refused"
+        );
+        assert_untouched(&r);
+        assert!(r.launcher.spawned.lock().unwrap().is_empty());
+    }
+}
+
+/// #77: an exe newer than the running app but not the announced release is
+/// refused, and so is one with no version resource at all (fail closed).
+#[tokio::test]
+async fn test_exe_that_is_not_the_announced_version_is_refused() {
+    let cases = [
+        (
+            fake_pe("version=1.7.0"),
+            "The download is not the version the release announced.",
+        ),
+        (
+            pe_with_version(None, None, "no resource data"),
+            "The download does not declare a readable version.",
+        ),
+    ];
+    for (exe, message) in cases {
+        let body = make_zip(&[("TokenMon.exe", &exe)]);
+        let r = rig(body.clone(), false);
+        assert_eq!(
+            r.installer.install(zip_req(&body)).await.unwrap_err(),
+            InstallError::Verification(message.into())
+        );
+        assert_untouched(&r);
+    }
+}
+
+/// Reads the version of an MSI from a fixed value (stands in for `msi.dll`).
+struct FixedMsiVersion(&'static str);
+impl PackageVersionReader for FixedMsiVersion {
+    fn exe_version(&self, path: &Path) -> Result<AppVersion, InstallError> {
+        SystemVersionReader.exe_version(path)
+    }
+    fn msi_version(&self, _: &Path) -> Result<AppVersion, InstallError> {
+        Ok(AppVersion::parse(self.0).unwrap())
+    }
+}
+
+fn msi_rig(body: &[u8], declared: &'static str) -> (Rig, WindowsUpdateInstaller) {
+    let r = rig(body.to_vec(), false);
+    let installer = WindowsUpdateInstaller::new(
+        ReleaseSource::default(),
+        r.exe.clone(),
+        4242,
+        r.work.clone(),
+        r.downloader.clone(),
+        Arc::new(PeHeaderVerifier),
+        r.launcher.clone(),
+    )
+    .with_version_reader(Arc::new(FixedMsiVersion(declared)));
+    (r, installer)
+}
+
+/// #77: the MSI's own ProductVersion is checked like the exe's.
+#[tokio::test]
+async fn test_msi_product_version_must_be_newer_and_match_the_tag() {
+    let body = fake_msi();
+    let url = URL.replace(".zip", ".msi");
+    for (declared, ok, message) in [
+        ("1.6.0", true, ""),
+        (
+            "1.4.0",
+            false,
+            "The download is not newer than this version.",
+        ),
+        (
+            "1.5.0",
+            false,
+            "The download is not newer than this version.",
+        ),
+        (
+            "1.7.0",
+            false,
+            "The download is not the version the release announced.",
+        ),
+    ] {
+        let (r, installer) = msi_rig(&body, declared);
+        let result = installer
+            .install(request(&body, AssetKind::Msi, &url, "1.5.0", "1.6.0"))
+            .await;
+        if ok {
+            assert_eq!(result.unwrap(), InstallOutcome::Relaunching);
+        } else {
+            assert_eq!(
+                result.unwrap_err(),
+                InstallError::Verification(message.into())
+            );
+            assert!(r.launcher.spawned.lock().unwrap().is_empty(), "{declared}");
+        }
+    }
+}
+
+/// An unwritable/missing exe location is refused without a request.
+#[tokio::test]
+async fn test_not_replaceable_is_refused_without_request() {
+    let body = make_zip(&[("TokenMon.exe", &fake_pe("new"))]);
+    let r = rig(body.clone(), false);
+    fs::remove_file(&r.exe).unwrap();
+    assert!(!r.installer.can_replace_running_app());
+    assert_eq!(
+        r.installer.install(zip_req(&body)).await.unwrap_err(),
+        InstallError::NotWritable
+    );
+    assert_eq!(r.downloader.calls.load(Ordering::SeqCst), 0);
+}
+
+/// An MSI is verified and handed to msiexec; the package folder is kept.
+#[tokio::test]
+async fn test_msi_is_verified_and_launched() {
+    let body = fake_msi();
+    let (r, installer) = msi_rig(&body, "1.6.0");
+    fs::remove_file(&r.exe).unwrap(); // MSI path does not need a replaceable exe
+    let url = URL.replace(".zip", ".msi");
+    let out = installer
+        .install(request(&body, AssetKind::Msi, &url, "1.5.0", "1.6.0"))
+        .await
+        .unwrap();
+    assert_eq!(out, InstallOutcome::Relaunching);
+    let spawned = r.launcher.spawned.lock().unwrap();
+    let program = spawned[0].program.to_string_lossy().to_lowercase();
+    assert!(
+        program.ends_with(r"\system32\msiexec.exe") && program.len() > "msiexec.exe".len() + 1,
+        "msiexec must be an absolute system path: {program}"
+    );
+    let msi = PathBuf::from(&spawned[0].args[1]);
+    assert!(msi.starts_with(&r.work) && msi.is_file());
+    drop(r.dir);
+}
+
+/// A file that is not an MSI is never launched.
+#[tokio::test]
+async fn test_non_msi_is_refused() {
+    let body = b"MZ not an msi".to_vec();
+    let r = rig(body.clone(), false);
+    let url = URL.replace(".zip", ".msi");
+    assert!(matches!(
+        r.installer
+            .install(request(&body, AssetKind::Msi, &url, "1.5.0", "1.6.0"))
+            .await,
+        Err(InstallError::Verification(_))
+    ));
+    assert!(r.launcher.spawned.lock().unwrap().is_empty());
+}
+
+/// A verifier that swaps the package after approving it (a TOCTOU attacker).
+struct SwappingVerifier;
+impl SignatureVerifier for SwappingVerifier {
+    fn verify_exe(&self, _: &Path) -> Result<(), InstallError> {
+        Ok(())
+    }
+    fn verify_msi(&self, path: &Path) -> Result<(), InstallError> {
+        let mut evil = fake_msi();
+        evil.extend_from_slice(b"tampered");
+        fs::write(path, evil).unwrap();
+        Ok(())
+    }
+}
+
+/// #46: a package replaced between verification and launch is never run.
+#[tokio::test]
+async fn test_msi_swapped_after_verification_is_not_launched() {
+    let body = fake_msi();
+    let r = rig(body.clone(), false);
+    let installer = WindowsUpdateInstaller::new(
+        ReleaseSource::default(),
+        r.exe.clone(),
+        4242,
+        r.work.clone(),
+        r.downloader.clone(),
+        Arc::new(SwappingVerifier),
+        r.launcher.clone(),
+    )
+    .with_version_reader(Arc::new(FixedMsiVersion("1.6.0")));
+    let url = URL.replace(".zip", ".msi");
+    let err = installer
+        .install(request(&body, AssetKind::Msi, &url, "1.5.0", "1.6.0"))
+        .await
+        .unwrap_err();
+    assert!(matches!(err, InstallError::Verification(_)), "{err:?}");
+    assert!(r.launcher.spawned.lock().unwrap().is_empty());
+}
+
+/// #46: msiexec is addressed by absolute system path, never by bare name.
+#[test]
+fn test_msiexec_spec_uses_the_supplied_system_directory() {
+    use tokenmon_platform::install::relaunch::{msiexec_spec, msiexec_spec_in};
+    let spec = msiexec_spec_in(r"C:\Windows\System32\", Path::new(r"C:\t\x.msi"));
+    assert_eq!(spec.program, r"C:\Windows\System32\msiexec.exe");
+    let bare = msiexec_spec(Path::new("x.msi"));
+    let program = bare.program.to_string_lossy().to_lowercase();
+    assert_ne!(program, "msiexec.exe");
+    assert!(program.contains(r"\system32\"));
+}
+
+/// The MSI's recorded `InstallDir` (trailing backslash, any case) marks the app
+/// MSI-installed only when the running exe sits directly in that folder.
+#[test]
+fn test_installed_by_msi_follows_recorded_install_dir() {
+    use tokenmon_platform::install::installer::{MSI_INSTALL_DIR_VALUE, MSI_INSTALLER_KEY};
+    use tokenmon_platform::shell::{MemoryRegistry, Registry};
+
+    type Record = fn(&str) -> Option<String>;
+
+    let body = make_zip(&[("TokenMon.exe", &fake_pe("new"))]);
+    let cases: [(Record, bool); 5] = [
+        (|d| Some(format!("{}\\", d.to_uppercase())), true),
+        (|d| Some(d.to_owned()), true),
+        (|d| Some(format!("{d}-other")), false),
+        (|_| Some(String::new()), false),
+        (|_| None, false),
+    ];
+    for (record, expected) in cases {
+        let r = rig(body.clone(), false);
+        let dir = r.exe.parent().unwrap().to_str().unwrap().to_owned();
+        let registry = Arc::new(MemoryRegistry::new());
+        if let Some(value) = record(&dir) {
+            registry
+                .set_string(MSI_INSTALLER_KEY, MSI_INSTALL_DIR_VALUE, &value)
+                .unwrap();
+        }
+        let installer = r.installer.with_registry(registry);
+        assert_eq!(installer.installed_by_msi(), expected, "{dir}");
+    }
+}
+
+/// Without a registry the app is never MSI-installed.
+#[test]
+fn test_installed_by_msi_is_false_without_registry() {
+    let r = rig(make_zip(&[("TokenMon.exe", &fake_pe("new"))]), false);
+    assert!(!r.installer.installed_by_msi());
+}

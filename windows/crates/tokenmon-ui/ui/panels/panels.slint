@@ -1,0 +1,15 @@
+// The panel window, its provider tab enum and every provider's state global,
+// re-exported for the build script and the bridge.
+export { PanelWindow, ProviderTab } from "window.slint";
+export { SnapSwitcherEdges, SnapCardEdges } from "snap_edges.slint";
+export { GrokVm } from "grok.slint";
+export { GrokbotVm } from "grokbot.slint";
+export { CursorVm } from "cursor.slint";
+export { ClaudeVm } from "claude.slint";
+export { ChatGptVm } from "chatgpt.slint";
+export { OpenCodeVm } from "opencode.slint";
+export { OpenRouterVm } from "openrouter.slint";
+export { OverviewVm } from "overview.slint";
+// Globals the host sets (dark theme, font family); per compile unit.
+export { Theme, Typo, HoverOverlay, HoverMath } from "../components/kit.slint";
+export * from "types.slint";

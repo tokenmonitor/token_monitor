@@ -1,0 +1,1 @@
+{"weeklyLimitPpm":{"periodStartMs":"1794425100000","periodEndMs":"1795029900000","bySource":[{"dayMs":"1794355200000","source":"GROK_BOT_USAGE_SOURCE_USER","ppm":100000},{"dayMs":"1794441600000","source":"GROK_BOT_USAGE_SOURCE_AUTOMATION","ppm":300000},{"dayMs":"1794441600000","source":"GROK_BOT_USAGE_SOURCE_AGENT","ppm":120000}]}}

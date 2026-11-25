@@ -1,0 +1,52 @@
+import { PanelHeader, PoolCard, DailyCard, BreakdownCard, ModelsCard, FooterBlock, MessageBlock, Caption, ActionButton } from "parts.slint";
+import { Theme, Typo, PanelCard, PanelSectionHeader, DigitText, ResetCaption, SegmentedUsageBar, MetricStatGrid } from "../components/kit.slint";
+import { TrackData, ModelsData, DailyData, FooterData, HeaderData, TabRowData, BarSegment, CategoryItem, MetricItem, BreakdownData } from "types.slint";
+
+/// State and actions of the Grokbot panel body; the host sets and connects these once.
+export global GrokbotVm {
+    callback open-settings();
+    callback sign-in();
+    callback sign-in-again();
+    callback sign-out();
+    in property <HeaderData> header;
+    in property <bool> has-usage;
+    in property <string> message;
+    in property <string> button;
+    callback previous-week();
+    callback next-week();
+    in property <string> pool-title;
+    in property <string> pool-used;
+    in property <[TrackData]> tracks;
+    in property <string> no-allowance;
+    in property <BreakdownData> breakdown;
+    in property <DailyData> daily;
+    in property <FooterData> footer;
+}
+
+// Grokbot panel (spec 02 section 2.6).
+export component GrokbotBody inherits VerticalLayout {
+    spacing: 10px;
+    PanelHeader { data: GrokbotVm.header; open-settings => { GrokbotVm.open-settings(); } }
+    if !GrokbotVm.has-usage: MessageBlock {
+        text: GrokbotVm.message;
+        button: GrokbotVm.button;
+        clicked => { GrokbotVm.sign-in(); }
+    }
+    if GrokbotVm.has-usage: PoolCard {
+        title: GrokbotVm.pool-title;
+        trailing: GrokbotVm.pool-used;
+        tracks: GrokbotVm.tracks;
+        if GrokbotVm.no-allowance != "": Caption { text: GrokbotVm.no-allowance; }
+    }
+    if GrokbotVm.has-usage && GrokbotVm.breakdown.present: BreakdownCard { data: GrokbotVm.breakdown; }
+    if GrokbotVm.has-usage && GrokbotVm.daily.present: DailyCard {
+        data: GrokbotVm.daily;
+        previous-week => { GrokbotVm.previous-week(); }
+        next-week => { GrokbotVm.next-week(); }
+    }
+    if GrokbotVm.has-usage: FooterBlock {
+        data: GrokbotVm.footer;
+        sign-in-again => { GrokbotVm.sign-in-again(); }
+        sign-out => { GrokbotVm.sign-out(); }
+    }
+}

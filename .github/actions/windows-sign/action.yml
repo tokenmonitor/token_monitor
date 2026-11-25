@@ -1,0 +1,49 @@
+name: Windows Authenticode sign
+description: >-
+  Authenticode-signs files with a PFX (SHA-256, RFC 3161 timestamp) using
+  windows/installer/sign.sh, then verifies each signature. Does nothing when
+  the PFX or its password is empty, so it can stay in the pipeline until a
+  certificate exists. Run it after the build, so no build script can read the
+  secrets.
+
+inputs:
+  files:
+    description: Files to sign, one path per line.
+    required: true
+  pfx-base64:
+    description: Base64 of the code-signing .pfx. Empty skips signing.
+    required: false
+    default: ""
+  pfx-password:
+    description: Password of the .pfx.
+    required: false
+    default: ""
+
+outputs:
+  signed:
+    description: "'true' when the files were signed."
+    value: ${{ steps.sign.outputs.signed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Sign
+      id: sign
+      shell: bash
+      env:
+        PFX_BASE64: ${{ inputs.pfx-base64 }}
+        PFX_PASSWORD: ${{ inputs.pfx-password }}
+        FILES: ${{ inputs.files }}
+      run: |
+        set -euo pipefail
+        if [ -z "$PFX_BASE64" ] || [ -z "$PFX_PASSWORD" ]; then
+          echo "No signing certificate given: the files stay unsigned."
+          echo "signed=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        files=()
+        while IFS= read -r f; do
+          if [ -n "$f" ]; then files+=("$f"); fi
+        done <<<"$FILES"
+        bash "$GITHUB_ACTION_PATH/../../../windows/installer/sign.sh" "${files[@]}"
+        echo "signed=true" >> "$GITHUB_OUTPUT"

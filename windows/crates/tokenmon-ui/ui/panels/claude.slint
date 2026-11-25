@@ -1,0 +1,55 @@
+import { PanelHeader, PoolCard, DailyCard, ModelsCard, FooterBlock, MessageBlock, Caption, ActionButton } from "parts.slint";
+import { Theme, Typo, PanelCard, PanelSectionHeader, DigitText, ResetCaption, SegmentedUsageBar, MetricStatGrid } from "../components/kit.slint";
+import { TrackData, ModelsData, DailyData, FooterData, HeaderData, TabRowData, BarSegment, CategoryItem, MetricItem } from "types.slint";
+
+/// State and actions of the Claude panel body; the host sets and connects these once.
+export global ClaudeVm {
+    callback open-settings();
+    callback sign-in();
+    callback sign-in-again();
+    callback sign-out();
+    in property <HeaderData> header;
+    in property <bool> has-usage;
+    in property <string> message;
+    in property <string> button;
+    callback previous-week();
+    callback next-week();
+    callback toggle-code-models();
+    callback toggle-show-all-models();
+    in property <string> pool-title;
+    in property <[TrackData]> tracks;
+    in property <DailyData> daily;
+    in property <bool> has-code;
+    in property <[MetricItem]> code-metrics;
+    in property <string> code-metrics-tag;
+    in property <ModelsData> code-models;
+    in property <FooterData> footer;
+}
+
+// Claude panel (spec 03 section 1.7), including the Claude Code section.
+export component ClaudeBody inherits VerticalLayout {
+    spacing: 10px;
+    PanelHeader { data: ClaudeVm.header; open-settings => { ClaudeVm.open-settings(); } }
+    if !ClaudeVm.has-usage: MessageBlock {
+        text: ClaudeVm.message;
+        button: ClaudeVm.button;
+        clicked => { ClaudeVm.sign-in(); }
+    }
+    if ClaudeVm.has-usage: PoolCard { title: ClaudeVm.pool-title; tracks: ClaudeVm.tracks; }
+    if ClaudeVm.has-usage && ClaudeVm.daily.present: DailyCard {
+        data: ClaudeVm.daily;
+        previous-week => { ClaudeVm.previous-week(); }
+        next-week => { ClaudeVm.next-week(); }
+    }
+    if ClaudeVm.has-code: MetricStatGrid { items: ClaudeVm.code-metrics; source-tag: ClaudeVm.code-metrics-tag; }
+    if ClaudeVm.has-code && ClaudeVm.code-models.present: ModelsCard {
+        data: ClaudeVm.code-models;
+        toggle-expanded => { ClaudeVm.toggle-code-models(); }
+        toggle-show-all => { ClaudeVm.toggle-show-all-models(); }
+    }
+    if ClaudeVm.has-usage: FooterBlock {
+        data: ClaudeVm.footer;
+        sign-in-again => { ClaudeVm.sign-in-again(); }
+        sign-out => { ClaudeVm.sign-out(); }
+    }
+}
