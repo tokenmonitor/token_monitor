@@ -126,6 +126,15 @@ impl FakeSession {
         s
     }
 
+    pub fn signed_in_as(cookie: &str, email: &str) -> Arc<Self> {
+        let s = Arc::new(Self::default());
+        let mut g = s.inner.lock().unwrap();
+        g.cookie = Some(cookie.to_owned());
+        g.state.mark_signed_in(Some(email.to_owned()));
+        drop(g);
+        s
+    }
+
     pub fn save(&self, cookie: &str) {
         let mut g = self.inner.lock().unwrap();
         g.cookie = Some(cookie.to_owned());
