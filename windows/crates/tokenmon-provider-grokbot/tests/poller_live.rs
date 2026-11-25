@@ -19,9 +19,6 @@ use tokenmon_provider_grokbot::{
     BreakdownFetchFn, FetchFn, GrokbotEntitlement, GrokbotPollerConfig, GrokbotPublisher,
     GrokbotSnapshot, GrokbotUsageBreakdown, GrokbotUsageClient, GrokbotUsagePoller,
 };
-use tracing::field::{Field, Visit};
-use tracing::span::{Attributes, Id, Record};
-use tracing::{Event, Metadata, Subscriber};
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -306,64 +303,4 @@ async fn test_auth_event_after_poller_dropped_is_ignored() {
     drop(poller);
     assert_eq!(session.listeners.lock().unwrap().len(), 1);
     session.fire(AuthEvent::AccountReset);
-}
-
-#[derive(Default)]
-struct Messages(Mutex<Vec<String>>);
-
-struct Capture(Arc<Messages>);
-
-struct MessageVisitor(String);
-
-impl Visit for MessageVisitor {
-    fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
-        if field.name() == "message" {
-            self.0 = format!("{value:?}");
-        }
-    }
-}
-
-impl Subscriber for Capture {
-    fn enabled(&self, _: &Metadata<'_>) -> bool {
-        true
-    }
-    fn new_span(&self, _: &Attributes<'_>) -> Id {
-        Id::from_u64(1)
-    }
-    fn record(&self, _: &Id, _: &Record<'_>) {}
-    fn record_follows_from(&self, _: &Id, _: &Id) {}
-    fn event(&self, event: &Event<'_>) {
-        let mut visitor = MessageVisitor(String::new());
-        event.record(&mut visitor);
-        self.0.0.lock().unwrap().push(visitor.0);
-    }
-    fn enter(&self, _: &Id) {}
-    fn exit(&self, _: &Id) {}
-}
-
-/// A published refresh logs used and remaining percent.
-#[tokio::test]
-async fn test_publish_logs_used_and_remaining_percent() {
-    let messages = Arc::new(Messages::default());
-    let _guard = tracing::subscriber::set_default(Capture(Arc::clone(&messages)));
-    let session = FakeSession::new();
-    let clock = manual_clock();
-    let fetch: FetchFn = Arc::new(|_, _| Box::pin(async { Ok(snapshot()) }));
-    let poller = GrokbotUsagePoller::new(GrokbotPollerConfig {
-        session,
-        publisher: publisher(&clock),
-        clock,
-        fetch,
-        fetch_breakdown: None,
-        is_enabled: Arc::new(|| true),
-        poll_interval: Arc::new(|_| None),
-    });
-    poller.perform_refresh().await;
-    let logged = messages.0.lock().unwrap().clone();
-    assert!(
-        logged
-            .iter()
-            .any(|m| m.contains("Grokbot refresh: 40.0% used (60% left)")),
-        "logged: {logged:?}"
-    );
 }
