@@ -20,7 +20,7 @@ fuzz_target!(|data: &[u8]| {
     let sink = Arc::new(RecordingNotifier::default());
     let notifier = ThresholdNotifier::new(file, sink.clone());
     let mut evaluations = 0usize;
-    for chunk in ops.chunks_exact(4) {
+    for chunk in ops.as_chunks::<4>().0 {
         let provider = ProviderId::ALL_CASES[usize::from(chunk[0]) % ProviderId::ALL_CASES.len()];
         let used = f64::from(chunk[1]) * 0.5;
         let resets = (chunk[2] % 2 == 0)

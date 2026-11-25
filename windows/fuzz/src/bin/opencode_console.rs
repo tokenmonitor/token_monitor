@@ -21,9 +21,9 @@ fuzz_target!(|data: &[u8]| {
         assert!(ids.iter().all(|i| i.starts_with("wrk_")));
     }
     let _ = parse_session_email(data);
-    if let Ok(s) = std::str::from_utf8(data) {
-        if let Some(id) = workspace_id_from_path(s) {
-            assert!(id.starts_with("wrk_"));
-        }
+    if let Ok(s) = std::str::from_utf8(data)
+        && let Some(id) = workspace_id_from_path(s)
+    {
+        assert!(id.starts_with("wrk_"));
     }
 });
