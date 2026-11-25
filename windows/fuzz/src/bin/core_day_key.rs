@@ -15,7 +15,10 @@ fuzz_target!(|data: &[u8]| {
     let key = DayKey::from_raw(String::from_utf8_lossy(rest).into_owned());
     if let Some(start) = key.start_of_day(&cal) {
         let canonical = DayKey::for_instant(start, &cal);
-        assert_eq!(Some(&canonical), key.to_date().map(DayKey::for_date).as_ref());
+        assert_eq!(
+            Some(&canonical),
+            key.to_date().map(DayKey::for_date).as_ref()
+        );
         let _ = key.adding_days(i64::from(secs), &cal);
         let _ = DayKey::for_stored_start_of_day(start, i64::from(secs));
     }

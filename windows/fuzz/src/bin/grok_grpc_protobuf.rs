@@ -9,14 +9,23 @@ use std::collections::HashSet;
 use libfuzzer_sys::fuzz_target;
 use tokenmon_core::{ProviderError, UsageError};
 use tokenmon_provider_grok::grpc::{
-    MAX_SCAN_PATH_LEN, parse_reset_expiries, parse_usage, read_varint, scan_for_field7_products, scan_protobuf,
+    MAX_SCAN_PATH_LEN, parse_reset_expiries, parse_usage, read_varint, scan_for_field7_products,
+    scan_protobuf,
 };
 use tokenmon_provider_grok::models::ProductCatalog;
 
 fuzz_target!(|data: &[u8]| {
     let scan = scan_protobuf(data, 0);
-    assert!(scan.fixed32.iter().all(|f| f.path.len() <= MAX_SCAN_PATH_LEN));
-    assert!(scan.varints.iter().all(|v| v.path.len() <= MAX_SCAN_PATH_LEN));
+    assert!(
+        scan.fixed32
+            .iter()
+            .all(|f| f.path.len() <= MAX_SCAN_PATH_LEN)
+    );
+    assert!(
+        scan.varints
+            .iter()
+            .all(|v| v.path.len() <= MAX_SCAN_PATH_LEN)
+    );
 
     let mut index = 0;
     let end = data.len() / 2;

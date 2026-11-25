@@ -14,7 +14,11 @@ fuzz_target!(|data: &[u8]| {
     };
     let history = OverviewHistory::decode(text);
     let reencoded = history.encode();
-    assert_eq!(OverviewHistory::decode(&reencoded), history, "codec fixed point");
+    assert_eq!(
+        OverviewHistory::decode(&reencoded),
+        history,
+        "codec fixed point"
+    );
     assert_eq!(OverviewHistory::decode(&reencoded).encode(), reencoded);
 
     let Some(earliest) = history.earliest_day() else {

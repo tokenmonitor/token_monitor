@@ -14,7 +14,9 @@ fn instant(bytes: &[u8]) -> DateTime<Utc> {
     let mut raw = [0u8; 8];
     raw[..bytes.len().min(8)].copy_from_slice(&bytes[..bytes.len().min(8)]);
     let secs = i64::from_le_bytes(raw);
-    Utc.timestamp_opt(secs, 0).single().unwrap_or(DateTime::UNIX_EPOCH)
+    Utc.timestamp_opt(secs, 0)
+        .single()
+        .unwrap_or(DateTime::UNIX_EPOCH)
 }
 
 fuzz_target!(|data: &[u8]| {

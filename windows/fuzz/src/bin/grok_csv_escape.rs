@@ -10,7 +10,11 @@ fuzz_target!(|data: &[u8]| {
     let value = String::from_utf8_lossy(data);
     let out = csv_escape(&value);
     let quoted = out.len() >= 2 && out.starts_with('"') && out.ends_with('"');
-    let inner = if quoted { &out[1..out.len() - 1] } else { out.as_str() };
+    let inner = if quoted {
+        &out[1..out.len() - 1]
+    } else {
+        out.as_str()
+    };
     assert!(!matches!(
         inner.chars().next(),
         Some('=' | '+' | '-' | '@' | '\t' | '\r')

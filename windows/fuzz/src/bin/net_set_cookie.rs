@@ -11,7 +11,10 @@ fuzz_target!(|data: &[u8]| {
     for p in &parts {
         assert!(!p.is_empty() && p.trim() == p);
     }
-    let kept: usize = parts.iter().map(|p| p.chars().filter(|c| !c.is_whitespace()).count()).sum();
+    let kept: usize = parts
+        .iter()
+        .map(|p| p.chars().filter(|c| !c.is_whitespace()).count())
+        .sum();
     let total = text.chars().filter(|c| !c.is_whitespace()).count();
     assert!(kept <= total && total - kept <= parts.len() + text.matches(',').count());
 });
