@@ -12,8 +12,9 @@
 Input is `cargo llvm-cov report --json --summary-only` output. The script
 prints Markdown to stdout with:
 
-* total line / region / function coverage, and the delta against the
-  baseline (the coverage-summary.json of the latest master run),
+* total line / region / function coverage, plus branch coverage when the
+  report has branch data (`cargo llvm-cov --branch`, nightly), and the delta
+  against the baseline (the coverage-summary.json of the latest master run),
 * a per-crate table (files under `crates/<name>/` belong to crate `<name>`),
 * a per-file table inside a collapsed <details> block.
 
@@ -32,8 +33,8 @@ run uses as its baseline, so nobody has to download lcov to see a delta.
 Exit status 1 when a gate fails:
 
 * total line coverage dropped more than ``--max-drop`` points vs the baseline,
-* total or any crate's line/region coverage is below its floor in the floors
-  file.
+* total or any crate's coverage on any metric is below its floor in the
+  floors file.
 
 Standard library only (tomllib needs Python 3.11+).
 """
@@ -52,7 +53,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import coverage_excludes  # noqa: E402
 
 SCHEMA = 1
-METRICS = ("lines", "regions", "functions")
+METRICS = ("lines", "regions", "functions", "branches")
+# Branch counts exist only in reports made with `--branch` (nightly rustc);
+# without them the column would read a meaningless 100%.
+OPTIONAL_METRICS = ("branches",)
 
 
 @dataclass
@@ -205,10 +209,16 @@ class Gate:
         return f" (floor {floor:g}%)"
 
 
+def shown_metrics(total: Unit) -> tuple[str, ...]:
+    """The metrics the report has data for: optional ones only when measured."""
+    return tuple(m for m in METRICS if m not in OPTIONAL_METRICS or total.tallies[m].count > 0)
+
+
 def render(args, total: Unit, crates: dict[str, Unit], files: dict[str, Unit],
            floors: dict, baseline: dict | None, baseline_note: str = "",
            excludes: list | None = None) -> tuple[str, Gate]:
     gate = Gate()
+    metrics = shown_metrics(total)
     out = [f"### {args.title}", ""]
 
     if not files:
@@ -219,14 +229,18 @@ def render(args, total: Unit, crates: dict[str, Unit], files: dict[str, Unit],
     base_crates = (baseline or {}).get("crates", {})
 
     def base_pct(source: dict, metric: str):
-        value = source.get(metric, {}).get("percent")
-        return None if value is None else float(value)
+        entry = source.get(metric, {})
+        value = entry.get("percent")
+        # A baseline that did not measure the metric (no --branch) has no value.
+        if value is None or entry.get("count") == 0:
+            return None
+        return float(value)
 
     # Totals table.
     out += ["| metric | covered | total | % | Δ vs baseline |", "|---|---:|---:|---:|---:|"]
-    for m in METRICS:
+    for m in metrics:
         t = total.tallies[m]
-        note = gate.floor("total", m, t.percent, floors["total"].get(m)) if m != "functions" else ""
+        note = gate.floor("total", m, t.percent, floors["total"].get(m))
         delta = fmt_delta(t.percent, base_pct(base_totals, m)) if baseline else "n/a"
         out.append(f"| {m} | {t.covered} | {t.count} | {fmt_pct(t.percent)}{note} | {delta} |")
 
@@ -258,30 +272,28 @@ def render(args, total: Unit, crates: dict[str, Unit], files: dict[str, Unit],
         out += ["", baseline_note]
 
     # Per-crate table.
-    out += ["", "#### Per crate", "", "| crate | lines | regions | functions | Δ lines |",
-            "|---|---:|---:|---:|---:|"]
+    out += ["", "#### Per crate", "", "| crate | " + " | ".join(metrics) + " | Δ lines |",
+            "|---|" + "---:|" * (len(metrics) + 1)]
     for name in sorted(crates):
         c = crates[name]
         crate_floors = floors["crates"].get(name, {})
         cells = []
-        for m in METRICS:
-            note = gate.floor(f"crate {name}", m, c.pct(m), crate_floors.get(m)) if m != "functions" else ""
+        for m in metrics:
+            note = gate.floor(f"crate {name}", m, c.pct(m), crate_floors.get(m))
             cells.append(f"{fmt_pct(c.pct(m))}{note}")
         delta = fmt_delta(c.pct("lines"), base_pct(base_crates.get(name, {}), "lines")) if baseline else "n/a"
         out.append(f"| `{md_cell(name)}` | " + " | ".join(cells) + f" | {delta} |")
     for name in sorted(set(floors["crates"]) - set(crates)):
-        out.append(f"| `{md_cell(name)}` | not measured | | | |")
+        out.append(f"| `{md_cell(name)}` | not measured |" + " |" * len(metrics))
 
     # Per-file table, collapsed.
     out += ["", f"<details><summary>Per file ({len(files)} files, lowest line coverage first)</summary>", "",
-            "| file | lines | regions | functions |", "|---|---:|---:|---:|"]
+            "| file | " + " | ".join(metrics) + " |", "|---|" + "---:|" * len(metrics)]
     for rel in sorted(files, key=lambda r: (files[r].pct("lines"), r)):
         f = files[rel]
         lt = f.tallies["lines"]
-        out.append(
-            f"| `{md_cell(rel)}` | {fmt_pct(lt.percent)} ({lt.covered}/{lt.count}) | "
-            f"{fmt_pct(f.pct('regions'))} | {fmt_pct(f.pct('functions'))} |"
-        )
+        rest = [fmt_pct(f.pct(m)) for m in metrics[1:]]
+        out.append(f"| `{md_cell(rel)}` | {fmt_pct(lt.percent)} ({lt.covered}/{lt.count}) | " + " | ".join(rest) + " |")
     out += ["", "</details>"]
 
     if excludes:

@@ -128,6 +128,49 @@ class RenderCoverageTest(unittest.TestCase):
         r, _ = self.cov(floors=floors)
         self.assertEqual(r.returncode, 0, r.stdout)
 
+    def branch_cov(self, tmp: str) -> Path:
+        """The fixture with branch counts, as `cargo llvm-cov --branch` writes them."""
+        data = json.loads((FIX / "cov.json").read_text())
+        entry = data["data"][0]
+        for i, f in enumerate(entry["files"]):
+            f["summary"]["branches"] = {"covered": 3 + i, "count": 4 + 2 * i, "percent": 0}
+        p = Path(tmp) / "branch-cov.json"
+        p.write_text(json.dumps(data))
+        return p
+
+    def test_branch_column_is_hidden_without_branch_data(self):
+        """A stable-toolchain report has no branch counts, so no branch column."""
+        r, _ = self.cov()
+        self.assertNotIn("branches", r.stdout)
+
+    def test_branch_coverage_is_reported_when_measured(self):
+        """With --branch data the totals, crate and file tables gain branches."""
+        with tempfile.TemporaryDirectory() as tmp:
+            r = run("render_coverage.py", "--json", str(self.branch_cov(tmp)), "--root", "/work/windows")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("| branches | 7 | 10 | 70.00% | n/a |", r.stdout)
+        self.assertIn("| crate | lines | regions | functions | branches | Δ lines |", r.stdout)
+        self.assertIn("| file | lines | regions | functions | branches |", r.stdout)
+
+    def test_branch_floor_gates(self):
+        """A branches floor fails the run like a lines floor does."""
+        with tempfile.TemporaryDirectory() as tmp:
+            floors = Path(tmp) / "floors.toml"
+            floors.write_text("[total]\nbranches = 90\n")
+            r = run("render_coverage.py", "--json", str(self.branch_cov(tmp)), "--root", "/work/windows",
+                    "--floors", str(floors))
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("total branches coverage 70.00% is below its floor 90.00%", r.stdout)
+
+    def test_baseline_without_branch_data_shows_new_not_a_drop(self):
+        """A baseline measured without --branch has count 0: the delta reads new."""
+        _, base = self.cov()
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "base.json").write_text(json.dumps(base))
+            r = run("render_coverage.py", "--json", str(self.branch_cov(tmp)), "--root", "/work/windows",
+                    "--baseline", str(Path(tmp) / "base.json"))
+        self.assertIn("| branches | 7 | 10 | 70.00% | new |", r.stdout)
+
     def test_windows_paths_are_made_relative(self):
         data = json.loads((FIX / "cov.json").read_text())
         for f in data["data"][0]["files"]:
