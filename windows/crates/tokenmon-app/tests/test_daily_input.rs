@@ -195,7 +195,7 @@ fn test_grok_week_estimate_note_follows_the_week_flags() {
         let input = grok_week_input(&week(7, estimated, has_data), &ctx(&cal, 0)).expect("chart");
         match input.footer_kind {
             FooterKind::GrokWeek { show_estimate_note } => show_estimate_note,
-            other => panic!("unexpected footer {other:?}"),
+            other @ FooterKind::Generic => panic!("unexpected footer {other:?}"),
         }
     };
     assert!(note(true, true));
