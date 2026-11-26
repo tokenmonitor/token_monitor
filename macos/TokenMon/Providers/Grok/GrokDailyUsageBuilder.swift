@@ -8,35 +8,14 @@ enum GrokDailyUsageBuilder {
     /// Equal daily share of the weekly SuperGrok pool.
     static let dailyCapPercent: Double = 100.0 / 7.0
 
-    /// Caches the week/day formatter pair per calendar to avoid per-call construction.
-    private static let formatterCacheLock = NSLock()
-    // SwiftLint versions disagree on where `nonisolated(unsafe)` goes; SwiftFormat sets this order.
-    // swiftlint:disable:next modifier_order superfluous_disable_command
-    private nonisolated(unsafe) static var formatterCache: [String: (weekday: DateFormatter, dayOfMonth: DateFormatter)] = [:]
-
+    /// The week and day-of-month formatters for a calendar, from the shared `Format` cache.
     static func makeDateFormatters(
         calendar: Calendar
     ) -> (weekday: DateFormatter, dayOfMonth: DateFormatter) {
-        let key = "\(String(describing: calendar.identifier))|\(calendar.timeZone.identifier)|\(calendar.locale?.identifier ?? "")"
-        formatterCacheLock.lock()
-        defer { formatterCacheLock.unlock() }
-        if let cached = formatterCache[key] {
-            return cached
-        }
-
-        let weekday = DateFormatter()
-        weekday.locale = .current
-        weekday.calendar = calendar
-        weekday.dateFormat = "EEE"
-
-        let dayOfMonth = DateFormatter()
-        dayOfMonth.locale = .current
-        dayOfMonth.calendar = calendar
-        dayOfMonth.dateFormat = "d"
-
-        let pair = (weekday, dayOfMonth)
-        formatterCache[key] = pair
-        return pair
+        (
+            Format.formatter(dateFormat: "EEE", calendar: calendar, locale: .current),
+            Format.formatter(dateFormat: "d", calendar: calendar, locale: .current)
+        )
     }
 
     /// Maps weekly-pool percent into 0…1 of the daily track (`100/7` cap).

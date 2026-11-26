@@ -158,4 +158,45 @@ final class FormatTests: XCTestCase {
         NotificationCenter.default.post(name: .NSSystemTimeZoneDidChange, object: nil)
         XCTAssertEqual(Format.cachedFormatterCount, 0)
     }
+
+    /// A current-locale change empties the cache too, so a formatter built for the old locale is not reused.
+    func testCurrentLocaleChangeClearsFormatterCache() {
+        _ = Format.formatter(dateFormat: "EEE", calendar: Calendar(identifier: .gregorian), locale: Locale(identifier: "fr_FR"))
+        XCTAssertGreaterThan(Format.cachedFormatterCount, 0)
+        NotificationCenter.default.post(name: NSLocale.currentLocaleDidChangeNotification, object: nil)
+        XCTAssertEqual(Format.cachedFormatterCount, 0)
+    }
+
+    /// The same format, calendar and locale share one formatter; a different calendar or locale gets its own.
+    func testFormatterIsCachedPerFormatCalendarAndLocale() {
+        NotificationCenter.default.post(name: .NSSystemTimeZoneDidChange, object: nil)
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC") ?? .current
+        var tokyo = utc
+        tokyo.timeZone = TimeZone(identifier: "Asia/Tokyo") ?? .current
+        let english = Locale(identifier: "en_US")
+
+        let first = Format.formatter(dateFormat: "EEE", calendar: utc, locale: english)
+        XCTAssertIdentical(first, Format.formatter(dateFormat: "EEE", calendar: utc, locale: english))
+        XCTAssertNotIdentical(first, Format.formatter(dateFormat: "EEE", calendar: tokyo, locale: english))
+        XCTAssertNotIdentical(first, Format.formatter(dateFormat: "EEE", calendar: utc, locale: Locale(identifier: "fr_FR")))
+        XCTAssertNotIdentical(first, Format.formatter(dateFormat: "d", calendar: utc, locale: english))
+        XCTAssertEqual(Format.cachedFormatterCount, 4)
+    }
+
+    /// A calendar formatter takes that calendar and locale; one without a calendar keeps the POSIX locale.
+    func testFormatterAppliesCalendarAndLocale() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .current
+        let weekday = Format.formatter(
+            dateFormat: "EEE",
+            timeZone: calendar.timeZone,
+            calendar: calendar,
+            locale: Locale(identifier: "en_US")
+        )
+        XCTAssertEqual(weekday.calendar.identifier, .gregorian)
+        XCTAssertEqual(weekday.locale.identifier, "en_US")
+        XCTAssertEqual(weekday.string(from: Date(timeIntervalSince1970: 0)), "Thu")
+        XCTAssertEqual(Format.formatter(dateFormat: "HH:mm").locale.identifier, "en_US_POSIX")
+    }
 }
