@@ -141,6 +141,13 @@ struct ViewTree {
             walk(body, depth: depth - 1)
             return
         }
+        // A bodiless view the app declares (an AppKit representable) is
+        // recorded too, so a test can read how its parent configured it.
+        // Library wrappers such as `Optional<V>` are not: they would cast to
+        // the wrapped view and count it twice.
+        if let view = value as? any View, String(reflecting: type(of: value)).hasPrefix("TokenMon.") {
+            views.append(view)
+        }
         walkChildren(of: value, depth: depth)
     }
 

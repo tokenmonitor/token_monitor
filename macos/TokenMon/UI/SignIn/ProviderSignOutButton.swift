@@ -13,7 +13,14 @@ struct ProviderSignOutButton: View {
     let provider: MonitorProvider
     let action: () -> Void
 
-    @State private var isConfirming = false
+    @State private var isConfirming: Bool
+
+    /// - Parameter isConfirming: Starts on the confirm/cancel pair when true.
+    init(provider: MonitorProvider, isConfirming: Bool = false, action: @escaping () -> Void) {
+        self.provider = provider
+        self.action = action
+        _isConfirming = State(initialValue: isConfirming)
+    }
 
     var body: some View {
         HStack(spacing: 6) {

@@ -232,9 +232,12 @@ final class SignInBrowserView: NSView, WKNavigationDelegate, WKUIDelegate {
         fireReturnIfOnReturnPage()
     }
 
-    // MARK: - Private
+    // MARK: - Return detection
 
-    private func handleFinished(_ url: URL, isPopup: Bool) {
+    /// Records a finished navigation of the main page or a popup: reports the
+    /// auth host, and fires `onReturned` once the main page is back on the
+    /// provider's return page with no popup open.
+    func handleFinished(_ url: URL, isPopup: Bool) {
         switch returnGate.note(url: url) {
         case .authHost:
             onAuthHostSeen()

@@ -60,42 +60,38 @@ struct ProviderSignInSheet<Auth: ProviderCookieCapturing>: View {
     let config: ProviderSignInConfig
     var onComplete: () -> Void
 
-    @State private var browser = SignInBrowserController()
-    @State private var phase: Phase = .signingIn
-    @State private var didHintTimeout = false
-    @State private var isDismissed = false
+    @State private var flow: ProviderSignInFlow
     @Environment(\.dismiss) private var dismiss
 
-    /// How long the window waits before nudging the user to finish manually.
-    private let timeoutHintNanoseconds: UInt64 = 25_000_000_000
-    /// How long the "signed in" confirmation stays up before the window closes.
-    private let confirmationNanoseconds: UInt64 = 1_100_000_000
-
-    private enum Phase: Equatable {
-        case signingIn
-        case finishing
-        case signedIn(email: String?)
-        case failed(String)
+    /// - Parameter flow: The sign-in state machine; built from `auth` and
+    ///   `config` when nil.
+    init(
+        auth: Auth,
+        config: ProviderSignInConfig,
+        flow: ProviderSignInFlow? = nil,
+        onComplete: @escaping () -> Void
+    ) {
+        self.auth = auth
+        self.config = config
+        self.onComplete = onComplete
+        _flow = State(initialValue: flow ?? ProviderSignInFlow(auth: auth, config: config, onComplete: onComplete))
     }
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
-            SignInNavigationBar(browser: browser)
+            SignInNavigationBar(browser: flow.browser)
             Divider()
 
             ProviderSignInWebView(
                 startURL: config.startURL,
                 dataStore: auth.signInDataStore,
-                controller: browser,
+                controller: flow.browser,
                 isAuthHost: config.isAuthHost,
                 isReturnPage: config.isReturnPage,
                 onAuthHostSeen: {},
-                onReturned: { url in
-                    config.onReturned?(url)
-                    Task { await captureAfterReturn() }
-                }
+                onReturned: returned
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -103,19 +99,26 @@ struct ProviderSignInSheet<Auth: ProviderCookieCapturing>: View {
             footer
         }
         .frame(minWidth: 880, minHeight: 640)
-        .onAppear { NSApp.activate() }
-        .onDisappear { isDismissed = true }
-        .task {
-            try? await Task.sleep(nanoseconds: timeoutHintNanoseconds)
-            if !Task.isCancelled { didHintTimeout = true }
+        .onAppear {
+            let dismiss = dismiss
+            flow.dismiss = { dismiss() }
+            NSApp.activate()
         }
+        .onDisappear { flow.markDismissed() }
+        .task { await flow.waitForTimeoutHint() }
+    }
+
+    /// The browser reached the provider's return page after signing in.
+    func returned(_ url: URL) {
+        config.onReturned?(url)
+        Task { await flow.captureAfterReturn() }
     }
 
     // MARK: - Header
 
     private var header: some View {
         HStack(alignment: .top, spacing: 12) {
-            if case .signedIn = phase {
+            if flow.isSignedIn {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.title2)
                     .foregroundStyle(.green)
@@ -124,7 +127,7 @@ struct ProviderSignInSheet<Auth: ProviderCookieCapturing>: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(config.title)
                     .font(.title2.weight(.semibold))
-                Text(statusText)
+                Text(flow.statusText)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -138,130 +141,28 @@ struct ProviderSignInSheet<Auth: ProviderCookieCapturing>: View {
         .padding()
     }
 
-    private var statusText: String {
-        switch phase {
-        case .signingIn:
-            if browser.hasPopup {
-                return "Complete sign-in in the popup above."
-            }
-            if didHintTimeout {
-                return "Signed in? Choose Finish Sign-In to complete."
-            }
-            return config.subtitle
-        case .finishing:
-            return "Finishing sign-in…"
-        case let .signedIn(email):
-            return email.map { "Signed in as \($0)" } ?? "Signed in"
-        case let .failed(message):
-            return message
-        }
-    }
-
     // MARK: - Footer
 
     private var footer: some View {
         HStack(spacing: 12) {
-            if case .finishing = phase {
+            if flow.isBusy {
                 ProgressView().controlSize(.small)
             }
 
             Spacer()
 
-            Button(primaryTitle) {
-                Task { await finish() }
+            Button(flow.primaryTitle) {
+                Task { await flow.finish() }
             }
             .keyboardShortcut(.defaultAction)
-            .disabled(isBusy || isSignedIn)
+            .disabled(flow.isBusy || flow.isSignedIn)
         }
         .padding()
-    }
-
-    private var primaryTitle: String {
-        switch phase {
-        case .signingIn: return "Finish Sign-In"
-        case .finishing: return "Finishing…"
-        case .failed: return "Try Again"
-        case .signedIn: return "Signed In"
-        }
-    }
-
-    private var isBusy: Bool {
-        if case .finishing = phase { return true }
-        return false
-    }
-
-    private var isSignedIn: Bool {
-        if case .signedIn = phase { return true }
-        return false
-    }
-
-    // MARK: - Flow
-
-    /// Manual finish: capture now and close, or surface a retry.
-    private func finish() async {
-        guard !isDismissed, !isBusy, !isSignedIn else { return }
-        phase = .finishing
-        if await capture() {
-            await confirmAndDismiss()
-        } else {
-            phase = .failed(failureMessage)
-            browser.rearmReturn()
-        }
-    }
-
-    /// Automatic capture after the user returns to the provider page.
-    private func captureAfterReturn() async {
-        guard !isDismissed, !isBusy, !isSignedIn else { return }
-        for _ in 0..<40 where browser.hasPopup {
-            try? await Task.sleep(nanoseconds: 200_000_000)
-            if isDismissed { return }
-        }
-        if config.returnDelayNanoseconds > 0 {
-            try? await Task.sleep(nanoseconds: config.returnDelayNanoseconds)
-        }
-        // The user may have finished manually during the wait.
-        guard !isDismissed, !isBusy, !isSignedIn else { return }
-
-        phase = .finishing
-        if await capture() {
-            await confirmAndDismiss()
-            return
-        }
-        // Cookies may be late; retry once before asking the user.
-        try? await Task.sleep(nanoseconds: 1_200_000_000)
-        guard !isDismissed, !isSignedIn else { return }
-        if await capture() {
-            await confirmAndDismiss()
-        } else {
-            phase = .failed(failureMessage)
-            browser.rearmReturn()
-        }
-    }
-
-    private func capture() async -> Bool {
-        let ok = await auth.captureCookiesFromWebKit()
-        if ok, let afterCapture = config.afterCapture {
-            await afterCapture()
-        }
-        return ok
-    }
-
-    private func confirmAndDismiss() async {
-        guard !isSignedIn else { return }
-        phase = .signedIn(email: auth.accountEmail)
-        onComplete()
-        try? await Task.sleep(nanoseconds: confirmationNanoseconds)
-        if !isDismissed { dismiss() }
-    }
-
-    private var failureMessage: String {
-        auth.lastAuthError
-            ?? "Couldn't find a signed-in session yet. Finish signing in, then try again."
     }
 }
 
 /// Back / Forward / Reload / Close popup chrome for the sign-in WebKit host.
-private struct SignInNavigationBar: View {
+struct SignInNavigationBar: View {
     let browser: SignInBrowserController
     var body: some View {
         HStack(spacing: 8) {
