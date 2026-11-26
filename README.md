@@ -156,8 +156,8 @@ macos/             The macOS app
     Features/      Overview, Settings, Update
     Resources/     Info.plist, entitlements, assets
   TokenMonTests/   XCTest suite, mirroring the TokenMon folders
-  Tests/Manual/    Optional CLT-only subset (see Scripts/run_core_tests.sh)
-  Scripts/         Icon generator, core tests, notarize, coverage conversion
+  Tests/Manual/    Optional CLT-only subset (see scripts/run_core_tests.sh)
+  scripts/         Icon generator, core tests, notarize, coverage conversion
   docs/            Notarization
 windows/           The Windows app
 docs/              Architecture, auth/endpoints
@@ -173,7 +173,7 @@ Each provider lives in `macos/TokenMon/Providers/<Name>/` and implements the sam
 3. **Poller**: a `ProviderUsagePoller` that runs its fetch through `ProviderRefresh.run` and reports its headline percentage, reset instant and account for the menu bar and alerts.
 4. **Panel**: the dropdown tab.
 
-Then add a `MonitorProvider` case (name, accent colour, whether it has a menu-bar graph), one `ProviderRegistry` entry in `AppModel`, its panel in `MenuBarPanelView` and its card in the Overview. Tests go in `macos/TokenMonTests/Providers/<Name>/`. Architecture details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Then add a `MonitorProvider` case (name, accent colour, whether it has a menu-bar graph), one `ProviderRegistry` entry in `AppModel`, its panel in `MenuBarPanelView` and its card in the Overview. Tests go in `macos/TokenMonTests/Providers/<Name>/`. Architecture details: [macos/docs/ARCHITECTURE.md](macos/docs/ARCHITECTURE.md).
 
 ## Privacy
 
@@ -197,7 +197,7 @@ Then add a `MonitorProvider` case (name, accent colour, whether it has a menu-ba
 
 | Doc | Contents |
 |-----|----------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module map and data flow |
+| [macos/docs/ARCHITECTURE.md](macos/docs/ARCHITECTURE.md) | Module map and data flow |
 | [docs/AUTH_AND_ENDPOINTS.md](docs/AUTH_AND_ENDPOINTS.md) | Auth model, endpoints, usage-window limitations |
 | [macos/docs/NOTARIZATION.md](macos/docs/NOTARIZATION.md) | Developer ID signing and notarization |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to develop and open PRs |
@@ -205,7 +205,7 @@ Then add a `MonitorProvider` case (name, accent colour, whether it has a menu-ba
 
 ## Distribution
 
-For a signed, notarized release build, see [macos/docs/NOTARIZATION.md](macos/docs/NOTARIZATION.md) and `macos/Scripts/notarize.sh`.
+For a signed, notarized release build, see [macos/docs/NOTARIZATION.md](macos/docs/NOTARIZATION.md) and `macos/scripts/notarize.sh`.
 
 ## Notes on usage windows
 

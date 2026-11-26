@@ -37,7 +37,7 @@ class ClassifyAndReferenceTests(unittest.TestCase):
         mac, win = dg.classify(
             ["macos/TokenMon/App/A.swift", "macos/TokenMonTests/X.swift", "macos/Tests/Manual/CoreTestsMain.swift",
              "windows/docs/PARITY.md", "README.md", "macos/TokenMon.xcodeproj/project.pbxproj", "",
-             "macos/TokenMon/Resources/Info.plist", "macos/project.yml", "macos/Makefile", "macos/Scripts/notarize.sh",
+             "macos/TokenMon/Resources/Info.plist", "macos/project.yml", "macos/Makefile", "macos/scripts/notarize.sh",
              "windows/Makefile", "docs/x.md", "macos/docs/NOTARIZATION.md", "TokenMon/App/Old.swift", "project.yml",
              "Makefile", ".github/workflows/ci.yml"]
         )
@@ -45,7 +45,7 @@ class ClassifyAndReferenceTests(unittest.TestCase):
             mac,
             ["macos/TokenMon/App/A.swift", "macos/TokenMonTests/X.swift", "macos/Tests/Manual/CoreTestsMain.swift",
              "macos/TokenMon.xcodeproj/project.pbxproj", "macos/TokenMon/Resources/Info.plist", "macos/project.yml",
-             "macos/Makefile", "macos/Scripts/notarize.sh"],
+             "macos/Makefile", "macos/scripts/notarize.sh"],
         )
         self.assertEqual(win, ["windows/docs/PARITY.md", "windows/Makefile"])
 

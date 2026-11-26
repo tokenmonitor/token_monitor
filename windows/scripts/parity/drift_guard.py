@@ -4,7 +4,7 @@
 The macOS app is ``macos/TokenMon/**`` (sources, ``Resources/``, Info.plist and
 entitlements), ``macos/TokenMonTests/**``, ``macos/Tests/**``, and the files that
 decide how it is built and released: ``macos/project.yml``, ``macos/Makefile``,
-``macos/Scripts/**`` and ``macos/TokenMon.xcodeproj/**``. Docs, README and CI-only files do not count.
+``macos/scripts/**`` and ``macos/TokenMon.xcodeproj/**``. Docs, README and CI-only files do not count.
 
 A change (pull request or push) is checked with two rules:
 
@@ -60,7 +60,7 @@ import extract_swift_tests  # noqa: E402
 # Directories (trailing /) and top-level files that make up the macOS app.
 MACOS_ROOT = extract_swift_tests.MACOS_ROOT
 MAC_PREFIXES = tuple(
-    f"{MACOS_ROOT}/{name}/" for name in ("TokenMon", "TokenMonTests", "Tests", "Scripts", "TokenMon.xcodeproj")
+    f"{MACOS_ROOT}/{name}/" for name in ("TokenMon", "TokenMonTests", "Tests", "scripts", "TokenMon.xcodeproj")
 )
 MAC_FILES = tuple(f"{MACOS_ROOT}/{name}" for name in ("project.yml", "Makefile"))
 WINDOWS_PREFIX = "windows/"
@@ -317,7 +317,7 @@ def render_summary(result: Result, event: str, base: str, head: str, repo: str) 
     out = ["## Windows parity drift guard", ""]
     if not result.mac_paths:
         verdict, reason = "PASS", (
-            "No macOS app files (`macos/TokenMon/`, `macos/TokenMonTests/`, `macos/Tests/`, `macos/Scripts/`, "
+            "No macOS app files (`macos/TokenMon/`, `macos/TokenMonTests/`, `macos/Tests/`, `macos/scripts/`, "
             "`macos/TokenMon.xcodeproj/`, `macos/project.yml`, `macos/Makefile`) changed."
         )
     elif not result.needs_parity:

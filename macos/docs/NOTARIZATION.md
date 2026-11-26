@@ -18,12 +18,12 @@ xcodebuild -project TokenMon.xcodeproj -scheme TokenMon -configuration Release \
 
 xcodebuild -exportArchive -archivePath build/TokenMon.xcarchive \
   -exportPath build/export \
-  -exportOptionsPlist Scripts/ExportOptions.plist
+  -exportOptionsPlist scripts/ExportOptions.plist
 ```
 
 `make archive` and `make export` wrap these two steps (archive → `build/export`).
 
-`Scripts/ExportOptions.plist` has no `teamID` — with `signingStyle: automatic` this is inferred from the archive's own signing identity. If your Apple ID belongs to more than one team, add a `teamID` key (`<key>teamID</key><string>YOURTEAMID</string>`) to disambiguate.
+`scripts/ExportOptions.plist` has no `teamID` — with `signingStyle: automatic` this is inferred from the archive's own signing identity. If your Apple ID belongs to more than one team, add a `teamID` key (`<key>teamID</key><string>YOURTEAMID</string>`) to disambiguate.
 
 ## 2. Notarize
 
@@ -31,10 +31,10 @@ xcodebuild -exportArchive -archivePath build/TokenMon.xcarchive \
 # Create an app-specific password at appleid.apple.com and store it in Keychain:
 # xcrun notarytool store-credentials "AC_PASSWORD" --apple-id YOU@email --team-id TEAMID
 
-./Scripts/notarize.sh "build/export/TokenMon.app"   # or a Developer ID Installer-signed .pkg
+./scripts/notarize.sh "build/export/TokenMon.app"   # or a Developer ID Installer-signed .pkg
 ```
 
-`Scripts/notarize.sh` zips an app into a temporary folder (or submits a signed pkg as is), submits it with `notarytool --wait`, then staples and validates the ticket. On any verdict other than **Accepted** it prints the `notarytool log` for the submission and exits non-zero. Nothing is left behind next to the input.
+`scripts/notarize.sh` zips an app into a temporary folder (or submits a signed pkg as is), submits it with `notarytool --wait`, then staples and validates the ticket. On any verdict other than **Accepted** it prints the `notarytool log` for the submission and exits non-zero. Nothing is left behind next to the input.
 
 `make release NOTARY=1` (or `make notarize` after `make release`) notarizes and staples `dist/TokenMon.app`, rebuilds the zip and pkg from the stapled app, and notarizes the pkg when a Developer ID Installer identity is available. Without a Developer ID Application identity `make notarize` refuses to run.
 

@@ -11,7 +11,7 @@ builds work until the certificates exist.
 |---|---|---|
 | `macos-import-signing` | Imports the Developer ID `.p12` files into a temporary keychain; `make` auto-detects them | optional certificate inputs |
 | `macos-build-app` | Release build, staged as `macos/dist/TokenMon.app` | |
-| `macos-notarize` | Notarizes and staples an `.app` or `.pkg` (`macos/Scripts/notarize.sh`) | optional Apple notary inputs |
+| `macos-notarize` | Notarizes and staples an `.app` or `.pkg` (`macos/scripts/notarize.sh`) | optional Apple notary inputs |
 | `macos-pkg` | `macos/dist/TokenMon-<version>.pkg` from `macos/dist/TokenMon.app` | |
 
 Order: `macos-import-signing`, `macos-build-app`, `macos-notarize` (app),

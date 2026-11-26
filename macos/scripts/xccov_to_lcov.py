@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Writes the line coverage in an .xcresult bundle as LCOV for Codecov.
 
-Usage: macos/Scripts/xccov_to_lcov.py <Test.xcresult> [repo-root] > coverage.lcov
+Usage: macos/scripts/xccov_to_lcov.py <Test.xcresult> [repo-root] > coverage.lcov
 
 Reads `xcrun xccov view --archive --json`, keeps only files under
 <repo-root>/macos/TokenMon/ (the app target only), and

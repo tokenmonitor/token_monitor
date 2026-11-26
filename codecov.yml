@@ -12,7 +12,7 @@ coverage:
         target: 50%
         only_pulls: true
 
-# CI uploads LCOV for the app target only (macos/Scripts/xccov_to_lcov.py), so only
+# CI uploads LCOV for the app target only (macos/scripts/xccov_to_lcov.py), so only
 # app sources count. UI-only files without tests are excluded: SwiftUI views
 # and the custom-drawn rows, bars, and charts listed by name. Files with unit
 # tests (for example SegmentedUsageBar.swift) stay in.

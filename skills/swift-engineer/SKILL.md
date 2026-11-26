@@ -103,7 +103,7 @@ enum OrderStatus: String, Codable, CaseIterable, Hashable, Sendable {
 - Test happy paths and error cases; test edge cases and boundary conditions.
 - For enums: always test `rawValue` roundtripping and invalid-input rejection (`XCTAssertNil(OrderStatus(rawValue: "nonexistent"))`).
 - Use `XCTAssertEqual(_:_:accuracy:)` for floating point — never exact equality.
-- Pure parsers/builders that need no app host go in `macos/Tests/Manual/CoreTestsMain.swift` and run via `macos/Scripts/run_core_tests.sh` (`make -C macos test-core`).
+- Pure parsers/builders that need no app host go in `macos/Tests/Manual/CoreTestsMain.swift` and run via `macos/scripts/run_core_tests.sh` (`make -C macos test-core`).
 - Keep tests hermetic: use fixture JSON/text/hex (see the gRPC hex fixture in `macos/Tests/Manual/CoreTestsMain.swift`), never live endpoints. If a test must touch a live surface, gate it behind an environment flag and skip by default so the suite stays hermetic.
 - Never touch real user state: inject a temporary directory instead of `~/Library/Application Support/TokenMon` or `~/Library/Caches`, a throwaway `UserDefaults(suiteName:)` instead of `.standard`, `InMemoryCredentialStore` / a fake `KeychainBackend` instead of the Keychain, and a stubbed transport instead of the network.
 
@@ -564,7 +564,7 @@ Push back on "optimize everything" — prioritize the critical 3%.
 6. Review for hot paths — once correct, optimize allocation patterns, COW/copy behavior, main-actor usage, and caching (see Performance & Micro-Optimizations, and Deep Audits for review hunts).
 7. Self-review — before presenting code, verify: Are all types documented? Are there tests and are they hermetic? Is mutation minimized? Are strings eliminated in favor of enums? Are errors properly typed? Any hot-path smells (formatter-per-call, per-row full-JSON, `[UInt8]` copies, eager log strings)?
 8. **Quality gate (MANDATORY before claiming done or asking to commit/deploy)** — the same checks CI runs. From the repo root:
-   1. `make -C macos project` when files were added, moved, or removed, and commit the regenerated `macos/TokenMon.xcodeproj` — CI fails when `make -C macos project` leaves `git diff` non-empty (project drift check). The core test script compiles every file under `macos/TokenMon/Core`; a provider file it needs goes in `PROVIDER_SOURCES` in `macos/Scripts/run_core_tests.sh`. Code under `macos/TokenMon/Core` imports no UI framework (`core_imports_no_ui` in `.swiftlint.yml`).
+   1. `make -C macos project` when files were added, moved, or removed, and commit the regenerated `macos/TokenMon.xcodeproj` — CI fails when `make -C macos project` leaves `git diff` non-empty (project drift check). The core test script compiles every file under `macos/TokenMon/Core`; a provider file it needs goes in `PROVIDER_SOURCES` in `macos/scripts/run_core_tests.sh`. Code under `macos/TokenMon/Core` imports no UI framework (`core_imports_no_ui` in `.swiftlint.yml`).
    2. `make -C macos lint` — SwiftLint strict; every warning is an error.
    3. `make -C macos format` — SwiftFormat lint; no drift.
    4. `make -C macos secrets` — gitleaks over the working tree and history.

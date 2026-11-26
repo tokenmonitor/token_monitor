@@ -55,7 +55,7 @@ on:
     paths:
       - ".github/actions/macos-*/**"
       - ".github/workflows/macos-installers.yml"
-      - "macos/Scripts/notarize.sh"
+      - "macos/scripts/notarize.sh"
 
 permissions:
   contents: read

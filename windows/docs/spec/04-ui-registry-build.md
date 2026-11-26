@@ -662,15 +662,15 @@ The remaining tests in the Overview history file (record/merge/retention/persist
 | pkg | non-relocatable component pkg (`BundleIsRelocatable = NO`, verified) installing to `/Applications/TokenMon.app`, identifier `com.modelmonitor.app`, version = MARKETING_VERSION; signed with Developer ID Installer if found |
 | _zip | `ditto -c -k --keepParent dist/TokenMon.app dist/TokenMon-<ver>.zip` |
 | _dsym | zips `TokenMon.app.dSYM` → `dist/TokenMon-<ver>-dSYM.zip` (fails if missing) |
-| archive / export | xcarchive / Developer ID export via `macos/Scripts/ExportOptions.plist` (`method developer-id`, `signingStyle automatic`) |
-| notarize | requires dist app + Developer ID; `macos/Scripts/notarize.sh` app (zip → `notarytool submit --wait --output-format json`, profile `AC_PASSWORD`; non-Accepted → print log, exit 1; staple + validate), rebuild zip and pkg from the stapled app, notarize pkg if Installer identity |
+| archive / export | xcarchive / Developer ID export via `macos/scripts/ExportOptions.plist` (`method developer-id`, `signingStyle automatic`) |
+| notarize | requires dist app + Developer ID; `macos/scripts/notarize.sh` app (zip → `notarytool submit --wait --output-format json`, profile `AC_PASSWORD`; non-Accepted → print log, exit 1; staple + validate), rebuild zip and pkg from the stapled app, notarize pkg if Installer identity |
 | test | `xcodebuild test -enableCodeCoverage YES` (Debug, ad-hoc) |
-| test-core | `macos/Scripts/run_core_tests.sh`: `swiftc` compile of all `macos/TokenMon/Core/**/*.swift` + MonitorProvider, ColorPalette, ProviderColors, Grok models/parsers/daily builder/preview/export + `macos/Tests/Manual/CoreTestsMain.swift`, target `<arch>-apple-macos14.0`, run binary; fails naming any missing listed file |
+| test-core | `macos/scripts/run_core_tests.sh`: `swiftc` compile of all `macos/TokenMon/Core/**/*.swift` + MonitorProvider, ColorPalette, ProviderColors, Grok models/parsers/daily builder/preview/export + `macos/Tests/Manual/CoreTestsMain.swift`, target `<arch>-apple-macos14.0`, run binary; fails naming any missing listed file |
 | lint / lint-fix | `swiftlint lint --strict --reporter github-actions-logging` (warnings = errors; `.swiftlint.yml`: line 160/200, type body 460/520, ...) |
 | format / format-fix | `swiftformat . --lint` (`.swiftformat`, swiftversion 5.10, many rules disabled) |
 | secrets | `gitleaks dir . --no-banner` + `gitleaks detect --no-banner --log-opts="--all"` |
 | project | `xcodegen generate` |
-| icon | `swift macos/Scripts/generate_icon.swift <AppIcon.appiconset>` |
+| icon | `swift macos/scripts/generate_icon.swift <AppIcon.appiconset>` |
 | check, open, clean (build/ .build), distclean (+ dist/) | toolchain info / open Xcode / cleanup |
 
 ### 6.3 CI (`.github/workflows/ci.yml`)
@@ -683,7 +683,7 @@ downloaded tool pinned by version and verified with SHA-256 (`shasum -a 256 -c` 
 |---|---|---|
 | `static-checks` "Lint, format, and XcodeGen drift" | macos-15, 15 min | checkout (`actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1` v7.0.1, no persisted creds); install SwiftLint **0.59.1** (`portable_swiftlint.zip`, sha256 `58f9be8a4677900c945e2c618168223f4dd620a0cc65c9ccc5ea0f70433e89c1`), SwiftFormat **0.62.1** (`swiftformat.zip`, `7cb1cb1fae04932047c7015441c543848e8e60e1572d808d080e0a1f1661114a`), XcodeGen **2.46.0** (`xcodegen.zip`, `4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806`) into /usr/local/bin, prepended to PATH; `make lint`; `make format`; `xcodegen generate` then fail if `git status --porcelain macos/TokenMon.xcodeproj macos/TokenMon/Resources/TokenMon.entitlements` is non-empty. |
 | `secrets` "Secret scan (gitleaks)" | ubuntu-latest, 10 min | full-history checkout; gitleaks **8.30.1** linux x64 tarball (sha256 `551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb`); `gitleaks dir . --no-banner --redact -v`; `gitleaks detect --no-banner --redact -v --log-opts="--all"`. |
-| `build-and-test` "Build, test, and Release build" | macos-26 (Xcode 26.x), 45 min | full-history checkout; show toolchain; `make test-core`; `make test`; (not on tags) convert coverage: newest `build/DerivedData/Logs/Test/*.xcresult` → `python3 -I macos/Scripts/xccov_to_lcov.py <xcresult> $GITHUB_WORKSPACE > coverage.lcov`; upload with `codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5` (v7.1.1), `files: coverage.lcov`, `disable_search: true`, token `CODECOV_TOKEN`, `fail_ci_if_error` only when the token is set; `make release` (proves packaging works). No caching. |
+| `build-and-test` "Build, test, and Release build" | macos-26 (Xcode 26.x), 45 min | full-history checkout; show toolchain; `make test-core`; `make test`; (not on tags) convert coverage: newest `build/DerivedData/Logs/Test/*.xcresult` → `python3 -I macos/scripts/xccov_to_lcov.py <xcresult> $GITHUB_WORKSPACE > coverage.lcov`; upload with `codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5` (v7.1.1), `files: coverage.lcov`, `disable_search: true`, token `CODECOV_TOKEN`, `fail_ci_if_error` only when the token is set; `make release` (proves packaging works). No caching. |
 
 **Coverage**: `xccov_to_lcov.py` runs `xcrun xccov view --archive --json`, keeps files whose realpath is under `<root>/TokenMon/`,
 emits `TN:`, `SF:<relative path>`, `DA:<line>,<count>` per executable line, `LF`, `LH`, `end_of_record`; exits 1 if no app file has data.
@@ -758,13 +758,13 @@ Asset catalog: `macos/TokenMon/Resources/Assets.xcassets/`. "Template" = rendere
 | NvidiaLogo | NvidiaLogo.imageset/nvidia_small.svg | SVG 48×48 | no | ModelCompany nvidia | SVG |
 | ZaiLogo | ZaiLogo.imageset/zai_small.svg | SVG viewBox 0 0 30 30 (Illustrator export with `<style>` classes) | no | ModelCompany glm | SVG (verify the renderer supports CSS classes; resvg does) |
 | KimiLogo | KimiLogo.imageset/kimi.png | PNG 96×96 | no | ModelCompany kimi | PNG as-is |
-| AppIcon | AppIcon.appiconset/icon_16x16.png (16), icon_16x16@2x.png (32), icon_32x32.png (32), icon_32x32@2x.png (64), icon_128x128.png (128), icon_128x128@2x.png (256), icon_256x256.png (256), icon_256x256@2x.png (512), icon_512x512.png (512), icon_512x512@2x.png (1024) | opaque RGB PNGs, mascot on off-white full-bleed square | no | app icon | Build **`TokenMon.ico`** with 16, 20, 24, 32, 40, 48, 64, 256 px layers (from the 1024 source or `macos/Scripts/app-icon-source.png`; 256 layer PNG-compressed); embed as the EXE icon resource and window icon. Consider transparent rounded variant since Windows does not mask icons. |
+| AppIcon | AppIcon.appiconset/icon_16x16.png (16), icon_16x16@2x.png (32), icon_32x32.png (32), icon_32x32@2x.png (64), icon_128x128.png (128), icon_128x128@2x.png (256), icon_256x256.png (256), icon_256x256@2x.png (512), icon_512x512.png (512), icon_512x512@2x.png (1024) | opaque RGB PNGs, mascot on off-white full-bleed square | no | app icon | Build **`TokenMon.ico`** with 16, 20, 24, 32, 40, 48, 64, 256 px layers (from the 1024 source or `macos/scripts/app-icon-source.png`; 256 layer PNG-compressed); embed as the EXE icon resource and window icon. Consider transparent rounded variant since Windows does not mask icons. |
 
 Other image files:
 
 | Path | Format | Notes |
 |---|---|---|
-| `macos/Scripts/app-icon-source.png` | PNG 1024×902 | Source for `generate_icon.swift`: draws mascot inside 10% padding on white, remaps luminance to off-white `(0.995,0.997,1.0)` ↔ near-black `(0.02,0.02,0.04)`, flattens to opaque RGB, writes the 10 PNGs above. Port as a script that also emits the .ico. |
+| `macos/scripts/app-icon-source.png` | PNG 1024×902 | Source for `generate_icon.swift`: draws mascot inside 10% padding on white, remaps luminance to off-white `(0.995,0.997,1.0)` ↔ near-black `(0.02,0.02,0.04)`, flattens to opaque RGB, writes the 10 PNGs above. Port as a script that also emits the .ico. |
 | `docs/tokenmon-logo.png` | PNG 1024×1024 | README logo only. |
 
 Symbol-font icons (SF Symbols) used in this slice, need Windows equivalents (Segoe Fluent Icons / Segoe MDL2 or bundled SVGs):

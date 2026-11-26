@@ -14,7 +14,7 @@ func sourceImageURL() -> URL {
         return besideScript
     }
     return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        .appendingPathComponent("Scripts/app-icon-source.png")
+        .appendingPathComponent("scripts/app-icon-source.png")
 }
 
 func loadSource() -> NSImage {

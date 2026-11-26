@@ -55,7 +55,7 @@ Windows, or an issue that tracks it. CI enforces this on every push and pull
 request, `master` included (`.github/workflows/windows-parity.yml`):
 
 - **Drift guard.** A change that touches the macOS app (`macos/TokenMon/`,
-  `macos/TokenMonTests/`, `macos/Tests/`, `macos/Scripts/`,
+  `macos/TokenMonTests/`, `macos/Tests/`, `macos/scripts/`,
   `macos/TokenMon.xcodeproj/`, `macos/project.yml` or `macos/Makefile`) must carry its Windows parity:
   - When you change the body of a Swift test whose `PARITY.md` row is
     `ported` (a new expected value, say), update that row or the Rust test it
