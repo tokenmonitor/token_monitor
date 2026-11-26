@@ -17,6 +17,7 @@
 		055E94C1888038E791BBD0CB /* OpenCodeConsoleLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5781965F9C3C7889F8D96473 /* OpenCodeConsoleLiveTests.swift */; };
 		056EE3C301AA3C6719A2ACD6 /* GRPCWebParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614FC01D640C95963A8C2B0D /* GRPCWebParser.swift */; };
 		06516B6263CAB3926C5C56CF /* UsageSourceTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB129D7632BECD0C35C49CA3 /* UsageSourceTag.swift */; };
+		067366E54644C42DFB3171F7 /* TokenMonAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83A76B55BF00F6DDCD2D266E /* TokenMonAppTests.swift */; };
 		094CD3B206EA8FAFBBA580FD /* PollingLoopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5375F025FD64E1086E59BBD7 /* PollingLoopTests.swift */; };
 		0A36C66775D03F67F873E630 /* ChatGPTAuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91DFEA8DE139942660A1CE20 /* ChatGPTAuthSession.swift */; };
 		0CF7BC8B5018ACCDBCE87978 /* PanelPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 195C2F8C394F732F998DF509 /* PanelPill.swift */; };
@@ -421,6 +422,7 @@
 		8001BC8DA86414D01D4DA1D2 /* OpenCodePollerFallbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodePollerFallbackTests.swift; sourceTree = "<group>"; };
 		80C9BA690FBDE2552436BE62 /* ChatGPTPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTPanelView.swift; sourceTree = "<group>"; };
 		81F5ECAF726A9FC4EB936946 /* ChatGPTPanelViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTPanelViewTests.swift; sourceTree = "<group>"; };
+		83A76B55BF00F6DDCD2D266E /* TokenMonAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenMonAppTests.swift; sourceTree = "<group>"; };
 		846EA62429F22B08E47CD558 /* GrokUsageClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokUsageClientTests.swift; sourceTree = "<group>"; };
 		8472924EA1AD232D4CB97C0F /* WebKitCookieCaptureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebKitCookieCaptureTests.swift; sourceTree = "<group>"; };
 		85EFE5125A1EF1DFE9803712 /* OverviewPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewPanelView.swift; sourceTree = "<group>"; };
@@ -1238,6 +1240,7 @@
 			isa = PBXGroup;
 			children = (
 				029654B77047E3B766095470 /* AppModelPollingTests.swift */,
+				83A76B55BF00F6DDCD2D266E /* TokenMonAppTests.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -1489,6 +1492,7 @@
 				A7B20EAE780B59211A64BD75 /* SystemWakeGateTests.swift in Sources */,
 				0202D9BAD67E4678DEA2DD47 /* ThisMacLabelTests.swift in Sources */,
 				FC09C3592BD99FAFACBCBDA9 /* ThresholdNotifierTests.swift in Sources */,
+				067366E54644C42DFB3171F7 /* TokenMonAppTests.swift in Sources */,
 				E6D48720F85B76B83C0A783D /* UpdateAvailableIndicatorTests.swift in Sources */,
 				298C863AB7E62E9D5CB3CC99 /* UpdateCheckerTests.swift in Sources */,
 				C48A23F8D6E2A585F9685ED0 /* UsageBreakdownCardTests.swift in Sources */,

@@ -48,7 +48,7 @@ struct TokenMonApp: App {
 }
 
 /// The sign-in sheet for `provider`'s session, titled from its config.
-private struct ProviderSignInRoot: View {
+struct ProviderSignInRoot: View {
     let model: AppModel
     let provider: MonitorProvider
 
