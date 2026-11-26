@@ -259,6 +259,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master (2026-10-16)
         with:
           toolchain: ${{ needs.detect.outputs.toolchain }}
+          components: clippy
 
       - name: Install Linux build dependencies (Slint)
         if: runner.os == 'Linux'
@@ -283,6 +284,21 @@ jobs:
           # shellcheck disable=SC2086 # LOCKED is empty or one flag
           cargo nextest run $LOCKED --workspace --no-tests=warn --config-file "$cfg" --profile ws-ci
 
+      # The lint job's clippy runs on Ubuntu, so cfg(windows) code and
+      # Windows-only test paths are never linted there (an unused import in a
+      # Windows-only test reached master). Run it here, on the runner that
+      # compiles them, after the tests so their verdict is not delayed.
+      - name: cargo clippy -D warnings (Windows-only code)
+        id: clippy
+        if: always() && steps.nextest.outcome != 'skipped'
+        continue-on-error: true
+        env:
+          LOCKED: ${{ needs.detect.outputs.locked }}
+        run: |
+          set -o pipefail
+          # shellcheck disable=SC2086 # LOCKED is empty or one flag
+          cargo clippy $LOCKED --workspace --all-targets --message-format short -- -D warnings 2>&1 | tee "$RUNNER_TEMP/clippy.log"
+
       - name: Test summary
         if: always() && steps.nextest.outcome != 'skipped'
         run: |
@@ -292,6 +308,24 @@ jobs:
           "$PYTHON" -I scripts/ci/render_junit.py --junit target/nextest/ws-ci/junit.xml \
             --list "$RUNNER_TEMP/nextest-list.json" --title "Tests (${{ matrix.os }})" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Clippy summary
+        if: always() && steps.clippy.outcome != 'skipped'
+        env:
+          CLIPPY: ${{ steps.clippy.outcome }}
+        run: |
+          {
+            echo "### Clippy (${{ matrix.os }})"
+            echo
+            if [ "$CLIPPY" = success ]; then
+              echo ":white_check_mark: \`cargo clippy --workspace --all-targets -- -D warnings\` passes on ${{ matrix.os }}."
+            else
+              echo ":x: \`cargo clippy --workspace --all-targets -- -D warnings\` fails on ${{ matrix.os }}."
+              printf '\n<details open><summary>cargo clippy output (last 80 lines)</summary>\n\n````text\n'
+              tail -n 80 "$RUNNER_TEMP/clippy.log"
+              printf '````\n\n</details>\n'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload JUnit report
         if: always() && steps.nextest.outcome != 'skipped'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -300,6 +334,12 @@ jobs:
           path: windows/target/nextest/ws-ci/junit.xml
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: Fail when clippy found warnings
+        if: always() && steps.clippy.outcome == 'failure'
+        run: |
+          echo "::error title=clippy::clippy -D warnings failed on ${{ matrix.os }}; see the Clippy summary."
+          exit 1
 
   # What counts toward coverage (and the COVERAGE_MAX_DROP delta gate):
   #
