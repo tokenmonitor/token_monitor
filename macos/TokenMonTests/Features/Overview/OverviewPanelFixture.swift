@@ -52,11 +52,11 @@ final class OverviewPanelFixture {
     init(directory: URL, defaults: UserDefaults) {
         settings = AppSettings(defaults: defaults)
         settings.selectedProvider = .overview
-        grokAuth = GrokAuthSession(directory: directory)
-        openCodeAuth = OpenCodeAuthSession(directory: directory)
-        cursorAuth = CursorAuthSession(directory: directory)
-        claudeAuth = ClaudeAuthSession(directory: directory)
-        chatGPTAuth = ChatGPTAuthSession(directory: directory)
+        grokAuth = GrokAuthSession(directory: directory, cookieJars: .isolated())
+        openCodeAuth = OpenCodeAuthSession(directory: directory, cookieJars: .isolated())
+        cursorAuth = CursorAuthSession(directory: directory, cookieJars: .isolated())
+        claudeAuth = ClaudeAuthSession(directory: directory, cookieJars: .isolated())
+        chatGPTAuth = ChatGPTAuthSession(directory: directory, cookieJars: .isolated())
         openRouterAuth = OpenRouterAuthSession(directory: directory)
         let files = FileBackedStringStore(directory: directory, filenamePrefix: "activity_")
         grokHourly = HourlyDeltaActivityStore(store: files, storageKey: "grok")

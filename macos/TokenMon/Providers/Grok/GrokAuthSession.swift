@@ -17,7 +17,7 @@ final class GrokAuthSession: ProviderAuthSession {
     }
 
     /// Test seam: isolates the session's file store to `directory`, or uses `store`.
-    init(directory: URL?, store: (any CredentialStore)? = nil) {
+    init(directory: URL?, store: (any CredentialStore)? = nil, cookieJars: BrowserCookieJars? = nil) {
         super.init(
             config: ProviderAuthConfig(
                 storeFilenamePrefix: "auth_",
@@ -28,7 +28,8 @@ final class GrokAuthSession: ProviderAuthSession {
                 isDomain: { domain in Self.isGrokDomain(domain) }
             ),
             directory: directory,
-            store: store
+            store: store,
+            cookieJars: cookieJars
         )
     }
 

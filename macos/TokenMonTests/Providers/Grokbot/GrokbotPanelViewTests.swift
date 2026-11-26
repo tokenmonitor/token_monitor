@@ -42,7 +42,7 @@ final class GrokbotPanelViewTests: XCTestCase {
     }
 
     private func makeAuth(signedIn: Bool) -> CursorAuthSession {
-        let auth = CursorAuthSession(directory: dir, store: InMemoryCredentialStore())
+        let auth = CursorAuthSession(directory: dir, store: InMemoryCredentialStore(), cookieJars: .isolated())
         if signedIn {
             auth.save(cookieHeader: "WorkosCursorSessionToken=live")
         }

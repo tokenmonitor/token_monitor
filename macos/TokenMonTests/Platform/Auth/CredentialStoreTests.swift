@@ -34,21 +34,21 @@ final class CredentialStoreTests: XCTestCase {
 
     func testInjectedStoreBacksSession() {
         let store = InMemoryStore()
-        let auth = ProviderAuthSession(config: makeConfig(), store: store)
+        let auth = ProviderAuthSession(config: makeConfig(), store: store, cookieJars: .isolated())
 
         auth.save(cookieHeader: "sid=abc")
         XCTAssertEqual(store.values["session"], "sid=abc")
         XCTAssertTrue(auth.isSignedIn)
 
         // A fresh session over the same store sees the persisted cookie.
-        let reloaded = ProviderAuthSession(config: makeConfig(), store: store)
+        let reloaded = ProviderAuthSession(config: makeConfig(), store: store, cookieJars: .isolated())
         XCTAssertEqual(reloaded.loadCookieHeader(), "sid=abc")
         XCTAssertTrue(reloaded.isSignedIn)
     }
 
     func testSignOutRemovesCredentialThroughStore() {
         let store = InMemoryStore()
-        let auth = ProviderAuthSession(config: makeConfig(), store: store)
+        let auth = ProviderAuthSession(config: makeConfig(), store: store, cookieJars: .isolated())
         auth.save(cookieHeader: "sid=abc")
         auth.saveAccountEmail("user@example.com")
 
@@ -251,7 +251,7 @@ final class CredentialStoreTests: XCTestCase {
     func testRefusedSignInSurfacesKeychainError() throws {
         let dir = try makeTempDirectory()
         let store = makeRoutingStore(dir: dir, keychain: FakeKeychain.refusingAll(), prefix: "auth_")
-        let auth = ProviderAuthSession(config: makeConfig(), store: store)
+        let auth = ProviderAuthSession(config: makeConfig(), store: store, cookieJars: .isolated())
 
         XCTAssertFalse(auth.save(cookieHeader: "sid=abc"))
 

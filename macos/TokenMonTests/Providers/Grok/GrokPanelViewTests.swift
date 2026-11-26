@@ -44,7 +44,7 @@ final class GrokPanelViewTests: XCTestCase {
     }
 
     func testSignedOutPanelOffersSignIn() {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         let poller = makePoller(auth: auth) { _, _ in WeeklyUsageSnapshot(usedPercent: 0, remainingPercent: 100) }
         var opened = 0
         let view = panel(auth, poller) { opened += 1 }
@@ -57,7 +57,7 @@ final class GrokPanelViewTests: XCTestCase {
     }
 
     func testExpiredSessionAsksToSignInAgain() {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sso=live")
         auth.markSessionInvalid(reason: "expired")
         let poller = makePoller(auth: auth) { _, _ in WeeklyUsageSnapshot(usedPercent: 0, remainingPercent: 100) }
@@ -71,7 +71,7 @@ final class GrokPanelViewTests: XCTestCase {
     }
 
     func testSignedInWithoutUsageWaitsForData() {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sso=live")
         let poller = makePoller(auth: auth) { _, _ in WeeklyUsageSnapshot(usedPercent: 0, remainingPercent: 100) }
         let view = panel(auth, poller)
@@ -82,7 +82,7 @@ final class GrokPanelViewTests: XCTestCase {
     }
 
     func testSignedInPanelShowsUsageAndSignsOut() async {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sso=live")
         let poller = makePoller(auth: auth) { _, _ in
             WeeklyUsageSnapshot(usedPercent: 42, remainingPercent: 58, resetsAt: Date().addingTimeInterval(3600))
@@ -123,7 +123,7 @@ final class GrokPanelViewTests: XCTestCase {
     }
 
     func testUsageShowsBreakdownChartAndSavedResets() async throws {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sso=live")
         let products = [
             ProductUsage(id: "chat", displayName: "Chat", percentOfPool: 10),
@@ -150,7 +150,7 @@ final class GrokPanelViewTests: XCTestCase {
     }
 
     func testBreakdownCardIsHiddenWithoutProductSplit() async {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sso=live")
         let (poller, _) = await loadedPoller(auth, products: [])
         let tree = ViewTree(panel(auth, poller))
@@ -159,7 +159,7 @@ final class GrokPanelViewTests: XCTestCase {
     }
 
     func testPastWeekChartHasNoLivePaceAndCanGoForward() async throws {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sso=live")
         let (poller, _) = await loadedPoller(auth, products: [])
         let view = GrokPanelView(auth: auth, poller: poller, settings: AppSettings(defaults: defaults), openSignIn: {}, weekOffset: -1)
@@ -171,7 +171,7 @@ final class GrokPanelViewTests: XCTestCase {
     }
 
     func testFailedRefreshKeepsUsageWithAStaleCaption() async {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sso=live")
         let (poller, failNext) = await loadedPoller(auth, products: [])
         failNext()
@@ -184,7 +184,7 @@ final class GrokPanelViewTests: XCTestCase {
     }
 
     func testExpiredSessionShowsThePollerError() async {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sso=live")
         let (poller, failNext) = await loadedPoller(auth, products: [])
         failNext()
@@ -196,7 +196,7 @@ final class GrokPanelViewTests: XCTestCase {
     }
 
     func testSignedInSessionNeedingSignInWaitsWithASignInButton() {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sso=live")
         auth.needsSignIn = true
         XCTAssertNil(auth.lastAuthError)
@@ -233,7 +233,7 @@ final class GrokPanelViewTests: XCTestCase {
         XCTAssertFalse(GrokAuthSession.isReturnPage(try XCTUnwrap(URL(string: "https://grok.com.evil.example/"))))
         XCTAssertFalse(GrokAuthSession.isReturnPage(try XCTUnwrap(URL(string: "about:blank"))))
 
-        let config = GrokAuthSession(directory: dir).signInConfig
+        let config = GrokAuthSession(directory: dir, cookieJars: .isolated()).signInConfig
         XCTAssertEqual(config.title, "Sign in to Grok")
         XCTAssertEqual(config.startURL.host, "accounts.x.ai")
         XCTAssertEqual(config.returnDelayNanoseconds, 1_500_000_000)

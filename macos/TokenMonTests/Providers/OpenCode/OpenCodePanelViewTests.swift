@@ -57,7 +57,7 @@ final class OpenCodePanelViewTests: XCTestCase {
     }
 
     private func makeAuth(signedIn: Bool) -> OpenCodeAuthSession {
-        let auth = OpenCodeAuthSession(directory: dir, store: InMemoryCredentialStore())
+        let auth = OpenCodeAuthSession(directory: dir, store: InMemoryCredentialStore(), cookieJars: .isolated())
         if signedIn {
             auth.save(cookieHeader: "auth=live")
         }

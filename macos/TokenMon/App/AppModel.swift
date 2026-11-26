@@ -72,12 +72,15 @@ final class AppModel {
         settings = AppSettings(defaults: defaults)
         notifier = ThresholdNotifier(defaults: defaults)
         // The test host uses an in-memory store, leaving the user's credentials untouched.
+        // It also gets in-memory browser jars, so a test that signs a provider
+        // out leaves the developer's real WebKit and HTTP cookies alone.
         let store: () -> (any CredentialStore)? = { Self.isRunningTests ? InMemoryCredentialStore() : nil }
-        let grokAuth = GrokAuthSession(directory: nil, store: store())
-        let openCodeAuth = OpenCodeAuthSession(store: store())
-        let cursorAuth = CursorAuthSession(store: store())
-        let claudeAuth = ClaudeAuthSession(store: store())
-        let chatGPTAuth = ChatGPTAuthSession(store: store())
+        let jars: () -> BrowserCookieJars? = { Self.isRunningTests ? .isolated() : nil }
+        let grokAuth = GrokAuthSession(directory: nil, store: store(), cookieJars: jars())
+        let openCodeAuth = OpenCodeAuthSession(store: store(), cookieJars: jars())
+        let cursorAuth = CursorAuthSession(store: store(), cookieJars: jars())
+        let claudeAuth = ClaudeAuthSession(store: store(), cookieJars: jars())
+        let chatGPTAuth = ChatGPTAuthSession(store: store(), cookieJars: jars())
         let openRouterAuth = OpenRouterAuthSession(store: store())
         self.grokAuth = grokAuth
         self.openCodeAuth = openCodeAuth

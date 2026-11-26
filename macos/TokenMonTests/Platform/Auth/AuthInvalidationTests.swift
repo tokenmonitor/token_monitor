@@ -60,7 +60,7 @@ final class AuthInvalidationTests: XCTestCase {
     }
 
     private func makeClaude() -> (ClaudeUsagePoller, ClaudeAuthSession, DailyQuotaDeltaStore, Script<(ClaudeUsageResponse, Date)>) {
-        let auth = ClaudeAuthSession(store: InMemoryCredentialStore())
+        let auth = ClaudeAuthSession(store: InMemoryCredentialStore(), cookieJars: .isolated())
         auth.save(cookieHeader: "sessionKey=live")
         let daily = dailyStore("claude")
         let now = Date()
@@ -148,7 +148,7 @@ final class AuthInvalidationTests: XCTestCase {
 
     /// A Bot-only 403 never counts against the shared Cursor session.
     func testGrokbotForbiddenDoesNotInvalidateCursorSession() async {
-        let auth = CursorAuthSession(store: InMemoryCredentialStore())
+        let auth = CursorAuthSession(store: InMemoryCredentialStore(), cookieJars: .isolated())
         auth.save(cookieHeader: "WorkosCursorSessionToken=live")
         let message = ProviderErrorContext.grokbot.forbiddenMessage ?? ""
         let poller = GrokbotUsagePoller(
@@ -171,7 +171,7 @@ final class AuthInvalidationTests: XCTestCase {
 
     /// Once the shared session has expired, Grokbot keeps its stored history.
     func testGrokbotKeepsHistoryWhileSignedOut() async {
-        let auth = CursorAuthSession(store: InMemoryCredentialStore())
+        let auth = CursorAuthSession(store: InMemoryCredentialStore(), cookieJars: .isolated())
         auth.save(cookieHeader: "WorkosCursorSessionToken=live")
         let daily = dailyStore("grokbot")
         daily.record(windowUsedPercent: 5, at: Date().addingTimeInterval(-3600), window: QuotaWindow(start: nil, resetsAt: nil))
@@ -196,7 +196,7 @@ final class AuthInvalidationTests: XCTestCase {
     // MARK: - Grok
 
     func testGrokInvalidationAndSignOutKeepHourlyDeltas() async {
-        let auth = GrokAuthSession(directory: nil, store: InMemoryCredentialStore())
+        let auth = GrokAuthSession(directory: nil, store: InMemoryCredentialStore(), cookieJars: .isolated())
         auth.save(cookieHeader: "sso=live")
         let hourly = hourlyStore("grok")
         hourly.record(usedPercent: 10, at: Date().addingTimeInterval(-120))

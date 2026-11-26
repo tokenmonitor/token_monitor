@@ -71,7 +71,7 @@ final class ChatGPTUsagePollerTests: XCTestCase {
     /// account signing in clears it.
     func testAccountSwitchClearsDailyHistoryButSignOutKeepsIt() async throws {
         let store = dailyStore()
-        let auth = ChatGPTAuthSession(directory: dir)
+        let auth = ChatGPTAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "__Secure-next-auth.session-token=a")
         auth.saveAccountEmail("first@example.com")
         let poller = try makePoller(
@@ -95,7 +95,7 @@ final class ChatGPTUsagePollerTests: XCTestCase {
 
     func testSignedOutRefreshAsksForSignInWithoutFetching() async throws {
         var fetches = 0
-        let auth = ChatGPTAuthSession(directory: dir)
+        let auth = ChatGPTAuthSession(directory: dir, cookieJars: .isolated())
         let poller = try makePoller(daily: dailyStore(), auth: auth, response: weeklyResponse(percent: 1, resetsAt: Date())) {
             fetches += 1
         }
@@ -131,7 +131,7 @@ final class ChatGPTUsagePollerTests: XCTestCase {
 
     func testHeadlineAndAlertAccountReadTheSnapshotAndSession() async throws {
         let resetsAt = Date().addingTimeInterval(3_600)
-        let auth = ChatGPTAuthSession(directory: dir)
+        let auth = ChatGPTAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "__Secure-next-auth.session-token=a")
         auth.saveAccountEmail("me@example.com")
         let poller = try makePoller(daily: dailyStore(), auth: auth, response: weeklyResponse(percent: 42, resetsAt: resetsAt))
@@ -195,7 +195,7 @@ final class ChatGPTUsagePollerTests: XCTestCase {
         settings.selectedProvider = .chatgpt
         pollerSettings = settings
         let session = auth ?? {
-            let fresh = ChatGPTAuthSession(directory: dir)
+            let fresh = ChatGPTAuthSession(directory: dir, cookieJars: .isolated())
             fresh.save(cookieHeader: "__Secure-next-auth.session-token=test")
             return fresh
         }()

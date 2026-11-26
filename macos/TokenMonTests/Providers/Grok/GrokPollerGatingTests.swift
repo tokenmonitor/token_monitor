@@ -27,7 +27,7 @@ final class GrokPollerGatingTests: XCTestCase {
         fetchResets: @escaping (String?) async throws -> SavedResets? = { _ in nil },
         fetch: @escaping (String?, String?) async throws -> WeeklyUsageSnapshot
     ) -> (GrokUsagePoller, GrokAuthSession) {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sso=live")
         let poller = GrokUsagePoller(
             auth: auth,

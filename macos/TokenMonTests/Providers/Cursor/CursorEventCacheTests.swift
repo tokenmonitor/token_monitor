@@ -140,7 +140,7 @@ final class CursorEventCacheTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         let settings = AppSettings(defaults: defaults)
         settings.selectedProvider = .cursor
-        let auth = CursorAuthSession(directory: dir)
+        let auth = CursorAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "WorkosCursorSessionToken=test")
         let daily = DailyQuotaDeltaStore(
             store: FileBackedStringStore(directory: dir, filenamePrefix: "activity_"),

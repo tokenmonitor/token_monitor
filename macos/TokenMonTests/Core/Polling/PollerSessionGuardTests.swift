@@ -133,7 +133,7 @@ final class PollerSessionGuardTests: XCTestCase {
     // MARK: - Grok
 
     func testGrokStaleUnauthorizedDoesNotInvalidateNewSession() async {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sso=old")
         let poller = GrokUsagePoller(
             auth: auth,
@@ -152,7 +152,7 @@ final class PollerSessionGuardTests: XCTestCase {
     }
 
     func testGrokCurrentUnauthorizedInvalidatesSession() async {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sso=live")
         let poller = GrokUsagePoller(
             auth: auth,
@@ -167,7 +167,7 @@ final class PollerSessionGuardTests: XCTestCase {
     }
 
     func testGrokStaleTransportErrorDoesNotClobberNewSession() async {
-        let auth = GrokAuthSession(directory: dir)
+        let auth = GrokAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sso=old")
         let poller = GrokUsagePoller(
             auth: auth,
@@ -188,7 +188,7 @@ final class PollerSessionGuardTests: XCTestCase {
     // MARK: - Cursor
 
     func testCursorStaleSuccessIsDropped() async {
-        let auth = CursorAuthSession(directory: dir)
+        let auth = CursorAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "WorkosCursorSessionToken=old")
         let poller = CursorUsagePoller(
             settings: settings(.cursor),
@@ -206,7 +206,7 @@ final class PollerSessionGuardTests: XCTestCase {
     }
 
     func testCursorStaleUnauthorizedDoesNotInvalidateNewSession() async {
-        let auth = CursorAuthSession(directory: dir)
+        let auth = CursorAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "WorkosCursorSessionToken=old")
         let poller = CursorUsagePoller(
             settings: settings(.cursor),
@@ -224,7 +224,7 @@ final class PollerSessionGuardTests: XCTestCase {
     }
 
     func testCursorCurrentUnauthorizedInvalidatesSession() async {
-        let auth = CursorAuthSession(directory: dir)
+        let auth = CursorAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "WorkosCursorSessionToken=live")
         let poller = CursorUsagePoller(
             settings: settings(.cursor),
@@ -240,7 +240,7 @@ final class PollerSessionGuardTests: XCTestCase {
     // MARK: - Claude
 
     func testClaudeStaleUnauthorizedDoesNotInvalidateNewSession() async {
-        let auth = ClaudeAuthSession(directory: dir)
+        let auth = ClaudeAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sessionKey=old")
         let poller = ClaudeUsagePoller(
             settings: settings(.claude),
@@ -259,7 +259,7 @@ final class PollerSessionGuardTests: XCTestCase {
     }
 
     func testClaudeCurrentUnauthorizedInvalidatesSession() async {
-        let auth = ClaudeAuthSession(directory: dir)
+        let auth = ClaudeAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "sessionKey=live")
         let poller = ClaudeUsagePoller(
             settings: settings(.claude),
@@ -280,7 +280,7 @@ final class PollerSessionGuardTests: XCTestCase {
     }
 
     func testChatGPTStaleUnauthorizedDoesNotInvalidateNewSession() async {
-        let auth = ChatGPTAuthSession(directory: dir)
+        let auth = ChatGPTAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "__Secure-next-auth.session-token=old")
         let poller = ChatGPTUsagePoller(
             settings: settings(.chatgpt),
@@ -298,7 +298,7 @@ final class PollerSessionGuardTests: XCTestCase {
     }
 
     func testChatGPTCurrentUnauthorizedInvalidatesSession() async {
-        let auth = ChatGPTAuthSession(directory: dir)
+        let auth = ChatGPTAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "__Secure-next-auth.session-token=live")
         let poller = ChatGPTUsagePoller(
             settings: settings(.chatgpt),
@@ -314,7 +314,7 @@ final class PollerSessionGuardTests: XCTestCase {
     /// A single 401 does not delete the stored session, so a transient
     /// token-exchange failure does not force a manual sign-in.
     func testChatGPTTransientUnauthorizedRecoversOnNextPoll() async {
-        let auth = ChatGPTAuthSession(directory: dir)
+        let auth = ChatGPTAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "__Secure-next-auth.session-token=live")
         let attempts = AttemptCounter()
         let poller = ChatGPTUsagePoller(
@@ -339,7 +339,7 @@ final class PollerSessionGuardTests: XCTestCase {
     /// A network failure after a successful poll keeps the snapshot and reports
     /// the error, and leaves the session signed in.
     func testChatGPTFailureAfterDataReportsError() async {
-        let auth = ChatGPTAuthSession(directory: dir)
+        let auth = ChatGPTAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "__Secure-next-auth.session-token=live")
         let attempts = AttemptCounter()
         let poller = ChatGPTUsagePoller(
@@ -363,7 +363,7 @@ final class PollerSessionGuardTests: XCTestCase {
 
     /// A renewed session cookie from `Set-Cookie` is folded into the stored jar.
     func testChatGPTRefreshedCookieIsPersisted() async {
-        let auth = ChatGPTAuthSession(directory: dir)
+        let auth = ChatGPTAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "__Secure-next-auth.session-token=old")
         let poller = ChatGPTUsagePoller(
             settings: settings(.chatgpt),
@@ -421,7 +421,7 @@ final class PollerSessionGuardTests: XCTestCase {
     // MARK: - Grokbot (shared Cursor session)
 
     func testGrokbotStaleUnauthorizedDoesNotInvalidateNewSession() async {
-        let auth = CursorAuthSession(directory: dir)
+        let auth = CursorAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "WorkosCursorSessionToken=old")
         let poller = GrokbotUsagePoller(
             settings: settings(.grokbot),
@@ -440,7 +440,7 @@ final class PollerSessionGuardTests: XCTestCase {
     }
 
     func testGrokbotCurrentUnauthorizedInvalidatesSession() async {
-        let auth = CursorAuthSession(directory: dir)
+        let auth = CursorAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "WorkosCursorSessionToken=live")
         let poller = GrokbotUsagePoller(
             settings: settings(.grokbot),
@@ -465,7 +465,7 @@ final class PollerSessionGuardTests: XCTestCase {
     }
 
     func testGrokbotPublishesBreakdownAfterSnapshot() async {
-        let auth = CursorAuthSession(directory: dir)
+        let auth = CursorAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "WorkosCursorSessionToken=live")
         let poller = GrokbotUsagePoller(
             settings: settings(.grokbot),
@@ -482,7 +482,7 @@ final class PollerSessionGuardTests: XCTestCase {
     /// The breakdown only adds detail: its failure keeps the last one, shows
     /// no error, and never counts against the shared Cursor session.
     func testGrokbotBreakdownFailureKeepsLastAndSession() async {
-        let auth = CursorAuthSession(directory: dir)
+        let auth = CursorAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "WorkosCursorSessionToken=live")
         var fails = false
         let poller = GrokbotUsagePoller(
@@ -508,7 +508,7 @@ final class PollerSessionGuardTests: XCTestCase {
     }
 
     func testGrokbotBreakdownSkippedWhenSnapshotFails() async {
-        let auth = CursorAuthSession(directory: dir)
+        let auth = CursorAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "WorkosCursorSessionToken=live")
         var breakdownCalls = 0
         let poller = GrokbotUsagePoller(
@@ -528,7 +528,7 @@ final class PollerSessionGuardTests: XCTestCase {
     }
 
     func testGrokbotStaleBreakdownIsDroppedAndSignOutClearsIt() async {
-        let auth = CursorAuthSession(directory: dir)
+        let auth = CursorAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "WorkosCursorSessionToken=old")
         var switchAccount = false
         let poller = GrokbotUsagePoller(
@@ -559,7 +559,7 @@ final class PollerSessionGuardTests: XCTestCase {
     // MARK: - OpenCode
 
     func testOpenCodeStaleSuccessIsDropped() async {
-        let auth = OpenCodeAuthSession(directory: dir)
+        let auth = OpenCodeAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "auth=old")
         let poller = OpenCodeUsagePoller(
             settings: settings(.opencode),
@@ -579,7 +579,7 @@ final class PollerSessionGuardTests: XCTestCase {
 
     /// After sign-out clears the workspace id, a late success leaves it cleared.
     func testOpenCodeLateSuccessDoesNotRestoreWorkspaceID() async {
-        let auth = OpenCodeAuthSession(directory: dir)
+        let auth = OpenCodeAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "auth=old")
         auth.saveWorkspaceID("wrk_old")
         let poller = OpenCodeUsagePoller(
@@ -598,7 +598,7 @@ final class PollerSessionGuardTests: XCTestCase {
     }
 
     func testOpenCodeStaleUnauthorizedDoesNotInvalidateNewSession() async {
-        let auth = OpenCodeAuthSession(directory: dir)
+        let auth = OpenCodeAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "auth=old")
         let poller = OpenCodeUsagePoller(
             settings: settings(.opencode),
@@ -617,7 +617,7 @@ final class PollerSessionGuardTests: XCTestCase {
     }
 
     func testOpenCodeCurrentUnauthorizedInvalidatesSession() async {
-        let auth = OpenCodeAuthSession(directory: dir)
+        let auth = OpenCodeAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "auth=live")
         let poller = OpenCodeUsagePoller(
             settings: settings(.opencode),
@@ -633,7 +633,7 @@ final class PollerSessionGuardTests: XCTestCase {
 
     /// A poll that *started* signed out still publishes the local estimate.
     func testOpenCodeLocalEstimatePublishesWhenStartedSignedOut() async {
-        let auth = OpenCodeAuthSession(directory: dir)
+        let auth = OpenCodeAuthSession(directory: dir, cookieJars: .isolated())
         XCTAssertFalse(auth.isSignedIn)
         let poller = OpenCodeUsagePoller(
             settings: settings(.opencode),
@@ -649,7 +649,7 @@ final class PollerSessionGuardTests: XCTestCase {
 
     /// A sign-out while a local estimate poll is in flight discards that poll's result.
     func testOpenCodeLocalEstimateSuppressedAfterMidPollSignOut() async {
-        let auth = OpenCodeAuthSession(directory: dir)
+        let auth = OpenCodeAuthSession(directory: dir, cookieJars: .isolated())
         let poller = OpenCodeUsagePoller(
             settings: settings(.opencode),
             auth: auth,

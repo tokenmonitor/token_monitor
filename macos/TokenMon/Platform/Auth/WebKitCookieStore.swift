@@ -45,3 +45,65 @@ final class WKWebsiteDataStoreBridgeImpl {
         }
     }
 }
+
+/// The browser-wide cookie jars a provider sign-out also purges: WebKit's
+/// default website data store and the process `HTTPCookieStorage`.
+///
+/// Production uses `live`, the user's real jars. The XCTest host injects
+/// `isolated()`, so a test that signs a provider out never deletes the
+/// developer's real browser sessions.
+@MainActor
+struct BrowserCookieJars {
+    /// WebKit store whose provider-domain cookies are cleared on sign-out.
+    let webDataStore: WKWebsiteDataStore
+    /// Cookie storage whose provider-host cookies are cleared on sign-out.
+    let httpCookieStorage: HTTPCookieStorage
+
+    /// WebKit's default (persistent) store and `HTTPCookieStorage.shared`.
+    static var live: BrowserCookieJars {
+        BrowserCookieJars(webDataStore: .default(), httpCookieStorage: .shared)
+    }
+
+    /// Fresh in-memory jars: a non-persistent WebKit store and a private
+    /// cookie storage, neither shared with another session or the system.
+    static func isolated() -> BrowserCookieJars {
+        BrowserCookieJars(webDataStore: .nonPersistent(), httpCookieStorage: InMemoryHTTPCookieStorage())
+    }
+}
+
+/// An `HTTPCookieStorage` kept only in memory. A bare `HTTPCookieStorage()`
+/// stores nothing, so this private jar overrides the accessors sign-out uses.
+final class InMemoryHTTPCookieStorage: HTTPCookieStorage, @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: [HTTPCookie] = []
+
+    override var cookies: [HTTPCookie]? {
+        lock.withLock { stored }
+    }
+
+    override func setCookie(_ cookie: HTTPCookie) {
+        lock.withLock {
+            stored.removeAll { Self.isSame($0, cookie) }
+            stored.append(cookie)
+        }
+    }
+
+    override func deleteCookie(_ cookie: HTTPCookie) {
+        lock.withLock { stored.removeAll { Self.isSame($0, cookie) } }
+    }
+
+    /// Cookies whose domain is `url`'s host or a parent domain of it.
+    override func cookies(for url: URL) -> [HTTPCookie]? {
+        guard let host = url.host?.lowercased() else { return [] }
+        return lock.withLock {
+            stored.filter { cookie in
+                let domain = cookie.domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+                return host == domain || host.hasSuffix(".\(domain)")
+            }
+        }
+    }
+
+    private static func isSame(_ lhs: HTTPCookie, _ rhs: HTTPCookie) -> Bool {
+        lhs.name == rhs.name && lhs.domain == rhs.domain && lhs.path == rhs.path
+    }
+}

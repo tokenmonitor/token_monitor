@@ -36,7 +36,7 @@ final class ClaudeAuthSession: ProviderAuthSession {
     }
 
     /// Live store by default; tests isolate it to `directory` or pass `store`.
-    init(directory: URL? = nil, store: (any CredentialStore)? = nil) {
-        super.init(config: Self.claudeConfig(), directory: directory, store: store)
+    init(directory: URL? = nil, store: (any CredentialStore)? = nil, cookieJars: BrowserCookieJars? = nil) {
+        super.init(config: Self.claudeConfig(), directory: directory, store: store, cookieJars: cookieJars)
     }
 }

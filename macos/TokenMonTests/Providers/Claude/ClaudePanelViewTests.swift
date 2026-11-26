@@ -50,7 +50,7 @@ final class ClaudePanelViewTests: XCTestCase {
     }
 
     private func makeAuth(signedIn: Bool) -> ClaudeAuthSession {
-        let auth = ClaudeAuthSession(directory: dir, store: InMemoryCredentialStore())
+        let auth = ClaudeAuthSession(directory: dir, store: InMemoryCredentialStore(), cookieJars: .isolated())
         if signedIn {
             auth.save(cookieHeader: "sessionKey=live")
         }

@@ -114,7 +114,7 @@ final class WebKitCookieStoreTests: XCTestCase {
     // MARK: - Session capture
 
     func testSessionCaptureSignsIn() async {
-        let auth = ClaudeAuthSession(store: InMemoryCredentialStore())
+        let auth = ClaudeAuthSession(store: InMemoryCredentialStore(), cookieJars: .isolated())
         await auth.signInDataStore.httpCookieStore.setCookie(cookie("sessionKey", "sk-live", domain: "claude.ai"))
         await auth.signInDataStore.httpCookieStore.setCookie(cookie("lastActiveOrg", "org-1", domain: "claude.ai"))
 
@@ -133,7 +133,7 @@ final class WebKitCookieStoreTests: XCTestCase {
             capturePolicy: policy(),
             isDomain: { $0.hasSuffix("example.com") }
         )
-        let auth = ProviderAuthSession(config: config, store: InMemoryCredentialStore())
+        let auth = ProviderAuthSession(config: config, store: InMemoryCredentialStore(), cookieJars: .isolated())
         let captured = await auth.captureCookiesFromWebKit()
         XCTAssertFalse(captured)
         XCTAssertFalse(auth.isSignedIn)
@@ -158,7 +158,7 @@ final class WebKitCookieStoreTests: XCTestCase {
     /// shows for this session.
     func testUnsavedEmailStillSignsIn() {
         let store = RefusingStore(refusing: "email")
-        let auth = ClaudeAuthSession(store: store)
+        let auth = ClaudeAuthSession(store: store, cookieJars: .isolated())
         let result = WebKitCookieCapture.CaptureResult(cookies: [], cookieHeader: "sessionKey=sk", email: "a@b.com")
         XCTAssertTrue(auth.adopt(result))
         XCTAssertTrue(auth.isSignedIn)

@@ -1,5 +1,6 @@
 import Combine
 @testable import TokenMon
+import WebKit
 import XCTest
 
 @MainActor
@@ -34,7 +35,8 @@ final class ProviderAuthSessionTests: XCTestCase {
 
         let auth = ProviderAuthSession(
             config: makeConfig(),
-            directory: dir
+            directory: dir,
+            cookieJars: .isolated()
         )
         XCTAssertFalse(auth.isSignedIn)
         XCTAssertTrue(auth.needsSignIn)
@@ -46,12 +48,12 @@ final class ProviderAuthSessionTests: XCTestCase {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
 
-        let auth = ProviderAuthSession(config: makeConfig(), directory: dir)
+        let auth = ProviderAuthSession(config: makeConfig(), directory: dir, cookieJars: .isolated())
         auth.saveAccountEmail("user@example.com")
         XCTAssertEqual(auth.accountEmail, "user@example.com")
 
         // A fresh instance reading the same directory observes the persisted email.
-        let reloaded = ProviderAuthSession(config: makeConfig(), directory: dir)
+        let reloaded = ProviderAuthSession(config: makeConfig(), directory: dir, cookieJars: .isolated())
         reloaded.refreshFromDisk()
         XCTAssertEqual(reloaded.accountEmail, "user@example.com")
     }
@@ -61,7 +63,7 @@ final class ProviderAuthSessionTests: XCTestCase {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
 
-        let auth = ProviderAuthSession(config: makeConfig(), directory: dir)
+        let auth = ProviderAuthSession(config: makeConfig(), directory: dir, cookieJars: .isolated())
         auth.saveAccountEmail("user@example.com")
         auth.markSessionInvalid(reason: "401")
         XCTAssertFalse(auth.isSignedIn)
@@ -79,7 +81,7 @@ final class ProviderAuthSessionTests: XCTestCase {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
 
-        let auth = ProviderAuthSession(config: makeConfig(), directory: dir)
+        let auth = ProviderAuthSession(config: makeConfig(), directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "session=abc")
         let generation = auth.sessionGeneration
         XCTAssertTrue(auth.isCurrent(generation))
@@ -100,7 +102,7 @@ final class ProviderAuthSessionTests: XCTestCase {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
 
-        let auth = ProviderAuthSession(config: makeConfig(), directory: dir)
+        let auth = ProviderAuthSession(config: makeConfig(), directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "session=abc")
         auth.needsSignIn = true
         XCTAssertFalse(auth.isCurrent(auth.sessionGeneration))
@@ -113,7 +115,7 @@ final class ProviderAuthSessionTests: XCTestCase {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
 
-        let auth = ProviderAuthSession(config: makeConfig(essential: ["sso", "sso-rw"]), directory: dir)
+        let auth = ProviderAuthSession(config: makeConfig(essential: ["sso", "sso-rw"]), directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "auth_token=x; ct0=y; sso=z; sso-rw=w; twid=t")
 
         XCTAssertEqual(auth.cookieHeader(), "sso=z; sso-rw=w")
@@ -127,7 +129,7 @@ final class ProviderAuthSessionTests: XCTestCase {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
 
-        let auth = ProviderAuthSession(config: makeConfig(essential: ["sso"]), directory: dir)
+        let auth = ProviderAuthSession(config: makeConfig(essential: ["sso"]), directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "auth_token=x; ct0=y")
 
         XCTAssertEqual(auth.cookieHeader(), "auth_token=x; ct0=y")
@@ -143,7 +145,8 @@ final class ProviderAuthSessionTests: XCTestCase {
 
         let auth = ProviderAuthSession(
             config: makeConfig(essentialPrefixes: ["__secure-next-auth.session-token"]),
-            directory: dir
+            directory: dir,
+            cookieJars: .isolated()
         )
         auth.save(
             cookieHeader: "__Host-next-auth.csrf-token=c; __Secure-next-auth.session-token.0=a; "
@@ -165,7 +168,8 @@ final class ProviderAuthSessionTests: XCTestCase {
 
         let auth = ProviderAuthSession(
             config: makeConfig(essentialPrefixes: ["__secure-next-auth.session-token"]),
-            directory: dir
+            directory: dir,
+            cookieJars: .isolated()
         )
         auth.save(cookieHeader: "__Host-next-auth.csrf-token=c; _ga=g")
 
@@ -175,7 +179,7 @@ final class ProviderAuthSessionTests: XCTestCase {
     // MARK: - Rejection streak
 
     func testSessionSurvivesRejectionsBelowThreshold() {
-        let auth = ProviderAuthSession(config: makeConfig(), store: InMemoryCredentialStore())
+        let auth = ProviderAuthSession(config: makeConfig(), store: InMemoryCredentialStore(), cookieJars: .isolated())
         auth.save(cookieHeader: "session=abc")
 
         for _ in 1..<ProviderAuthSession.authFailureThreshold {
@@ -192,7 +196,7 @@ final class ProviderAuthSessionTests: XCTestCase {
 
     /// A success between rejections restarts the streak.
     func testAuthSuccessResetsRejectionStreak() {
-        let auth = ProviderAuthSession(config: makeConfig(), store: InMemoryCredentialStore())
+        let auth = ProviderAuthSession(config: makeConfig(), store: InMemoryCredentialStore(), cookieJars: .isolated())
         auth.save(cookieHeader: "session=abc")
 
         for _ in 1..<ProviderAuthSession.authFailureThreshold {
@@ -217,7 +221,7 @@ final class ProviderAuthSessionTests: XCTestCase {
 
     /// Invalidation keeps history: it does not fire `accountReset`.
     func testInvalidationDoesNotResetAccountData() {
-        let auth = ProviderAuthSession(config: makeConfig(), store: InMemoryCredentialStore())
+        let auth = ProviderAuthSession(config: makeConfig(), store: InMemoryCredentialStore(), cookieJars: .isolated())
         auth.save(cookieHeader: "session=abc")
         let (resets, token) = observeResets(auth)
         defer { token.cancel() }
@@ -230,7 +234,7 @@ final class ProviderAuthSessionTests: XCTestCase {
     /// Sign-out fires `signedOut` but keeps history: signing back in as the
     /// same account fires no reset, and a different account does.
     func testSignOutKeepsAccountDataUntilAnotherAccountSignsIn() {
-        let auth = ProviderAuthSession(config: makeConfig(), store: InMemoryCredentialStore())
+        let auth = ProviderAuthSession(config: makeConfig(), store: InMemoryCredentialStore(), cookieJars: .isolated())
         auth.save(cookieHeader: "session=abc")
         auth.saveAccountEmail("one@example.com")
         let (resets, token) = observeResets(auth)
@@ -256,7 +260,7 @@ final class ProviderAuthSessionTests: XCTestCase {
     /// Re-signing in after an expiry as the same account keeps the history; a
     /// different account resets it.
     func testEmailIdentifiedAccountChangeResetsAccountData() {
-        let auth = ProviderAuthSession(config: makeConfig(), store: InMemoryCredentialStore())
+        let auth = ProviderAuthSession(config: makeConfig(), store: InMemoryCredentialStore(), cookieJars: .isolated())
         auth.save(cookieHeader: "session=a")
         auth.saveAccountEmail("one@example.com")
         let (resets, token) = observeResets(auth)
@@ -289,7 +293,8 @@ final class ProviderAuthSessionTests: XCTestCase {
     func testCookieIdentifiedAccountChangeResetsAccountData() {
         let auth = ProviderAuthSession(
             config: makeConfig(accountIdentityCookie: "lastactiveorg"),
-            store: InMemoryCredentialStore()
+            store: InMemoryCredentialStore(),
+            cookieJars: .isolated()
         )
         auth.adopt(capture([("sessionKey", "k1"), ("lastActiveOrg", "org-1")], email: nil))
         let (resets, token) = observeResets(auth)
@@ -306,7 +311,7 @@ final class ProviderAuthSessionTests: XCTestCase {
     /// A new capture always replaces the shown email, even with none.
     func testCaptureReplacesPreviousAccountEmail() {
         let store = InMemoryCredentialStore()
-        let auth = ProviderAuthSession(config: makeConfig(), store: store)
+        let auth = ProviderAuthSession(config: makeConfig(), store: store, cookieJars: .isolated())
         auth.adopt(capture([("session", "a")], email: "old@example.com"))
         XCTAssertEqual(auth.accountEmail, "old@example.com")
 
@@ -324,7 +329,8 @@ final class ProviderAuthSessionTests: XCTestCase {
         let store = InMemoryCredentialStore()
         let auth = ProviderAuthSession(
             config: makeConfig(essentialPrefixes: ["__secure-next-auth.session-token"]),
-            store: store
+            store: store,
+            cookieJars: .isolated()
         )
         auth.save(cookieHeader: header)
         return (auth, store)
@@ -386,5 +392,37 @@ final class ProviderAuthSessionTests: XCTestCase {
         auth.applyRefreshedCookies(["__Secure-next-auth.session-token=a; Expires=Thu, 01 Jan 1970 00:00:00 GMT"])
 
         XCTAssertEqual(auth.cookieHeader(), "")
+    }
+
+    // MARK: - Browser jars
+
+    /// Sign-out purges the provider's cookies from the injected browser jars
+    /// and keeps other sites' cookies; production defaults to the real jars.
+    func testSignOutPurgesProviderCookiesFromTheInjectedJarsOnly() async throws {
+        func cookie(_ name: String, _ domain: String) throws -> HTTPCookie {
+            try XCTUnwrap(HTTPCookie(properties: [.domain: domain, .path: "/", .name: name, .value: "v"]))
+        }
+        let jars = BrowserCookieJars.isolated()
+        jars.httpCookieStorage.setCookie(try cookie("sessionKey", "claude.ai"))
+        jars.httpCookieStorage.setCookie(try cookie("keep", "example.org"))
+        await jars.webDataStore.httpCookieStore.setCookie(try cookie("sessionKey", ".claude.ai"))
+        await jars.webDataStore.httpCookieStore.setCookie(try cookie("keep", "example.org"))
+
+        let auth = ClaudeAuthSession(store: InMemoryCredentialStore(), cookieJars: jars)
+        XCTAssertIdentical(auth.cookieJars.webDataStore, jars.webDataStore)
+        XCTAssertIdentical(auth.cookieJars.httpCookieStorage, jars.httpCookieStorage)
+        auth.signOut()
+
+        XCTAssertEqual(jars.httpCookieStorage.cookies?.map(\.name), ["keep"])
+        var webNames: [String] = []
+        for _ in 0..<200 {
+            webNames = await WKWebsiteDataStoreBridge.shared.allCookies(in: jars.webDataStore).map(\.name)
+            if webNames == ["keep"] { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertEqual(webNames, ["keep"])
+
+        let live = ClaudeAuthSession(store: InMemoryCredentialStore())
+        XCTAssertIdentical(live.cookieJars.httpCookieStorage, HTTPCookieStorage.shared)
     }
 }

@@ -72,7 +72,8 @@ final class PreferencesViewTests: XCTestCase {
                 capturePolicy: WebKitCookieCapture.Policy(isDomain: { _ in false }, failureMessage: "No session found."),
                 isDomain: { _ in false }
             ),
-            store: InMemoryCredentialStore()
+            store: InMemoryCredentialStore(),
+            cookieJars: .isolated()
         )
     }
 

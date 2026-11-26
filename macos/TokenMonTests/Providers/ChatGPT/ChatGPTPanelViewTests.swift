@@ -43,7 +43,7 @@ final class ChatGPTPanelViewTests: XCTestCase {
     }
 
     private func makeAuth(signedIn: Bool) -> ChatGPTAuthSession {
-        let auth = ChatGPTAuthSession(directory: dir, store: InMemoryCredentialStore())
+        let auth = ChatGPTAuthSession(directory: dir, store: InMemoryCredentialStore(), cookieJars: .isolated())
         if signedIn {
             auth.save(cookieHeader: "__Secure-next-auth.session-token=test")
         }

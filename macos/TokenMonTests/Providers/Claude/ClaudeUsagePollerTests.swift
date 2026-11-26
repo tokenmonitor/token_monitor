@@ -370,7 +370,7 @@ final class ClaudeUsagePollerTests: XCTestCase {
         let settings = AppSettings(defaults: defaults)
         settings.selectedProvider = .claude
         lastSettings = settings
-        let auth = ClaudeAuthSession(directory: dir)
+        let auth = ClaudeAuthSession(directory: dir, cookieJars: .isolated())
         lastAuth = auth
         if signedIn {
             auth.save(cookieHeader: "sessionKey=test; lastActiveOrg=org")

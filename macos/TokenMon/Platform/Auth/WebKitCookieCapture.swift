@@ -167,9 +167,9 @@ enum WebKitCookieCapture {
         return true
     }
 
+    /// Deletes the cookies `storage` would send to each of `hosts`.
     @MainActor
-    static func clearHTTPCookieStorage(hosts: [String]) {
-        let storage = HTTPCookieStorage.shared
+    static func clearHTTPCookieStorage(hosts: [String], in storage: HTTPCookieStorage) {
         for domain in hosts {
             if let url = URL(string: "https://\(domain)") {
                 storage.cookies(for: url)?.forEach { storage.deleteCookie($0) }

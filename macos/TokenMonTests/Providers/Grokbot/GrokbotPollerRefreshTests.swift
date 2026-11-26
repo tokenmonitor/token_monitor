@@ -19,7 +19,7 @@ final class GrokbotPollerRefreshTests: XCTestCase {
         suiteName = "GrokbotPollerRefresh-\(UUID().uuidString)"
         settings = AppSettings(defaults: try XCTUnwrap(UserDefaults(suiteName: suiteName)))
         settings.selectedProvider = .grokbot
-        auth = CursorAuthSession(directory: dir)
+        auth = CursorAuthSession(directory: dir, cookieJars: .isolated())
         hourly = HourlyDeltaActivityStore(
             store: FileBackedStringStore(directory: dir, filenamePrefix: "hourly_"),
             storageKey: "grokbot_hourly"

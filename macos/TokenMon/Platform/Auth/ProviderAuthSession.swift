@@ -67,6 +67,9 @@ class ProviderAuthSession: ProviderCookieCapturing {
     /// provider's cookies.
     let signInDataStore = WKWebsiteDataStore.nonPersistent()
 
+    /// Browser-wide jars whose provider cookies sign-out also clears.
+    let cookieJars: BrowserCookieJars
+
     private let store: any CredentialStore
     private let logger: Logger
     /// In-flight browser-cookie purge from a prior sign-out / invalidation.
@@ -83,8 +86,17 @@ class ProviderAuthSession: ProviderCookieCapturing {
     ///     plain files there. Production passes nil, which stores the session in
     ///     the Keychain and never in a file.
     ///   - store: Overrides both; the XCTest host injects an in-memory store.
-    init(config: ProviderAuthConfig, directory: URL? = nil, store: (any CredentialStore)? = nil) {
+    ///   - cookieJars: The browser jars sign-out purges; nil means the user's
+    ///     real jars (`BrowserCookieJars.live`). The XCTest host injects
+    ///     `BrowserCookieJars.isolated()`.
+    init(
+        config: ProviderAuthConfig,
+        directory: URL? = nil,
+        store: (any CredentialStore)? = nil,
+        cookieJars: BrowserCookieJars? = nil
+    ) {
         self.config = config
+        self.cookieJars = cookieJars ?? .live
         self.logger = Logger(category: config.logCategory)
         if let store {
             self.store = store
@@ -369,21 +381,22 @@ class ProviderAuthSession: ProviderCookieCapturing {
     }
 
     /// Clears persisted session keys and browser cookies (the provider's isolated
-    /// WebKit store, matching domains in the default jar, and
-    /// `HTTPCookieStorage`). Shared by explicit sign-out and 401/403 invalidation.
+    /// WebKit store, and matching domains in `cookieJars`: the default WebKit
+    /// store and `HTTPCookieStorage` in production). Shared by explicit sign-out and 401/403 invalidation.
     func clearBrowserState() {
         sessionGeneration += 1
         removeStore(key: "session")
         removeStore(key: "email")
         for key in config.extraStoreKeys { removeStore(key: key) }
-        WebKitCookieCapture.clearHTTPCookieStorage(hosts: config.signOutHosts)
+        WebKitCookieCapture.clearHTTPCookieStorage(hosts: config.signOutHosts, in: cookieJars.httpCookieStorage)
         let dataStore = signInDataStore
+        let browserStore = cookieJars.webDataStore
         let isDomain = config.isDomain
         clearTask?.cancel()
         clearTask = Task {
             await WKWebsiteDataStoreBridge.shared.clearAllCookies(in: dataStore)
-            // Clear matching cookies from the shared default cookie jar.
-            await WKWebsiteDataStoreBridge.shared.clearCookies(matching: isDomain, in: .default())
+            // Clear matching cookies from the browser-wide jar.
+            await WKWebsiteDataStoreBridge.shared.clearCookies(matching: isDomain, in: browserStore)
         }
     }
 

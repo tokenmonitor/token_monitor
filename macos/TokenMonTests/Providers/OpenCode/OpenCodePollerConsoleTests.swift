@@ -18,7 +18,7 @@ final class OpenCodePollerConsoleTests: XCTestCase {
         suiteName = "OpenCodeConsole-\(UUID().uuidString)"
         settings = AppSettings(defaults: try XCTUnwrap(UserDefaults(suiteName: suiteName)))
         settings.selectedProvider = .opencode
-        auth = OpenCodeAuthSession(directory: dir)
+        auth = OpenCodeAuthSession(directory: dir, cookieJars: .isolated())
     }
 
     override func tearDown() async throws {

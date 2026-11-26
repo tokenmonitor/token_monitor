@@ -23,7 +23,7 @@ final class OpenCodePollerFallbackTests: XCTestCase {
     func testExpiredConsoleSessionFallsBackToLocalEstimate() async throws {
         let settings = try AppSettings(defaults: XCTUnwrap(UserDefaults(suiteName: suiteName)))
         settings.selectedProvider = .opencode
-        let auth = OpenCodeAuthSession(directory: dir)
+        let auth = OpenCodeAuthSession(directory: dir, cookieJars: .isolated())
         auth.save(cookieHeader: "auth=live")
         let local = OpenCodeSnapshot(windows: [], models: [], isEstimated: true)
         let poller = OpenCodeUsagePoller(

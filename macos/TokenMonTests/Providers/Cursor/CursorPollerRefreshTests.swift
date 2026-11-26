@@ -18,7 +18,7 @@ final class CursorPollerRefreshTests: XCTestCase {
         suiteName = "CursorPollerRefresh-\(UUID().uuidString)"
         settings = AppSettings(defaults: try XCTUnwrap(UserDefaults(suiteName: suiteName)))
         settings.selectedProvider = .cursor
-        auth = CursorAuthSession(directory: dir)
+        auth = CursorAuthSession(directory: dir, cookieJars: .isolated())
         daily = DailyQuotaDeltaStore(
             store: FileBackedStringStore(directory: dir, filenamePrefix: "daily_"),
             storageKey: "cursor_daily_usage"

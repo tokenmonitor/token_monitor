@@ -38,8 +38,8 @@ final class CursorAuthSession: ProviderAuthSession {
     }
 
     /// Live store by default; tests isolate it to `directory` or pass `store`.
-    init(directory: URL? = nil, store: (any CredentialStore)? = nil) {
-        super.init(config: Self.cursorConfig(), directory: directory, store: store)
+    init(directory: URL? = nil, store: (any CredentialStore)? = nil, cookieJars: BrowserCookieJars? = nil) {
+        super.init(config: Self.cursorConfig(), directory: directory, store: store, cookieJars: cookieJars)
     }
 
     nonisolated static func isCursorDomain(_ domain: String) -> Bool {
