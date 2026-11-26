@@ -18,12 +18,6 @@ final class CursorAuthSession: ProviderAuthSession {
                 $0.name == "WorkosCursorSessionToken"
                     || $0.name.lowercased() == "workoscursorsessiontoken"
             },
-            looksLikeAuthCookie: { cookie in
-                let name = cookie.name.lowercased()
-                if name == "workoscursorsessiontoken" { return true }
-                let hints = ["session", "token", "auth", "workos", "cursor"]
-                return hints.contains { name.contains($0) }
-            },
             includeAllDomainCookiesWhenSessionFound: true,
             // The dashboard requests authenticate on this one cookie.
             essentialCookieNames: ["workoscursorsessiontoken"],

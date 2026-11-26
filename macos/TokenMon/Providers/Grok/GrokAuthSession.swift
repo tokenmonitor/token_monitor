@@ -2,12 +2,6 @@ import Foundation
 
 private let grokHosts = ["grok.com", "x.ai"]
 
-/// Cookie names present only in an authenticated session.
-private let authCookieHints: Set<String> = [
-    "sso", "session", "auth", "token", "jwt", "sid", "user", "account",
-    "x-session", "xai", "oidc", "refresh", "access"
-]
-
 /// Session for grok.com (`sso` / `sso-rw` cookies).
 ///
 /// Sign-in may pass through x.com / twitter.com (see `GrokAuthSession.authHosts`);
@@ -44,11 +38,6 @@ final class GrokAuthSession: ProviderAuthSession {
             isDomain: { domain in Self.isGrokDomain(domain) },
             isPreferredSessionCookie: { cookie in
                 Self.essentialCookieNames.contains(cookie.name.lowercased())
-            },
-            looksLikeAuthCookie: { cookie in
-                let name = cookie.name.lowercased()
-                guard authCookieHints.contains(where: { name.contains($0) }) else { return false }
-                return cookie.isSecure || cookie.isHTTPOnly
             },
             includeAllDomainCookiesWhenSessionFound: true,
             essentialCookieNames: Self.essentialCookieNames,

@@ -73,6 +73,7 @@ specs do not list the test.
 | `TokenMonTests/Platform/Auth/ProviderAuthSessionTests.swift::ProviderAuthSessionTests::testRefreshedDeletionCookieRemovesChunk` | Refreshed deletion cookie removes chunk: `applyRefreshedCookies` | ws-foundation | ported | `crates/tokenmon-core/tests/test_auth_session.rs::test_refreshed_deletion_cookie_removes_chunk` |  |
 | `TokenMonTests/Platform/Auth/ProviderAuthSessionTests.swift::ProviderAuthSessionTests::testRenewedUnchunkedTokenReplacesStoredChunks` | Renewed unchunked token replaces stored chunks: `applyRefreshedCookies` | ws-foundation | ported | `crates/tokenmon-core/tests/test_auth_session.rs::test_renewed_unchunked_token_replaces_stored_chunks` |  |
 | `TokenMonTests/Platform/Auth/ProviderAuthSessionTests.swift::ProviderAuthSessionTests::testRefreshedPastExpiryRemovesCookie` | Refreshed past expiry removes cookie: result "" | ws-foundation | ported | `crates/tokenmon-core/tests/test_auth_session.rs::test_refreshed_past_expiry_removes_cookie` |  |
+| `TokenMonTests/Platform/Auth/ProviderCookieAllowlistTests.swift::ProviderCookieAllowlistTests::testSignOutDomainsCoverOnlyEachProvidersHosts` | Each provider's sign-out domain matcher covers its hosts and subdomains only | ws-foundation | ported | `crates/tokenmon-provider-chatgpt/tests/auth.rs::test_config_matches_spec_and_ignores_foreign_domains` |  |
 
 ### ws-core-net (#6)
 

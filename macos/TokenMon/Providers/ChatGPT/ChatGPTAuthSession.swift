@@ -31,14 +31,6 @@ final class ChatGPTAuthSession: ProviderAuthSession {
                 let name = cookie.name.lowercased()
                 return name == Self.sessionTokenPrefix || name.hasPrefix(Self.sessionTokenPrefix + ".")
             },
-            looksLikeAuthCookie: { cookie in
-                // Only a session token counts, so capture succeeds once the real
-                // session cookie exists; analytics and CSRF cookies alone would
-                // sign the user out on the first poll.
-                let name = cookie.name.lowercased()
-                if name.contains("csrf") { return false }
-                return name.contains("session-token") || name.contains("session_token")
-            },
             includeAllDomainCookiesWhenSessionFound: true,
             essentialCookiePrefixes: Self.essentialCookiePrefixes,
             maxAttempts: 4,

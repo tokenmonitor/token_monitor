@@ -8,6 +8,9 @@ enum WebKitCookieCapture {
         var isDomain: @Sendable (String) -> Bool
         /// Preferred session cookie (e.g. `auth`, `WorkosCursorSessionToken`).
         var isPreferredSessionCookie: @Sendable (HTTPCookie) -> Bool
+        /// Auth-looking cookie heuristic, used only by a policy without an
+        /// essential-cookie allowlist; every provider has one, so it defaults
+        /// to matching nothing.
         var looksLikeAuthCookie: @Sendable (HTTPCookie) -> Bool
         /// When preferred session is found, include all domain cookies if non-empty.
         var includeAllDomainCookiesWhenSessionFound: Bool
@@ -28,7 +31,7 @@ enum WebKitCookieCapture {
         init(
             isDomain: @escaping @Sendable (String) -> Bool,
             isPreferredSessionCookie: @escaping @Sendable (HTTPCookie) -> Bool = { _ in false },
-            looksLikeAuthCookie: @escaping @Sendable (HTTPCookie) -> Bool,
+            looksLikeAuthCookie: @escaping @Sendable (HTTPCookie) -> Bool = { _ in false },
             includeAllDomainCookiesWhenSessionFound: Bool = true,
             essentialCookieNames: Set<String> = [],
             essentialCookiePrefixes: Set<String> = [],

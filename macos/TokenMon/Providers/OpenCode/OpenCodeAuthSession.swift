@@ -22,13 +22,6 @@ final class OpenCodeAuthSession: ProviderAuthSession {
                 let name = $0.name.lowercased()
                 return name == "auth" || name == Self.consoleSessionCookieName
             },
-            looksLikeAuthCookie: { cookie in
-                let name = cookie.name.lowercased()
-                if name == "auth" || name == "session" || name == "sid" { return true }
-                if name == Self.consoleSessionCookieName { return true }
-                let hints = ["auth", "session", "token", "jwt", "sid", "account", "openid", "oauth"]
-                return hints.contains { name.contains($0) }
-            },
             includeAllDomainCookiesWhenSessionFound: true,
             // The console API request needs both the console session
             // (`__Host-console_session`) and the site cookies (`auth=…; provider=…`)

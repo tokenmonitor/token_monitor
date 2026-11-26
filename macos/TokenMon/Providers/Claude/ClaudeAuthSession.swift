@@ -13,12 +13,6 @@ final class ClaudeAuthSession: ProviderAuthSession {
         WebKitCookieCapture.Policy(
             isDomain: { domain in Domain.matches(domain, hosts: claudeHosts) },
             isPreferredSessionCookie: { $0.name == "sessionKey" },
-            looksLikeAuthCookie: { cookie in
-                let name = cookie.name.lowercased()
-                if name == "sessionkey" || name == "lastactiveorg" { return true }
-                let hints = ["session", "token", "auth", "claude"]
-                return hints.contains { name.contains($0) }
-            },
             includeAllDomainCookiesWhenSessionFound: true,
             // `sessionKey` authenticates; `lastActiveOrg` carries the org UUID
             // that ClaudeUsageClient parses back out of the header.

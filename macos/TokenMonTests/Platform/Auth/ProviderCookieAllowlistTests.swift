@@ -56,6 +56,26 @@ final class ProviderCookieAllowlistTests: XCTestCase {
         )
     }
 
+    /// Sign-out clears browser cookies on each provider's own hosts (and their
+    /// subdomains) and leaves every other site's cookies alone.
+    func testSignOutDomainsCoverOnlyEachProvidersHosts() {
+        let configs: [(ProviderAuthConfig, own: [String], foreign: [String])] = [
+            (ClaudeAuthSession.claudeConfig(), ["claude.ai", ".api.claude.ai"], ["anthropic.com", "notclaude.ai"]),
+            (CursorAuthSession.cursorConfig(), ["cursor.com", "api2.cursor.sh"], ["cursor.com.evil.test"]),
+            (OpenCodeAuthSession.openCodeConfig(), ["opencode.ai", "auth.opencode.ai"], ["opencode.dev"]),
+            (ChatGPTAuthSession.chatgptConfig(), ["chatgpt.com", "auth.openai.com"], ["openai.com.example"]),
+            (GrokAuthSession(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)).config, ["grok.com"], ["twitter.com"])
+        ]
+        for (config, own, foreign) in configs {
+            for domain in own {
+                XCTAssertTrue(config.isDomain(domain), "\(config.logCategory) owns \(domain)")
+            }
+            for domain in foreign {
+                XCTAssertFalse(config.isDomain(domain), "\(config.logCategory) must not clear \(domain)")
+            }
+        }
+    }
+
     func testForeignDomainCookiesAreIgnored() {
         let cookies = [
             cookie("WorkosCursorSessionToken", value: "sess", domain: "cursor.com"),
