@@ -104,10 +104,6 @@ struct DailyBudgetBarsView: View {
 
     private let trackHeight: CGFloat = PanelChartStem.height
 
-    /// Weekday label formatters, cached per calendar so a render allocates none.
-    private static let formatterCacheLock = NSLock()
-    private static var weekdayFormatterCache: [String: DateFormatter] = [:]
-
     private var rangeLabel: String {
         guard let first = days.first?.date, let last = days.last?.date else { return "" }
         let cal = Calendar.current
@@ -243,20 +239,9 @@ struct DailyBudgetBarsView: View {
         .opacity(isFuture(day) ? 0.5 : 1)
     }
 
+    /// The weekday formatter for the current calendar, from the shared `Format` cache.
     private static func weekdayFormatter() -> DateFormatter {
-        let calendar = Calendar.current
-        let key = "\(calendar.identifier)|\(calendar.timeZone.identifier)|\(calendar.locale?.identifier ?? "")"
-        formatterCacheLock.lock()
-        defer { formatterCacheLock.unlock() }
-        if let cached = weekdayFormatterCache[key] {
-            return cached
-        }
-        let weekday = DateFormatter()
-        weekday.locale = .current
-        weekday.calendar = calendar
-        weekday.dateFormat = "EEE"
-        weekdayFormatterCache[key] = weekday
-        return weekday
+        Format.formatter(dateFormat: "EEE", calendar: .current, locale: .current)
     }
 }
 

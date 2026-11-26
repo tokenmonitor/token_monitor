@@ -13,7 +13,7 @@ use std::sync::{Arc, Weak};
 use chrono::{DateTime, Utc};
 use tokenmon_core::polling::{PollOutcome, PollingLoop, PollingLoopBuilder};
 use tokenmon_core::settings::Settings;
-use tokenmon_core::{BoxFuture, ProviderError, ProviderId, ProviderUsagePoller};
+use tokenmon_core::{ProviderError, ProviderId, ProviderUsagePoller};
 
 use crate::poller::{GrokUsagePoller, RefreshOutcome};
 
@@ -129,17 +129,7 @@ impl ProviderUsagePoller for GrokProviderPoller {
         self.inner.alert_account()
     }
 
-    fn start(&self) {
-        self.polling_loop.start();
-    }
-
-    fn stop(&self) {
-        self.polling_loop.stop();
-    }
-
-    fn refresh_now(&self) -> BoxFuture<'_, ()> {
-        Box::pin(async move { self.polling_loop.refresh_now().await })
-    }
+    tokenmon_core::delegate_polling_lifecycle!(polling_loop);
 
     fn clear_snapshot(&self) {
         self.inner.clear_snapshot();

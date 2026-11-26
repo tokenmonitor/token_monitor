@@ -77,14 +77,6 @@ final class ChatGPTUsagePoller: ProviderUsagePoller {
     var headlineResetsAt: Date? { snapshot?.resetsAt }
     var alertAccount: String? { auth.accountEmail }
 
-    func start() {
-        pollingLoop.start()
-    }
-
-    func stop() {
-        pollingLoop.stop()
-    }
-
     func clearSnapshot() {
         tokenCache.clear()
         snapshot = nil
@@ -95,13 +87,8 @@ final class ChatGPTUsagePoller: ProviderUsagePoller {
         lastRefreshedAt = nil
     }
 
-    /// Fetches now when the provider is enabled and restarts the poll wait from here.
-    func refreshNow() async {
-        await pollingLoop.refreshNow()
-    }
-
     private func performRefresh() async -> PollOutcome {
-        guard settings.isProviderEnabled(.chatgpt), !isRefreshing else { return .skipped }
+        guard settings.isProviderEnabled(.chatgpt) else { return .skipped }
         isRefreshing = true
         defer { isRefreshing = false }
 

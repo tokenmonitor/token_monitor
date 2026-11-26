@@ -46,27 +46,14 @@ final class OpenRouterUsagePoller: ProviderUsagePoller {
     var headlineResetsAt: Date? { nil }
     var alertAccount: String? { nil }
 
-    func start() {
-        pollingLoop.start()
-    }
-
-    func stop() {
-        pollingLoop.stop()
-    }
-
     func clearSnapshot() {
         snapshot = nil
         lastError = nil
         lastRefreshedAt = nil
     }
 
-    /// Fetches now when the provider is enabled and restarts the poll wait from here.
-    func refreshNow() async {
-        await pollingLoop.refreshNow()
-    }
-
     private func performRefresh() async -> PollOutcome {
-        guard settings.isProviderEnabled(.openrouter), !isRefreshing else { return .skipped }
+        guard settings.isProviderEnabled(.openrouter) else { return .skipped }
         isRefreshing = true
         defer { isRefreshing = false }
 

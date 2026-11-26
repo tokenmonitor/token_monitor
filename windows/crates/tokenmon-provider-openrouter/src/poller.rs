@@ -11,8 +11,8 @@ use std::time::Duration;
 use chrono::{DateTime, Utc};
 use tokenmon_core::polling::{PollOutcome, PollingLoop, ProviderRefresh};
 use tokenmon_core::{
-    AuthEvent, AuthEventListener, AuthSession, BoxFuture, Clock, ProviderError,
-    ProviderErrorContext, ProviderId, ProviderUsagePoller,
+    AuthEvent, AuthEventListener, AuthSession, Clock, ProviderError, ProviderErrorContext,
+    ProviderId, ProviderUsagePoller,
 };
 
 use crate::auth::{ApiKey, OpenRouterAuthSession};
@@ -234,19 +234,7 @@ impl ProviderUsagePoller for OpenRouterUsagePoller {
         None
     }
 
-    fn start(&self) {
-        self.polling.start();
-    }
-
-    fn stop(&self) {
-        self.polling.stop();
-    }
-
-    fn refresh_now(&self) -> BoxFuture<'_, ()> {
-        Box::pin(async move {
-            self.polling.refresh_now().await;
-        })
-    }
+    tokenmon_core::delegate_polling_lifecycle!(polling);
 
     fn clear_snapshot(&self) {
         lock(&self.state).clear();

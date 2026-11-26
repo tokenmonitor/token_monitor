@@ -55,38 +55,62 @@ enum Format {
         }
     }
 
-    /// Cached DateFormatter keyed by date format and time-zone identifier. A
-    /// `nil` time zone resolves to the current system zone at each call, and the
-    /// cache is emptied when the system time zone changes.
-    private static let formatterCacheLock = NSLock()
-    // SwiftLint versions disagree on where `nonisolated(unsafe)` goes; SwiftFormat sets this order.
-    // swiftlint:disable:next modifier_order superfluous_disable_command
-    private nonisolated(unsafe) static var formatterCache: [String: DateFormatter] = [:]
-    private static let timeZoneObserver: NSObjectProtocol = NotificationCenter.default.addObserver(
-        forName: .NSSystemTimeZoneDidChange,
-        object: nil,
-        queue: nil
-    ) { _ in
-        NSTimeZone.resetSystemTimeZone()
-        Format.clearFormatterCache()
-    }
-
-    private static func cachedFormatter(dateFormat: String, timeZone: TimeZone?) -> DateFormatter {
-        _ = timeZoneObserver
-        let zone = timeZone ?? TimeZone.current
-        let key = "\(dateFormat)|\(zone.identifier)"
+    /// Cached `DateFormatter` for a date format, shared by every caller. The
+    /// key holds the format, the time zone, and the calendar and locale when
+    /// given, so each distinct combination builds one formatter.
+    ///
+    /// The formatter's zone is `timeZone` when given, else the `calendar`'s
+    /// zone, else the current system zone, so a formatter built from a
+    /// calendar formats in that calendar's zone. The locale is `locale`, or
+    /// POSIX when nil.
+    ///
+    /// The cache is emptied when the system time zone or the current locale
+    /// changes, so it holds only the combinations in use.
+    static func formatter(
+        dateFormat: String,
+        timeZone: TimeZone? = nil,
+        calendar: Calendar? = nil,
+        locale: Locale? = nil
+    ) -> DateFormatter {
+        _ = changeObservers
+        let zone = timeZone ?? calendar?.timeZone ?? TimeZone.current
+        let calendarKey = calendar.map {
+            "\($0.identifier)|\($0.timeZone.identifier)|\($0.locale?.identifier ?? "")"
+        } ?? ""
+        let key = [dateFormat, zone.identifier, calendarKey, locale?.identifier ?? ""].joined(separator: "|")
         formatterCacheLock.lock()
         defer { formatterCacheLock.unlock() }
         if let formatter = formatterCache[key] {
             return formatter
         }
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.locale = locale ?? Locale(identifier: "en_US_POSIX")
+        if let calendar {
+            formatter.calendar = calendar
+        }
         formatter.timeZone = zone
         formatter.dateFormat = dateFormat
         formatterCache[key] = formatter
         return formatter
     }
+
+    private static let formatterCacheLock = NSLock()
+    // SwiftLint versions disagree on where `nonisolated(unsafe)` goes; SwiftFormat sets this order.
+    // swiftlint:disable:next modifier_order superfluous_disable_command
+    private nonisolated(unsafe) static var formatterCache: [String: DateFormatter] = [:]
+    private static let changeObservers: [NSObjectProtocol] = [
+        NotificationCenter.default.addObserver(forName: .NSSystemTimeZoneDidChange, object: nil, queue: nil) { _ in
+            NSTimeZone.resetSystemTimeZone()
+            Format.clearFormatterCache()
+        },
+        NotificationCenter.default.addObserver(
+            forName: NSLocale.currentLocaleDidChangeNotification,
+            object: nil,
+            queue: nil
+        ) { _ in
+            Format.clearFormatterCache()
+        }
+    ]
 
     /// Number of cached date formatters.
     static var cachedFormatterCount: Int {
@@ -104,12 +128,12 @@ enum Format {
     /// `date` in `dateFormat` (POSIX locale) with a formatter cached per
     /// format and time zone; the cache is cleared when the system zone changes.
     static func date(_ date: Date, dateFormat: String, timeZone: TimeZone? = nil) -> String {
-        cachedFormatter(dateFormat: dateFormat, timeZone: timeZone).string(from: date)
+        formatter(dateFormat: dateFormat, timeZone: timeZone).string(from: date)
     }
 
     /// Formats a reset date in a fixed locale, with lowercase meridian (am/pm).
     static func resetDate(_ date: Date, dateFormat: String, timeZone: TimeZone? = nil) -> String {
-        cachedFormatter(dateFormat: dateFormat, timeZone: timeZone)
+        formatter(dateFormat: dateFormat, timeZone: timeZone)
             .string(from: date)
             .replacingOccurrences(of: "AM", with: "am")
             .replacingOccurrences(of: "PM", with: "pm")

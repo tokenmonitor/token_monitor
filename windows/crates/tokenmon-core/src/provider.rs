@@ -345,6 +345,34 @@ pub fn select_poll_interval(inputs: PollIntervalInputs) -> Option<Duration> {
     (secs.is_finite() && secs > 0.0).then(|| Duration::from_secs_f64(secs))
 }
 
+/// Implements the three lifecycle methods of [`ProviderUsagePoller`] for a
+/// poller that owns an `Arc<PollingLoop>` (or a `PollingLoop`) in a field:
+/// `start` and `stop` forward to the loop, and `refresh_now` awaits the loop's
+/// manual refresh. Invoke it inside the `impl ProviderUsagePoller for ...` block:
+///
+/// ```ignore
+/// impl ProviderUsagePoller for MyPoller {
+///     tokenmon_core::delegate_polling_lifecycle!(polling);
+///     // ...the provider's own methods
+/// }
+/// ```
+#[macro_export]
+macro_rules! delegate_polling_lifecycle {
+    ($field:ident) => {
+        fn start(&self) {
+            self.$field.start();
+        }
+
+        fn stop(&self) {
+            self.$field.stop();
+        }
+
+        fn refresh_now(&self) -> $crate::provider::BoxFuture<'_, ()> {
+            ::std::boxed::Box::pin(async move { self.$field.refresh_now().await })
+        }
+    };
+}
+
 /// Object-safe face of a provider poller (spec 01 section 1.2.4).
 ///
 /// The app holds `Arc<dyn ProviderUsagePoller>` per provider for menu-open

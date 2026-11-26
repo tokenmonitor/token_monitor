@@ -625,6 +625,23 @@ fn test_daily_usage_preview_has_seven_days() {
     assert_eq!(w.days[0].day_of_month, "9");
 }
 
+/// Weekday and day-of-month labels come from the calendar's own offset, not
+/// UTC: with UTC+12 a local midnight is 12:00Z of the previous UTC day, yet the
+/// label shows the local day.
+#[test]
+fn test_day_labels_use_the_calendar_offset() {
+    let clock = clock_with_offset(utc(2026, 7, 15, 12, 30), 12);
+    let cal = LocalCalendar::new(clock.as_ref());
+    let w = preview(&cal);
+    assert_eq!(w.days.len(), 7);
+    for day in &w.days {
+        let local = cal.local_date(day.day_start);
+        assert_eq!(day.day_of_month, local.day().to_string());
+        assert_eq!(day.weekday_symbol, local.format("%a").to_string());
+        assert_ne!(day.day_of_month, day.day_start.day().to_string());
+    }
+}
+
 /// Day boundaries follow the local offset: with UTC-8, a 03:00Z sample belongs
 /// to the previous local day.
 #[test]

@@ -106,14 +106,6 @@ final class ClaudeUsagePoller: ProviderUsagePoller {
     var headlineResetsAt: Date? { snapshot?.resetsAt }
     var alertAccount: String? { auth.accountEmail }
 
-    func start() {
-        pollingLoop.start()
-    }
-
-    func stop() {
-        pollingLoop.stop()
-    }
-
     func clearSnapshot() {
         snapshot = nil
         dailyBudgetDays = nil
@@ -129,13 +121,8 @@ final class ClaudeUsagePoller: ProviderUsagePoller {
         daily.clear()
     }
 
-    /// Fetches now when the provider is enabled and restarts the poll wait from here.
-    func refreshNow() async {
-        await pollingLoop.refreshNow()
-    }
-
     private func performRefresh() async -> PollOutcome {
-        guard settings.isProviderEnabled(.claude), !isRefreshing else { return .skipped }
+        guard settings.isProviderEnabled(.claude) else { return .skipped }
         isRefreshing = true
         defer { isRefreshing = false }
 

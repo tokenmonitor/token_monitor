@@ -99,14 +99,6 @@ final class GrokUsagePoller: ProviderUsagePoller {
     var headlineResetsAt: Date? { snapshot?.resetsAt }
     var alertAccount: String? { auth.accountEmail }
 
-    func start() {
-        pollingLoop.start()
-    }
-
-    func stop() {
-        pollingLoop.stop()
-    }
-
     func clearSnapshot() {
         snapshot = nil
         lastError = nil
@@ -141,13 +133,8 @@ final class GrokUsagePoller: ProviderUsagePoller {
         )
     }
 
-    /// Fetches now when Grok is enabled and restarts the poll wait from here.
-    func refreshNow() async {
-        await pollingLoop.refreshNow()
-    }
-
     private func performRefresh() async -> PollOutcome {
-        guard settings.isProviderEnabled(.grok), !isRefreshing else { return .skipped }
+        guard settings.isProviderEnabled(.grok) else { return .skipped }
         isRefreshing = true
         defer { isRefreshing = false }
 
