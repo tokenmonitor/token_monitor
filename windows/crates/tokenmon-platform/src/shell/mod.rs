@@ -1,12 +1,10 @@
 //! Autostart Run key, Explorer context-menu verb, single instance and the "show" IPC.
 //!
-//! Owner: ws-shell.
-//!
 //! Everything that touches the OS sits behind a trait ([`Registry`],
 //! [`InstanceLock`], [`IpcClient`]) with an in-memory fake, so the logic
 //! (command-line quoting, key layout, idempotence, startup decisions, wire
-//! format) is tested on macOS and Linux. The `cfg(windows)` implementations
-//! live in `windows.rs`.
+//! format) is tested on macOS and Linux. The Win32 implementations live in
+//! `tokenmon-platform-windows`.
 //!
 //! * [`autostart`]: launch at login via `HKCU\...\Run` ([`LoginItemService`]).
 //! * [`context_menu`]: opt-in desktop-background "Show TokenMon" verb.
@@ -23,8 +21,6 @@ pub mod instance;
 pub mod ipc;
 pub mod registry;
 pub mod startup;
-#[cfg(windows)]
-pub mod windows;
 
 pub use autostart::{LoginItemService, LoginItemStatus, RunKeyLoginItem};
 pub use cli::{LaunchArgs, LaunchArgsError};

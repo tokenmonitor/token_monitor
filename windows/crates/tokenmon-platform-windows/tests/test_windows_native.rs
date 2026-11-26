@@ -13,17 +13,18 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use tokenmon_core::update::{AppVersion, InstallError};
-use tokenmon_platform::install::verify::{
-    AuthenticodeVerifier, PeHeaderVerifier, SignatureVerifier, zone_id_marks_internet,
-};
-use tokenmon_platform::install::{PackageVersionReader, SystemVersionReader};
-use tokenmon_platform::secrets::{
-    DpapiEncryptor, Encryptor, WindowsOwnerOnly, register_owner_only_permissions,
-};
+use tokenmon_platform::secrets::Encryptor;
 use tokenmon_platform::shell::ShellError;
 use tokenmon_platform::shell::instance::{InstanceLock, InstanceState};
 use tokenmon_platform::shell::ipc::{IpcClient, IpcMessage};
-use tokenmon_platform::shell::windows::{
+use tokenmon_platform_windows::install::verify::{
+    AuthenticodeVerifier, PeHeaderVerifier, SignatureVerifier, zone_id_marks_internet,
+};
+use tokenmon_platform_windows::install::{PackageVersionReader, SystemVersionReader};
+use tokenmon_platform_windows::secrets::{
+    DpapiEncryptor, WindowsOwnerOnly, register_owner_only_permissions,
+};
+use tokenmon_platform_windows::shell::windows::{
     MutexInstanceLock, PipeClient, PipeServer, current_user_pipe_name,
 };
 

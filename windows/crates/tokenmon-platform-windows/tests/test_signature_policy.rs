@@ -2,7 +2,7 @@
 
 use std::io::Write;
 
-use tokenmon_platform::install::verify::{SignaturePolicy, verifier_for_policy};
+use tokenmon_platform_windows::install::verify::{SignaturePolicy, verifier_for_policy};
 
 fn fake_pe() -> tempfile::NamedTempFile {
     let mut bytes = vec![0u8; 128];

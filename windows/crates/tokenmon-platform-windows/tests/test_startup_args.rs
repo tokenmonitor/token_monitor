@@ -1,6 +1,6 @@
 //! Startup helpers the app calls: `--wait-for-pid` handling and leftover cleanup.
 
-use tokenmon_platform::install::{handle_startup_args, parse_wait_for_pid};
+use tokenmon_platform_windows::install::{handle_startup_args, parse_wait_for_pid};
 
 /// `handle_startup_args` removes leftovers and reports the waited pid.
 #[test]

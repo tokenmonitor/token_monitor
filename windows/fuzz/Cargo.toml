@@ -15,6 +15,7 @@ tokenmon-provider-grok = { path = "../crates/tokenmon-provider-grok" }
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 reqwest = { version = "0.13", default-features = false }
 tokenmon-platform = { path = "../crates/tokenmon-platform" }
+tokenmon-platform-windows = { path = "../crates/tokenmon-platform-windows" }
 tokenmon-core = { path = "../crates/tokenmon-core" }
 tempfile = "3"
 tokenmon-provider-claude = { path = "../crates/tokenmon-provider-claude" }

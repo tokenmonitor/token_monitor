@@ -1,7 +1,7 @@
-//! DPAPI-encrypted (user scope) vault file `%LOCALAPPDATA%\TokenMon\vault.bin`
-//! and the credential stores built on it (spec 01 sections 1.6.1 to 1.6.3).
+//! The encrypted vault file (`vault.bin` in the data directory) and the
+//! credential stores built on it (spec 01 sections 1.6.1 to 1.6.3).
 //!
-//! Layers, all portable except the DPAPI encryptor:
+//! Layers, all portable; the OS encryptor lives in the OS crates:
 //!
 //! * [`Encryptor`]: the OS encryption seam (DPAPI on Windows, [`FakeEncryptor`]
 //!   in tests).
@@ -25,21 +25,14 @@ mod routing;
 mod secure_file;
 mod vault;
 
-#[cfg(windows)]
-mod dpapi;
-
-#[cfg(windows)]
-pub use dpapi::DpapiEncryptor;
 pub use encryptor::{CryptError, Encryptor, FakeEncryptor};
 pub use files::{FileBackedCredentialStore, atomic_write, secure_delete};
 pub use payload::{
     MAX_PAYLOAD_BYTES, PayloadError, VaultPayload, decode_payload, decode_pending, encode_payload,
 };
 pub use routing::{SecretRoutingCredentialStore, SecretStoreError, VAULT_UNAVAILABLE_REASON};
-#[cfg(windows)]
-pub(crate) use secure_file::current_user_sid;
 pub use secure_file::{
-    WindowsOwnerOnly, create_new_owner_only, owner_only_directory_sddl, owner_only_sddl,
-    register_owner_only_permissions,
+    OwnerOnlyFileCreator, create_new_default, create_new_owner_only,
+    register_owner_only_file_creator,
 };
 pub use vault::{PENDING_FILE_NAME, VAULT_FILE_NAME, Vault};

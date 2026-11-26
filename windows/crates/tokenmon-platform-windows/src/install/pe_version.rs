@@ -109,7 +109,7 @@ fn rva_to_offset(sections: &[Section], rva: u32) -> Option<u64> {
 ///
 /// ```
 /// use std::io::Cursor;
-/// use tokenmon_platform::install::pe_version::read_pe_version;
+/// use tokenmon_platform_windows::install::pe_version::read_pe_version;
 ///
 /// assert!(read_pe_version(Cursor::new(b"MZ".to_vec())).is_none());
 /// assert!(read_pe_version(Cursor::new(Vec::new())).is_none());
@@ -130,7 +130,7 @@ pub fn read_pe_version<R: Read + Seek>(r: R) -> Option<AppVersion> {
 ///
 /// ```
 /// use std::io::Cursor;
-/// use tokenmon_platform::install::pe_version::pe_has_icon_group;
+/// use tokenmon_platform_windows::install::pe_version::pe_has_icon_group;
 ///
 /// assert!(!pe_has_icon_group(Cursor::new(b"MZ".to_vec())));
 /// assert!(!pe_has_icon_group(Cursor::new(Vec::new())));

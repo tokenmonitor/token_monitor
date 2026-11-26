@@ -33,7 +33,7 @@ pub const RELAUNCH_WAIT_ARG: &str = "--wait-for-pid";
 ///
 /// ```
 /// use std::path::Path;
-/// use tokenmon_platform::install::relaunch::relaunch_spec;
+/// use tokenmon_platform_windows::install::relaunch::relaunch_spec;
 ///
 /// let spec = relaunch_spec(Path::new(r"C:\Apps\TokenMon.exe"), 42);
 /// assert_eq!(spec.args, ["--wait-for-pid", "42"]);
@@ -65,7 +65,7 @@ pub fn system_directory() -> String {
 /// # Examples
 ///
 /// ```
-/// use tokenmon_platform::install::relaunch::system_directory_from;
+/// use tokenmon_platform_windows::install::relaunch::system_directory_from;
 ///
 /// assert_eq!(system_directory_from(Some(r"D:\Win\")), r"D:\Win\System32");
 /// assert_eq!(system_directory_from(Some("relative")), r"C:\Windows\System32");
@@ -107,7 +107,7 @@ pub fn is_absolute_windows_path(p: &str) -> bool {
 ///
 /// ```
 /// use std::path::Path;
-/// use tokenmon_platform::install::relaunch::msiexec_spec;
+/// use tokenmon_platform_windows::install::relaunch::msiexec_spec;
 ///
 /// let spec = msiexec_spec(Path::new(r"C:\t\x.msi"));
 /// let program = spec.program.to_string_lossy().to_lowercase();
@@ -163,7 +163,7 @@ impl ProcessLauncher for StdLauncher {
 /// # Examples
 ///
 /// ```
-/// use tokenmon_platform::install::relaunch::parse_wait_for_pid;
+/// use tokenmon_platform_windows::install::relaunch::parse_wait_for_pid;
 ///
 /// assert_eq!(parse_wait_for_pid(["TokenMon.exe", "--wait-for-pid", "42"]), Some(42));
 /// assert_eq!(parse_wait_for_pid(["x", "--wait-for-pid=7"]), Some(7));
@@ -210,7 +210,7 @@ pub fn wait_for_pid_exit(pid: u32, timeout: std::time::Duration) -> bool {
 /// 1. If the command line has `--wait-for-pid <pid>` (the previous build is
 ///    exiting after an update), waits for it, bounded by
 ///    [`WAIT_FOR_PID_TIMEOUT`].
-/// 2. Calls [`super::swap::cleanup_leftovers`] for `running_exe` to delete the
+/// 2. Calls [`tokenmon_platform::install::swap::cleanup_leftovers`] for `running_exe` to delete the
 ///    renamed-aside old exe and abandoned staged copies.
 ///
 /// Returns the pid that was waited for, if any.
@@ -226,7 +226,7 @@ fn run_startup(waited: Option<u32>, running_exe: &Path) -> Option<u32> {
     if let Some(pid) = waited {
         wait_for_pid_exit(pid, WAIT_FOR_PID_TIMEOUT);
     }
-    super::swap::cleanup_leftovers(running_exe);
+    tokenmon_platform::install::swap::cleanup_leftovers(running_exe);
     waited
 }
 

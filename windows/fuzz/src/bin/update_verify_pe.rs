@@ -10,8 +10,8 @@
 use std::io::Cursor;
 
 use libfuzzer_sys::fuzz_target;
-use tokenmon_platform::install::relaunch::parse_wait_for_pid;
-use tokenmon_platform::install::verify::{is_pe_reader, zone_id_marks_internet};
+use tokenmon_platform_windows::install::relaunch::parse_wait_for_pid;
+use tokenmon_platform_windows::install::verify::{is_pe_reader, zone_id_marks_internet};
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(true) = is_pe_reader(Cursor::new(data)) {

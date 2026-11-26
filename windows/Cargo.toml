@@ -11,6 +11,7 @@ members = [
     "crates/tokenmon-provider-opencode",
     "crates/tokenmon-provider-openrouter",
     "crates/tokenmon-platform",
+    "crates/tokenmon-platform-windows",
     "crates/tokenmon-ui",
     "crates/tokenmon-app",
 ]
@@ -36,6 +37,7 @@ tokenmon-provider-chatgpt = { path = "crates/tokenmon-provider-chatgpt" }
 tokenmon-provider-opencode = { path = "crates/tokenmon-provider-opencode" }
 tokenmon-provider-openrouter = { path = "crates/tokenmon-provider-openrouter" }
 tokenmon-platform = { path = "crates/tokenmon-platform" }
+tokenmon-platform-windows = { path = "crates/tokenmon-platform-windows" }
 tokenmon-ui = { path = "crates/tokenmon-ui" }
 
 # Runtime (feature sets are minimal; crates add what they need)

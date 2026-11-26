@@ -11,8 +11,10 @@ use windows::UI::Notifications::{
 use windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID;
 use windows::core::{HSTRING, IInspectable, Interface};
 
-use super::toast::{APP_USER_MODEL_ID, ToastContent, parse_activation_arguments};
-use super::{ActivationHandler, NotifyError, ToastBackend};
+use tokenmon_platform::notify::toast::{
+    APP_USER_MODEL_ID, ToastContent, parse_activation_arguments,
+};
+use tokenmon_platform::notify::{ActivationHandler, NotifyError, ToastBackend};
 
 /// Recent toasts kept alive so their `Activated` handlers keep firing.
 const KEEP_ALIVE: usize = 16;

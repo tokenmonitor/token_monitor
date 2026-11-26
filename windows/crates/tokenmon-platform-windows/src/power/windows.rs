@@ -7,8 +7,8 @@
 //! never-shown top-level window. The explicit registration additionally
 //! guarantees suspend/resume delivery on Modern Standby machines.
 //!
-//! The decoding and the gate logic are portable (see [`super::event`] and
-//! [`super::machine`]); this file only moves OS messages into a
+//! The decoding and the gate logic are portable (see [`tokenmon_platform::power::event`] and
+//! [`tokenmon_platform::power::machine`]); this file only moves OS messages into a
 //! [`SystemEventSink`].
 
 use std::ffi::c_void;
@@ -32,8 +32,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     WM_POWERBROADCAST, WNDCLASSW,
 };
 
-use super::event::{NetworkLevel, PowerEvent, ResumeDeduper};
-use super::source::{SystemEventSink, SystemEventSource};
+use tokenmon_platform::power::event::{NetworkLevel, PowerEvent, ResumeDeduper};
+use tokenmon_platform::power::source::{SystemEventSink, SystemEventSource};
 
 /// `TRUE` for `WM_POWERBROADCAST` (grants the request).
 const TRUE_RESULT: LRESULT = 1;

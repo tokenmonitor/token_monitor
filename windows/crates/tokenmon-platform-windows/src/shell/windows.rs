@@ -37,9 +37,11 @@ use windows_sys::Win32::System::Threading::{
 };
 
 use crate::secrets::{current_user_sid, owner_only_sddl};
-use crate::shell::error::ShellError;
-use crate::shell::instance::{InstanceGuard, InstanceLock, InstanceState, MUTEX_NAME};
-use crate::shell::ipc::{DeadlineRead, IpcClient, IpcMessage, READ_DEADLINE, session_pipe_name};
+use tokenmon_platform::shell::error::ShellError;
+use tokenmon_platform::shell::instance::{InstanceGuard, InstanceLock, InstanceState, MUTEX_NAME};
+use tokenmon_platform::shell::ipc::{
+    DeadlineRead, IpcClient, IpcMessage, READ_DEADLINE, session_pipe_name,
+};
 
 mod registry;
 
@@ -447,7 +449,7 @@ pub struct PipeClient {
 }
 
 impl PipeClient {
-    /// Client for the given pipe name (see [`crate::shell::ipc::pipe_name`]).
+    /// Client for the given pipe name (see [`tokenmon_platform::shell::ipc::pipe_name`]).
     #[must_use]
     pub fn new(name: impl Into<String>) -> Self {
         Self { name: name.into() }

@@ -66,14 +66,16 @@ use windows::Win32::UI::Input::KeyboardAndMouse::EnableWindow;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::core::{BOOL, Interface, PCWSTR, PWSTR, w};
 
-use super::config::{SignInConfig, WINDOW_MIN_SIZE, WINDOW_SIZE};
-use super::cookies::WebCookie;
-use super::gate::NavigationPolicy;
-use super::host::{SignInDelegate, WebAuthError, WebAuthHost};
-use super::layout::{Bounds, body_bounds, chrome_layout, scaled};
-use super::machine::{Action, Input, SignInMachine, TimerId, ViewKind, ViewModel};
-use super::nav::NavSnapshot;
-use super::profile::{ProfileStore, remove_dir_if_exists};
+use tokenmon_platform::webauth::config::{SignInConfig, WINDOW_MIN_SIZE, WINDOW_SIZE};
+use tokenmon_platform::webauth::cookies::WebCookie;
+use tokenmon_platform::webauth::gate::NavigationPolicy;
+use tokenmon_platform::webauth::host::{SignInDelegate, WebAuthError, WebAuthHost};
+use tokenmon_platform::webauth::layout::{Bounds, body_bounds, chrome_layout, scaled};
+use tokenmon_platform::webauth::machine::{
+    Action, Input, SignInMachine, TimerId, ViewKind, ViewModel,
+};
+use tokenmon_platform::webauth::nav::NavSnapshot;
+use tokenmon_platform::webauth::profile::{ProfileStore, remove_dir_if_exists};
 
 const ID_BACK: i32 = 101;
 const ID_FORWARD: i32 = 102;

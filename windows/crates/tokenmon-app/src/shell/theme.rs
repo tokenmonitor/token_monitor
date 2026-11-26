@@ -1,7 +1,7 @@
 //! Reads the taskbar theme from the registry
 //! (`HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`,
 //! `SystemUsesLightTheme`) and applies the *app* theme (`AppsUseLightTheme`,
-//! read by `tokenmon_platform::appearance`) to the windows. The two settings
+//! read by `tokenmon_platform_windows::appearance`) to the windows. The two settings
 //! are independent: the taskbar theme only colors the tray icon.
 #![allow(unsafe_code)]
 
@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use tokenmon_core::AppTheme;
 use tokenmon_core::settings::AppSettings;
-use tokenmon_platform::appearance;
+use tokenmon_platform_windows::appearance;
 use tokenmon_ui::tray_icon::TaskbarTheme;
 use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_REG_DWORD, RegGetValueW};
 

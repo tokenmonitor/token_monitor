@@ -11,14 +11,14 @@ use tokenmon_core::update::{
     is_repository_release_download,
 };
 
-use crate::shell::Registry;
+use tokenmon_platform::shell::Registry;
 
-use super::archive::{extract_zip, locate_exe};
-use super::download::{Downloader, HttpDownloader, TrustPolicy};
 use super::pe_version::{PackageVersionReader, SystemVersionReader};
 use super::relaunch::{ProcessLauncher, StdLauncher, msiexec_spec, relaunch_spec};
-use super::swap::{can_replace_running_exe, commit_swap, stage_next_to};
 use super::verify::{SignaturePolicy, SignatureVerifier, verifier_for_policy};
+use tokenmon_platform::install::archive::{extract_zip, locate_exe};
+use tokenmon_platform::install::download::{Downloader, HttpDownloader, TrustPolicy};
+use tokenmon_platform::install::swap::{can_replace_running_exe, commit_swap, stage_next_to};
 
 /// Tag prefix of the Windows release channel (`windows-vX.Y.Z`).
 pub const WINDOWS_TAG_PREFIX: &str = "windows-v";
@@ -32,7 +32,7 @@ pub const WINDOWS_ASSET_PREFIX: &str = "tokenmon-windows-";
 /// # Examples
 ///
 /// ```
-/// use tokenmon_platform::install::windows_release_source;
+/// use tokenmon_platform_windows::install::windows_release_source;
 /// let source = windows_release_source();
 /// assert_eq!(source.tag_prefix, "windows-v");
 /// assert_eq!(source.asset_prefix, "tokenmon-windows-");
@@ -313,7 +313,7 @@ fn normalized_dir(path: &str) -> String {
 ///
 /// ```
 /// use std::path::Path;
-/// use tokenmon_platform::install::installer::exe_in_msi_install_dir;
+/// use tokenmon_platform_windows::install::installer::exe_in_msi_install_dir;
 ///
 /// let exe = Path::new(r"C:\Users\a\AppData\Local\Programs\TokenMon\TokenMon.exe");
 /// assert!(exe_in_msi_install_dir(exe, r"C:\Users\a\AppData\Local\Programs\TokenMon\"));

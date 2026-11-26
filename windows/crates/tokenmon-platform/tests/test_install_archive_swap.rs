@@ -180,14 +180,3 @@ fn test_can_replace_checks_the_given_path() {
     fs::write(&not_exe, b"x").unwrap();
     assert!(!can_replace_running_exe(&not_exe));
 }
-
-/// `Zone.Identifier` text with ZoneId 3 or 4 marks an Internet download.
-#[test]
-fn test_zone_identifier_parsing() {
-    use tokenmon_platform::install::verify::zone_id_marks_internet as z;
-    assert!(z("[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=about:internet"));
-    assert!(z("ZoneId=4"));
-    assert!(!z("[ZoneTransfer]\r\nZoneId=0"));
-    assert!(!z("[ZoneTransfer]\r\nZoneId=x"));
-    assert!(!z(""));
-}

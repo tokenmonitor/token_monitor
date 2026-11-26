@@ -8,9 +8,9 @@
 
 use std::sync::Arc;
 
-use crate::notify::NotifyError;
-use crate::notify::toast::APP_USER_MODEL_ID;
-use crate::shell::Registry;
+use tokenmon_platform::notify::NotifyError;
+use tokenmon_platform::notify::toast::APP_USER_MODEL_ID;
+use tokenmon_platform::shell::Registry;
 
 /// Parent key of all AUMID registrations, relative to HKCU.
 pub const AUMID_ROOT: &str = r"Software\Classes\AppUserModelId";

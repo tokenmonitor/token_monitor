@@ -6,7 +6,7 @@ use std::io::Cursor;
 
 use libfuzzer_sys::fuzz_target;
 use tokenmon_core::update::AppVersion;
-use tokenmon_platform::install::read_pe_version;
+use tokenmon_platform_windows::install::read_pe_version;
 
 fuzz_target!(|data: &[u8]| {
     if let Some(v) = read_pe_version(Cursor::new(data)) {

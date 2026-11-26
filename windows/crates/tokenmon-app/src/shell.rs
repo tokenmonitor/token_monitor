@@ -22,20 +22,21 @@ use tokenmon_core::storage::AppPaths;
 use tokenmon_core::update::UrlOpener;
 use tokenmon_core::usage::Calendar;
 use tokenmon_core::{AppTheme, Clock, ProviderId, SystemClock, ThemeTracker};
-use tokenmon_platform::install::handle_startup_args;
-use tokenmon_platform::notify::windows::WinRtToastBackend;
-use tokenmon_platform::notify::{AumidRegistration, ToastNotifier};
-use tokenmon_platform::power::{SystemEventSource, SystemWakeGate, windows::WindowsEventSource};
-use tokenmon_platform::secrets::DpapiEncryptor;
-use tokenmon_platform::secrets::register_owner_only_permissions;
-use tokenmon_platform::shell::windows::{
-    MutexInstanceLock, PipeClient, PipeServer, WinRegistry, current_user_pipe_name,
-};
+use tokenmon_platform::notify::ToastNotifier;
+use tokenmon_platform::power::{SystemEventSource, SystemWakeGate};
 use tokenmon_platform::shell::{
     DesktopVerb, IpcMessage, LaunchArgs, LoginItemService, RunKeyLoginItem, StartupDecision,
     decide_startup,
 };
-use tokenmon_platform::webauth::WindowsWebAuthHost;
+use tokenmon_platform_windows::install::{WindowsUpdateInstaller, handle_startup_args};
+use tokenmon_platform_windows::notify::AumidRegistration;
+use tokenmon_platform_windows::notify::windows::WinRtToastBackend;
+use tokenmon_platform_windows::power::windows::WindowsEventSource;
+use tokenmon_platform_windows::secrets::{DpapiEncryptor, register_owner_only_permissions};
+use tokenmon_platform_windows::shell::windows::{
+    MutexInstanceLock, PipeClient, PipeServer, WinRegistry, current_user_pipe_name,
+};
+use tokenmon_platform_windows::webauth::WindowsWebAuthHost;
 use tokenmon_provider_opencode::db::DataDirEnv;
 use tokenmon_ui::panels::common::UpdatePillVm;
 use tokenmon_ui::panels::events::{PanelEvent, PanelHandler};
@@ -63,7 +64,6 @@ use crate::tray::{
     context_menu, icon_size, menu_command, was_foreground,
 };
 use crate::updates::UpdateService;
-use tokenmon_platform::install::WindowsUpdateInstaller;
 
 mod display;
 mod panels;

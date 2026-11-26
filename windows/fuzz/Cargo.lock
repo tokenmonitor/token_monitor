@@ -1664,6 +1664,7 @@ dependencies = [
  "tempfile",
  "tokenmon-core",
  "tokenmon-platform",
+ "tokenmon-platform-windows",
  "tokenmon-provider-chatgpt",
  "tokenmon-provider-claude",
  "tokenmon-provider-cursor",
@@ -1687,11 +1688,22 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+ "zeroize",
+ "zip",
+]
+
+[[package]]
+name = "tokenmon-platform-windows"
+version = "1.13.2"
+dependencies = [
+ "tempfile",
+ "tokenmon-core",
+ "tokenmon-platform",
+ "tracing",
  "webview2-com",
  "windows",
  "windows-sys 0.61.2",
  "zeroize",
- "zip",
 ]
 
 [[package]]

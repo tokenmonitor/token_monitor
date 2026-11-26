@@ -1,32 +1,25 @@
-//! WinRT toast notifications under the TokenMon AppUserModelID.
-//!
-//! Owner: ws-notify (spec 01 sections 5 and 8).
+//! Toast notifications (spec 01 sections 5 and 8).
 //!
 //! The alert text, title and tag come from `tokenmon_core::alerts`, so the
 //! strings stay identical to macOS. This module adds:
 //!
 //! * [`toast`]: the toast XML and activation-argument format (pure, portable).
-//! * [`aumid`]: first-run registration of the AppUserModelID in HKCU, through
-//!   the shell [`Registry`](crate::shell::Registry) trait.
 //! * [`ToastNotifier`]: the [`Notifier`] implementation, generic over a
-//!   [`ToastBackend`]. The Windows backend lives in `windows.rs`
-//!   (`cfg(windows)`); [`FakeToastBackend`] records toasts and simulates
-//!   clicks so everything else is tested on macOS and Linux.
+//!   [`ToastBackend`]. The OS backends (the WinRT toast and the AppUserModelID
+//!   registration for Windows) live in the OS crates; [`FakeToastBackend`]
+//!   records toasts and simulates clicks so everything else is tested on every
+//!   host.
 //!
 //! Clicking a toast calls the [`ActivationHandler`] with the provider the
 //! alert was about, so the app can open the panel on that provider.
 
-pub mod aumid;
 pub mod toast;
-#[cfg(windows)]
-pub mod windows;
 
 use std::sync::{Arc, Mutex, PoisonError};
 
 use tokenmon_core::ProviderId;
 use tokenmon_core::alerts::{Notifier, ThresholdAlert};
 
-pub use aumid::{AumidRegistration, AumidStatus};
 pub use toast::{APP_USER_MODEL_ID, ToastContent, parse_activation_arguments};
 
 /// Called when the user clicks a toast, with the provider it was about.

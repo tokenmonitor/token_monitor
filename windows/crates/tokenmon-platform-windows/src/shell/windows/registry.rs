@@ -2,9 +2,9 @@
 //!
 //! A thin adapter excluded from coverage (`windows/.config/coverage-excludes.txt`):
 //! tests never touch the real registry. The `REG_SZ` byte format lives in the
-//! portable [`crate::shell::registry`] ([`encode_reg_sz`], [`decode_reg_sz`]),
+//! portable [`tokenmon_platform::shell::registry`] ([`encode_reg_sz`], [`decode_reg_sz`]),
 //! and the key layout and decisions in `autostart` and `context_menu`, all
-//! tested against [`MemoryRegistry`](crate::shell::MemoryRegistry).
+//! tested against [`MemoryRegistry`](tokenmon_platform::shell::MemoryRegistry).
 
 use std::ptr::{null, null_mut};
 
@@ -16,8 +16,8 @@ use windows_sys::Win32::System::Registry::{
 };
 
 use super::wide;
-use crate::shell::error::ShellError;
-use crate::shell::registry::{Registry, decode_reg_sz, encode_reg_sz};
+use tokenmon_platform::shell::error::ShellError;
+use tokenmon_platform::shell::registry::{Registry, decode_reg_sz, encode_reg_sz};
 
 fn reg_err(op: &str, code: u32) -> ShellError {
     ShellError::Registry(format!("{op} failed with Win32 error {code}"))

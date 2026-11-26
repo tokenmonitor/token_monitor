@@ -17,10 +17,9 @@ use tokenmon_core::update::{
     AppVersion, AssetKind, InstallError, InstallRequest, ReleaseAsset, ReleaseSource,
     UpdateInstaller,
 };
-use tokenmon_platform::install::verify::{SignaturePolicy, verifier_for_policy};
-use tokenmon_platform::install::{
-    CommandSpec, DownloadedFile, Downloader, ProcessLauncher, WindowsUpdateInstaller,
-};
+use tokenmon_platform::install::{DownloadedFile, Downloader};
+use tokenmon_platform_windows::install::verify::{SignaturePolicy, verifier_for_policy};
+use tokenmon_platform_windows::install::{CommandSpec, ProcessLauncher, WindowsUpdateInstaller};
 
 const URL: &str = "https://github.com/tokenmonitor/token_monitor/releases/download/windows-v1.6.0/tokenmon-windows-x64.zip";
 #[cfg(windows)]

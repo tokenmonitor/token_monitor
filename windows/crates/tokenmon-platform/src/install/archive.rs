@@ -112,7 +112,11 @@ pub fn locate_exe(unpacked: &Path) -> Result<PathBuf, InstallError> {
 }
 
 /// Reads at most `limit` bytes of `path`; helper for verification code.
-pub(crate) fn read_prefix(path: &Path, limit: u64) -> io::Result<Vec<u8>> {
+///
+/// # Errors
+///
+/// `path` cannot be opened or read.
+pub fn read_prefix(path: &Path, limit: u64) -> io::Result<Vec<u8>> {
     let mut buf = Vec::new();
     File::open(path)?.take(limit).read_to_end(&mut buf)?;
     Ok(buf)

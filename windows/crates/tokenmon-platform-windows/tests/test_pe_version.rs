@@ -7,7 +7,7 @@ mod common;
 use std::io::Cursor;
 
 use common::pe_with_version;
-use tokenmon_platform::install::read_pe_version;
+use tokenmon_platform_windows::install::read_pe_version;
 
 fn read(bytes: Vec<u8>) -> Option<String> {
     read_pe_version(Cursor::new(bytes)).map(|v| v.to_string())
@@ -68,7 +68,7 @@ fn test_every_byte_flip_is_total() {
 /// an image that only has a version resource, and is total over truncations.
 #[test]
 fn test_icon_group_detection() {
-    use tokenmon_platform::install::pe_has_icon_group;
+    use tokenmon_platform_windows::install::pe_has_icon_group;
     let has = |b: Vec<u8>| pe_has_icon_group(Cursor::new(b));
     let pe = pe_with_version(Some("1.6.0"), None, "");
     assert!(!has(pe.clone()));

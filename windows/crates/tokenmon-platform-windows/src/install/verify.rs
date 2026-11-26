@@ -53,7 +53,7 @@ fn is_pe(path: &Path) -> std::io::Result<bool> {
 ///
 /// ```
 /// use std::io::Cursor;
-/// use tokenmon_platform::install::verify::is_pe_reader;
+/// use tokenmon_platform_windows::install::verify::is_pe_reader;
 ///
 /// let mut pe = vec![0u8; 0x44];
 /// pe[..2].copy_from_slice(b"MZ");
@@ -79,7 +79,7 @@ pub fn is_pe_reader<R: Read + Seek>(mut f: R) -> std::io::Result<bool> {
 /// # Examples
 ///
 /// ```
-/// use tokenmon_platform::install::verify::zone_id_marks_internet;
+/// use tokenmon_platform_windows::install::verify::zone_id_marks_internet;
 ///
 /// assert!(zone_id_marks_internet("[ZoneTransfer]\r\nZoneId=3\r\n"));
 /// assert!(!zone_id_marks_internet("[ZoneTransfer]\r\nZoneId=2\r\n"));
@@ -119,7 +119,7 @@ impl SignatureVerifier for PeHeaderVerifier {
     }
 
     fn verify_msi(&self, path: &Path) -> Result<(), InstallError> {
-        let head = super::archive::read_prefix(path, 8)
+        let head = tokenmon_platform::install::archive::read_prefix(path, 8)
             .map_err(|_| bad("The installer could not be read."))?;
         if head == OLE_MAGIC {
             Ok(())
@@ -150,7 +150,7 @@ pub enum SignaturePolicy {
 /// # Examples
 ///
 /// ```
-/// use tokenmon_platform::install::verify::{SignaturePolicy, verifier_for_policy};
+/// use tokenmon_platform_windows::install::verify::{SignaturePolicy, verifier_for_policy};
 ///
 /// let lenient = verifier_for_policy(SignaturePolicy::AcceptUnsignedWithDigest);
 /// // Not a PE file: rejected under every policy.

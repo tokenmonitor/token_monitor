@@ -221,22 +221,6 @@ fn purge_does_not_follow_symlinks() {
     assert!(!s.root().join("claude").exists());
 }
 
-// testSignInBrowserDoesNotOverrideTheUserAgent (Windows: the adapter never
-// sets a user agent, so WebView2's default Edge UA is used).
-#[test]
-fn adapter_never_overrides_the_user_agent_or_exposes_host_objects() {
-    let src = include_str!("../src/webauth/webview2.rs");
-    let code: String = src
-        .lines()
-        .filter(|l| !l.trim_start().starts_with("//"))
-        .collect::<Vec<_>>()
-        .join("\n");
-    assert!(!code.contains("UserAgent"), "must not set a user agent");
-    assert!(!code.contains("AddHostObjectToScript"), "no host objects");
-    assert!(code.contains("SetAreHostObjectsAllowed(false)"));
-    assert!(code.contains("SetIsWebMessageEnabled(false)"));
-}
-
 #[test]
 fn navigation_policy_allows_only_provider_and_identity_hosts_over_https() {
     use tokenmon_platform::webauth::gate::NavigationPolicy;

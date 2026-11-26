@@ -8,7 +8,7 @@ use windows_sys::Win32::Security::Cryptography::{
 };
 use zeroize::Zeroizing;
 
-use super::encryptor::{CryptError, Encryptor};
+use tokenmon_platform::secrets::{CryptError, Encryptor};
 
 /// Application-specific entropy: another process of the same user must also
 /// know this constant (defence in depth only, it is not a secret).

@@ -6,8 +6,8 @@
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use tokenmon_platform::install::relaunch::parse_wait_for_pid;
-use tokenmon_platform::install::verify::{is_pe_reader, zone_id_marks_internet};
+use tokenmon_platform_windows::install::relaunch::parse_wait_for_pid;
+use tokenmon_platform_windows::install::verify::{is_pe_reader, zone_id_marks_internet};
 
 fn corpus() -> Vec<(String, Vec<u8>)> {
     let dir: PathBuf =

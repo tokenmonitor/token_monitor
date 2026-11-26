@@ -8,7 +8,7 @@ use std::io::Cursor;
 
 use common::pe_with_version;
 use tokenmon_core::update::InstallError;
-use tokenmon_platform::install::pe_version::{
+use tokenmon_platform_windows::install::pe_version::{
     PackageVersionReader, SystemVersionReader, pe_has_icon_group, read_pe_version,
 };
 

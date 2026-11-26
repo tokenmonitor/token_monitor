@@ -4,8 +4,8 @@
 use std::ffi::OsString;
 use std::path::Path;
 
-use tokenmon_platform::install::handle_startup_args;
-use tokenmon_platform::install::relaunch::{
+use tokenmon_platform_windows::install::handle_startup_args;
+use tokenmon_platform_windows::install::relaunch::{
     CommandSpec, ProcessLauncher, StdLauncher, is_absolute_windows_path, msiexec_spec_in,
     parse_wait_for_pid, relaunch_spec, system_directory, system_directory_from, wait_for_pid_exit,
 };

@@ -1,4 +1,4 @@
-//! Hermetic tests for toast composition, activation and AUMID registration.
+//! Hermetic tests for toast composition and activation.
 
 use std::sync::{Arc, Mutex};
 
@@ -6,10 +6,8 @@ use tokenmon_core::ProviderId;
 use tokenmon_core::alerts::{Notifier, ThresholdAlert};
 use tokenmon_platform::notify::toast::xml_escape;
 use tokenmon_platform::notify::{
-    ActivationHandler, AumidRegistration, AumidStatus, FakeToastBackend, ToastContent,
-    ToastNotifier, parse_activation_arguments,
+    ActivationHandler, FakeToastBackend, ToastContent, ToastNotifier, parse_activation_arguments,
 };
-use tokenmon_platform::shell::{MemoryRegistry, Registry};
 
 type Clicks = Arc<Mutex<Vec<ProviderId>>>;
 
@@ -127,62 +125,4 @@ fn test_try_deliver_reports_toast_failure() {
     backend.set_fail(false);
     assert!(n.try_deliver(&alert(ProviderId::Grok, 85.0, 80.0)));
     assert_eq!(backend.shown().len(), 1);
-}
-
-/// First run registers the AUMID; the second run writes nothing.
-#[test]
-fn test_aumid_registration_is_idempotent() {
-    let reg = Arc::new(MemoryRegistry::new());
-    let r = AumidRegistration::new(reg.clone(), Some(r"C:\TokenMon\icon.ico".into()));
-    assert_eq!(
-        r.ensure().expect("operation succeeds"),
-        AumidStatus::Registered
-    );
-    let key = AumidRegistration::key();
-    assert_eq!(key, r"Software\Classes\AppUserModelId\TokenMon");
-    assert_eq!(
-        reg.get_string(&key, "DisplayName")
-            .expect("operation succeeds")
-            .as_deref(),
-        Some("TokenMon")
-    );
-    assert_eq!(
-        reg.get_string(&key, "IconUri")
-            .expect("operation succeeds")
-            .as_deref(),
-        Some(r"C:\TokenMon\icon.ico")
-    );
-    reg.set_fail_writes(true);
-    assert_eq!(
-        r.ensure().expect("operation succeeds"),
-        AumidStatus::AlreadyRegistered
-    );
-}
-
-/// A moved install (new icon path) re-registers; removal is idempotent.
-#[test]
-fn test_aumid_updates_stale_icon_and_removes() {
-    let reg = Arc::new(MemoryRegistry::new());
-    AumidRegistration::new(reg.clone(), Some("a.ico".into()))
-        .ensure()
-        .expect("operation succeeds");
-    let r = AumidRegistration::new(reg.clone(), Some("b.ico".into()));
-    assert_eq!(
-        r.ensure().expect("operation succeeds"),
-        AumidStatus::Registered
-    );
-    r.remove().expect("operation succeeds");
-    r.remove().expect("operation succeeds");
-    assert!(
-        !reg.key_exists(&AumidRegistration::key())
-            .expect("operation succeeds")
-    );
-}
-
-/// Registry write failures surface as typed errors.
-#[test]
-fn test_aumid_write_failure_is_reported() {
-    let reg = Arc::new(MemoryRegistry::new());
-    reg.set_fail_writes(true);
-    assert!(AumidRegistration::new(reg, None).ensure().is_err());
 }

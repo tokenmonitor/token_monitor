@@ -17,9 +17,10 @@ use tokenmon_core::update::{
     AppVersion, AssetKind, InstallError, InstallOutcome, InstallRequest, ReleaseAsset,
     ReleaseSource, UpdateInstaller,
 };
-use tokenmon_platform::install::{
-    CommandSpec, DownloadedFile, Downloader, PackageVersionReader, PeHeaderVerifier,
-    ProcessLauncher, SignatureVerifier, SystemVersionReader, WindowsUpdateInstaller,
+use tokenmon_platform::install::{DownloadedFile, Downloader};
+use tokenmon_platform_windows::install::{
+    CommandSpec, PackageVersionReader, PeHeaderVerifier, ProcessLauncher, SignatureVerifier,
+    SystemVersionReader, WindowsUpdateInstaller,
 };
 
 const URL: &str = "https://github.com/tokenmonitor/token_monitor/releases/download/windows-v1.6.0/tokenmon-windows-x64.zip";
@@ -476,7 +477,7 @@ async fn test_msi_swapped_after_verification_is_not_launched() {
 /// #46: msiexec is addressed by absolute system path, never by bare name.
 #[test]
 fn test_msiexec_spec_uses_the_supplied_system_directory() {
-    use tokenmon_platform::install::relaunch::{msiexec_spec, msiexec_spec_in};
+    use tokenmon_platform_windows::install::relaunch::{msiexec_spec, msiexec_spec_in};
     let spec = msiexec_spec_in(r"C:\Windows\System32\", Path::new(r"C:\t\x.msi"));
     assert_eq!(spec.program, r"C:\Windows\System32\msiexec.exe");
     let bare = msiexec_spec(Path::new("x.msi"));
@@ -489,8 +490,8 @@ fn test_msiexec_spec_uses_the_supplied_system_directory() {
 /// MSI-installed only when the running exe sits directly in that folder.
 #[test]
 fn test_installed_by_msi_follows_recorded_install_dir() {
-    use tokenmon_platform::install::installer::{MSI_INSTALL_DIR_VALUE, MSI_INSTALLER_KEY};
     use tokenmon_platform::shell::{MemoryRegistry, Registry};
+    use tokenmon_platform_windows::install::installer::{MSI_INSTALL_DIR_VALUE, MSI_INSTALLER_KEY};
 
     type Record = fn(&str) -> Option<String>;
 

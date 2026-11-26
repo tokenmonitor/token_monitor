@@ -346,14 +346,3 @@ fn payload_round_trips_awkward_secrets_and_never_debug_prints_them() {
     assert!(!format!("{p:?}").contains('\u{e9}'));
     assert!(!format!("{p:?}").contains("a\\\"b"));
 }
-
-#[cfg(windows)]
-#[test]
-fn dpapi_round_trip() {
-    use tokenmon_platform::secrets::DpapiEncryptor;
-    let e = DpapiEncryptor;
-    let blob = e.protect(b"hello").unwrap();
-    assert_ne!(blob, b"hello");
-    assert_eq!(e.unprotect(&blob).unwrap().as_slice(), b"hello");
-    assert!(e.unprotect(b"garbage").is_err());
-}

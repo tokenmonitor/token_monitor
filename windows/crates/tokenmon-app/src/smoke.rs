@@ -125,7 +125,7 @@ fn own_version_resource_matches(version: &str) -> bool {
     let declared = std::env::current_exe()
         .ok()
         .and_then(|p| std::fs::File::open(p).ok())
-        .and_then(tokenmon_platform::install::read_pe_version);
+        .and_then(tokenmon_platform_windows::install::read_pe_version);
     declared.is_some() && declared == AppVersion::parse(version)
 }
 
@@ -141,7 +141,7 @@ fn own_icon_resource_present() -> bool {
     std::env::current_exe()
         .ok()
         .and_then(|p| std::fs::File::open(p).ok())
-        .is_some_and(tokenmon_platform::install::pe_has_icon_group)
+        .is_some_and(tokenmon_platform_windows::install::pe_has_icon_group)
 }
 
 #[cfg(not(all(windows, target_env = "msvc")))]
