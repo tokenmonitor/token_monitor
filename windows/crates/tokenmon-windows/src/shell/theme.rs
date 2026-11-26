@@ -13,7 +13,7 @@ use tokenmon_platform_windows::appearance;
 use tokenmon_ui::tray_icon::TaskbarTheme;
 use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_REG_DWORD, RegGetValueW};
 
-use crate::observe::ObservationLoop;
+use tokenmon_app::observe::ObservationLoop;
 
 fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()

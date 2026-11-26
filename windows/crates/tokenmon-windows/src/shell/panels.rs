@@ -10,7 +10,7 @@ use tokenmon_ui::panels::common::UpdatePillVm;
 use tokenmon_ui::panels::switcher::RowVm;
 use tokenmon_ui::panels::{bridge, events, ui};
 
-use crate::panel::PanelView;
+use tokenmon_app::panel::PanelView;
 
 /// The panel's width in logical pixels (`PanelWindow` in the UI crate).
 pub const PANEL_WIDTH_DIP: f32 = 420.0;

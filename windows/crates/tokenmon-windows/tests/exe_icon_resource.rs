@@ -1,4 +1,4 @@
-//! The exe's application icon (#81): `build.rs` turns `assets/tokenmon.ico`
+//! The exe's application icon (#81): `build.rs` turns `tokenmon-app/assets/tokenmon.ico`
 //! into `RT_ICON` frames and an `RT_GROUP_ICON` with id 1. The writer is
 //! compiled into this test so the `.res` it produces is parsed on every host.
 
@@ -8,7 +8,7 @@ mod build_script;
 
 use build_script::{RT_GROUP_ICON, RT_ICON, RT_VERSION, icon_entries, res_file, version_entry};
 
-const ICO: &[u8] = include_bytes!("../assets/tokenmon.ico");
+const ICO: &[u8] = include_bytes!("../../tokenmon-app/assets/tokenmon.ico");
 
 /// One parsed `.res` entry: `(type, name, data)`.
 type Parsed = (u16, u16, Vec<u8>);

@@ -5,7 +5,7 @@ Used by .github/workflows/windows-release.yml; tested by tests/test_package.py
 on any OS.
 
     package.py version [--windows-dir DIR]
-        Print the release version: tokenmon-app's version, which inherits
+        Print the release version: tokenmon-windows's version, which inherits
         [workspace.package] version from windows/Cargo.toml.
     package.py check-tag TAG [--windows-dir DIR]
         Fail unless TAG is windows-v<version>.
@@ -36,7 +36,7 @@ from pathlib import Path
 TAG_PREFIX = "windows-v"
 ASSET_PREFIX = "tokenmon-windows-"
 EXE_NAME = "TokenMon.exe"
-APP_CRATE = "crates/tokenmon-app/Cargo.toml"
+APP_CRATE = "crates/tokenmon-windows/Cargo.toml"
 # 1980-01-01, the earliest time a zip entry can carry.
 ZIP_EPOCH = (1980, 1, 1, 0, 0, 0)
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
@@ -47,14 +47,14 @@ class PackagingError(Exception):
 
 
 def read_version(windows_dir: Path) -> str:
-    """tokenmon-app's version, resolving `version.workspace = true`."""
+    """tokenmon-windows's version, resolving `version.workspace = true`."""
     app = tomllib.loads((windows_dir / APP_CRATE).read_text(encoding="utf-8"))
     version = app.get("package", {}).get("version")
     if isinstance(version, dict) and version.get("workspace") is True:
         workspace = tomllib.loads((windows_dir / "Cargo.toml").read_text(encoding="utf-8"))
         version = workspace.get("workspace", {}).get("package", {}).get("version")
     if not isinstance(version, str) or not SEMVER.match(version):
-        raise PackagingError(f"tokenmon-app version {version!r} is not MAJOR.MINOR.PATCH")
+        raise PackagingError(f"tokenmon-windows version {version!r} is not MAJOR.MINOR.PATCH")
     major, minor, patch = (int(p) for p in version.split("."))
     # Windows Installer ProductVersion limits (cargo-wix enforces the same).
     if major > 255 or minor > 255 or patch > 65534:

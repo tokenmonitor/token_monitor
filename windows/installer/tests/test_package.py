@@ -25,13 +25,13 @@ _spec.loader.exec_module(package)
 
 
 def write_workspace(root: Path, workspace_version: str, app_version: str | None = None) -> None:
-    (root / "crates/tokenmon-app").mkdir(parents=True)
+    (root / "crates/tokenmon-windows").mkdir(parents=True)
     (root / "Cargo.toml").write_text(
-        f'[workspace]\nmembers = ["crates/tokenmon-app"]\n\n[workspace.package]\nversion = "{workspace_version}"\n'
+        f'[workspace]\nmembers = ["crates/tokenmon-windows"]\n\n[workspace.package]\nversion = "{workspace_version}"\n'
     )
     version_line = 'version.workspace = true' if app_version is None else f'version = "{app_version}"'
-    (root / "crates/tokenmon-app/Cargo.toml").write_text(
-        f'[package]\nname = "tokenmon-app"\n{version_line}\n'
+    (root / "crates/tokenmon-windows/Cargo.toml").write_text(
+        f'[package]\nname = "tokenmon-windows"\n{version_line}\n'
     )
 
 

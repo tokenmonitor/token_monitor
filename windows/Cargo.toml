@@ -14,6 +14,7 @@ members = [
     "crates/tokenmon-platform-windows",
     "crates/tokenmon-ui",
     "crates/tokenmon-app",
+    "crates/tokenmon-windows",
 ]
 
 [workspace.package]
@@ -39,6 +40,7 @@ tokenmon-provider-openrouter = { path = "crates/tokenmon-provider-openrouter" }
 tokenmon-platform = { path = "crates/tokenmon-platform" }
 tokenmon-platform-windows = { path = "crates/tokenmon-platform-windows" }
 tokenmon-ui = { path = "crates/tokenmon-ui" }
+tokenmon-app = { path = "crates/tokenmon-app" }
 
 # Runtime (feature sets are minimal; crates add what they need)
 tokio = { version = "1.54", default-features = false }

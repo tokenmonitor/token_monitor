@@ -1,7 +1,7 @@
 //! Monitor facts the tray and panel need: the monitor and work area under a
 //! point, its DPI, and the small-icon metric at that DPI. Thin wrappers over
-//! Win32; the decisions on top of them are in [`crate::placement`] and
-//! [`crate::tray`].
+//! Win32; the decisions on top of them are in [`tokenmon_app::placement`] and
+//! [`tokenmon_app::tray`].
 #![allow(unsafe_code)]
 
 use windows_sys::Win32::Foundation::{POINT, RECT};
@@ -11,7 +11,7 @@ use windows_sys::Win32::Graphics::Gdi::{
 use windows_sys::Win32::UI::HiDpi::{GetDpiForMonitor, GetSystemMetricsForDpi, MDT_EFFECTIVE_DPI};
 use windows_sys::Win32::UI::WindowsAndMessaging::SM_CXSMICON;
 
-use crate::tray::Rect;
+use tokenmon_app::tray::Rect;
 
 /// Fallback when the monitor cannot be queried: a common 1080p screen.
 const FALLBACK_MONITOR: Rect = Rect {

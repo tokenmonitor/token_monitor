@@ -1,6 +1,6 @@
 //! Tray icon wiring: the real tray icon, its click and menu events, and the
-//! periodic UI tick. Windows glue only; every decision is in `crate::tray`,
-//! `crate::placement` and `crate::panel`.
+//! periodic UI tick. Windows glue only; every decision is in `tokenmon_app::tray`,
+//! `tokenmon_app::placement` and `tokenmon_app::panel`.
 
 use super::{
     Arc, Calendar, ComponentHandle, DateTime, Duration, Icon, LOCAL_CLOCK, Menu, MenuAction,

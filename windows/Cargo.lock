@@ -5954,12 +5954,10 @@ version = "1.13.2"
 dependencies = [
  "chrono",
  "reqwest",
- "slint",
  "tempfile",
  "thiserror 2.0.21",
  "tokenmon-core",
  "tokenmon-platform",
- "tokenmon-platform-windows",
  "tokenmon-provider-chatgpt",
  "tokenmon-provider-claude",
  "tokenmon-provider-cursor",
@@ -5971,9 +5969,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "tray-icon",
  "url",
- "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6154,6 +6150,26 @@ dependencies = [
  "tokenmon-provider-grokbot",
  "tokenmon-provider-opencode",
  "tokenmon-provider-openrouter",
+]
+
+[[package]]
+name = "tokenmon-windows"
+version = "1.13.2"
+dependencies = [
+ "chrono",
+ "slint",
+ "tempfile",
+ "tokenmon-app",
+ "tokenmon-core",
+ "tokenmon-platform",
+ "tokenmon-platform-windows",
+ "tokenmon-provider-opencode",
+ "tokenmon-ui",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "tray-icon",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

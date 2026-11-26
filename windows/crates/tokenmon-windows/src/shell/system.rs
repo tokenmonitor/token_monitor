@@ -2,7 +2,7 @@
 //! foreground-rights hand-over for a second launch, and the hidden top-level
 //! window that receives the session-end messages (`WM_QUERYENDSESSION` /
 //! `WM_ENDSESSION`), which winit and Slint do not surface. The decisions are
-//! in [`crate::session`] and [`crate::startup`].
+//! in [`tokenmon_app::session`] and [`tokenmon_app::startup`].
 #![allow(unsafe_code)]
 
 use std::ptr::{null, null_mut};
@@ -18,8 +18,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     SetWindowPos, WNDCLASSW, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW,
 };
 
-use crate::session::classify;
-use crate::tray::Rect;
+use tokenmon_app::session::classify;
+use tokenmon_app::tray::Rect;
 
 fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(std::iter::once(0)).collect()

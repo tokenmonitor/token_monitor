@@ -1,9 +1,13 @@
 //! TokenMon for Windows: the system-tray binary. Thin by design: everything
-//! testable lives in the `tokenmon_app` library.
+//! testable lives in the `tokenmon_app` library; `shell` is the Win32 glue.
 
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 use std::process::ExitCode;
+
+mod exe_resources;
+#[cfg(windows)]
+mod shell;
 
 /// Logs to stdout for the headless smoke run (CI reads it).
 fn init_stdout_logging() {
@@ -36,7 +40,9 @@ fn main() -> ExitCode {
         init_file_logging();
     }
     if smoke {
-        return if tokenmon_app::smoke::run_headless(version) {
+        return if exe_resources::own_resources_match(version)
+            && tokenmon_app::smoke::run_headless(version)
+        {
             ExitCode::SUCCESS
         } else {
             ExitCode::FAILURE
@@ -47,7 +53,7 @@ fn main() -> ExitCode {
 
 #[cfg(windows)]
 fn run_app(args: &[String], version: &str) -> ExitCode {
-    tokenmon_app::shell::run(args, version)
+    shell::run(args, version)
 }
 
 #[cfg(not(windows))]

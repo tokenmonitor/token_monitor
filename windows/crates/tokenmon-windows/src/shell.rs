@@ -1,7 +1,6 @@
 //! Windows glue: single-instance startup, the tray icon, the panel window and
-//! the platform collaborators. Everything decidable lives in the portable
-//! modules ([`crate::panel`], [`crate::tray`], [`crate::overview`],
-//! [`crate::settings_host`]); this one only connects them to the OS.
+//! the platform collaborators. Decisions live in the portable `tokenmon_app`
+//! modules (panel, tray, overview, settings_host); this only wires them to the OS.
 //!
 //! Threads: a tokio runtime runs polling and IO; the Slint event loop runs on
 //! the main thread and owns the tray, the panel window and Settings.
@@ -29,8 +28,7 @@ use tokenmon_platform::shell::{
     decide_startup,
 };
 use tokenmon_platform_windows::install::{WindowsUpdateInstaller, handle_startup_args};
-use tokenmon_platform_windows::notify::AumidRegistration;
-use tokenmon_platform_windows::notify::windows::WinRtToastBackend;
+use tokenmon_platform_windows::notify::{AumidRegistration, windows::WinRtToastBackend};
 use tokenmon_platform_windows::power::windows::WindowsEventSource;
 use tokenmon_platform_windows::secrets::{DpapiEncryptor, register_owner_only_permissions};
 use tokenmon_platform_windows::shell::windows::{
@@ -50,20 +48,20 @@ use tokenmon_ui::tray_icon::{MenuAction, MenuEntry, TrayBitmap};
 use tray_icon::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
 use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
-use crate::app::{App, AppInputs};
-use crate::overview::{OverviewStore, next_midnight, record_live};
-use crate::panel::{Action, PanelState, PanelView, ViewEnv, build_view, commit_api_key};
-use crate::panel_host::{SinglePanel, select_tab};
-use crate::placement::{
+use tokenmon_app::app::{App, AppInputs};
+use tokenmon_app::overview::{OverviewStore, next_midnight, record_live};
+use tokenmon_app::panel::{Action, PanelState, PanelView, ViewEnv, build_view, commit_api_key};
+use tokenmon_app::panel_host::{SinglePanel, select_tab};
+use tokenmon_app::placement::{
     PlacementInput, fallback_icon, max_panel_height_dip, place_panel, resolve_anchor,
 };
-use crate::settings_host::{AppHost, AppSettingsBackend, HostParts};
-use crate::startup::{PendingShow, StartupFailure, retry};
-use crate::tray::{
+use tokenmon_app::settings_host::{AppHost, AppSettingsBackend, HostParts};
+use tokenmon_app::startup::{PendingShow, StartupFailure, retry};
+use tokenmon_app::tray::{
     ClickAction, MenuCommand, Rect, TrayBackend, TrayController, TrayData, click_action,
     context_menu, icon_size, menu_command, was_foreground,
 };
-use crate::updates::UpdateService;
+use tokenmon_app::updates::UpdateService;
 
 mod display;
 mod panels;
@@ -582,7 +580,9 @@ impl Ui {
 
 /// The seam that builds the one panel window: wires its actions and keys to
 /// the UI the first time the shell needs it.
-fn panel_factory(me: &Rc<RefCell<Weak<Ui>>>) -> crate::panel_host::WindowFactory<PanelWindow> {
+fn panel_factory(
+    me: &Rc<RefCell<Weak<Ui>>>,
+) -> tokenmon_app::panel_host::WindowFactory<PanelWindow> {
     let me = Rc::clone(me);
     Box::new(move || {
         let weak = me.borrow().clone();
@@ -661,7 +661,7 @@ pub fn run(args: &[String], version: &str) -> ExitCode {
 /// returns, which releases the single-instance lock.
 fn fail(failure: &StartupFailure) -> ExitCode {
     tracing::error!("{}", failure.message());
-    system::error_box(crate::startup::FAILURE_TITLE, &failure.message());
+    system::error_box(tokenmon_app::startup::FAILURE_TITLE, &failure.message());
     ExitCode::FAILURE
 }
 
@@ -742,7 +742,7 @@ fn run_primary(pipe: &str, show_panel: bool, version: &str) -> ExitCode {
 
     // Turning "Check automatically" on or off applies at once.
     let checker = Arc::clone(&updates.checker);
-    let _updates_observer = crate::observe::ObservationLoop::start(
+    let _updates_observer = tokenmon_app::observe::ObservationLoop::start(
         runtime.handle(),
         app.settings.subscribe(),
         Duration::from_millis(100),

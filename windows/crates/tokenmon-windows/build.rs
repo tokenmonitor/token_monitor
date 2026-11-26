@@ -1,5 +1,5 @@
 //! Gives `TokenMon.exe` a `VS_VERSIONINFO` resource (#77) and its application
-//! icon (#81): `assets/tokenmon.ico` as `RT_ICON` frames plus `RT_GROUP_ICON`
+//! icon (#81): `tokenmon-app/assets/tokenmon.ico` as `RT_ICON` frames plus `RT_GROUP_ICON`
 //! id 1, so Explorer, the taskbar, Alt+Tab and Task Manager show the TokenMon
 //! logo instead of the generic executable icon.
 //!
@@ -224,6 +224,8 @@ fn main() -> std::io::Result<()> {
     let out =
         PathBuf::from(std::env::var("OUT_DIR").unwrap_or_default()).join("tokenmon-version.res");
     let ico_path = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default())
+        .join("..")
+        .join("tokenmon-app")
         .join("assets")
         .join("tokenmon.ico");
     println!("cargo:rerun-if-changed={}", ico_path.display());
@@ -231,7 +233,7 @@ fn main() -> std::io::Result<()> {
     let icons = icon_entries(&ico).ok_or_else(|| {
         std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            "assets/tokenmon.ico is malformed",
+            "tokenmon-app/assets/tokenmon.ico is malformed",
         )
     })?;
     let mut entries = icons;

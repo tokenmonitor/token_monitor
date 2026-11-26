@@ -37,15 +37,3 @@ tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync",
 [lib]
 name = "tokenmon_app"
 path = "src/lib.rs"
-
-# The shipped executable is TokenMon.exe (the updater, installer and release
-# workflow all expect that file name).
-[[bin]]
-name = "TokenMon"
-path = "src/main.rs"
-
-[target.'cfg(windows)'.dependencies]
-tokenmon-platform-windows = { workspace = true }
-tray-icon = "0.26"
-slint = { workspace = true, features = ["std", "compat-1-18", "backend-winit", "renderer-software", "software-renderer-systemfonts", "unstable-winit-030"] }
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_System_Registry", "Win32_UI_HiDpi", "Win32_UI_WindowsAndMessaging"] }

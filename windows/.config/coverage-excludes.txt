@@ -35,12 +35,12 @@
 # no `#`, no `/` inside [...], and POSIX ERE syntax only (llvm-cov's regex
 # engine): no (?:...), \d, \w or \s.
 
-crates/tokenmon-app/src/shell\.rs  max-lines=860  # app composition on Windows: tray icon, panel windows, Slint event loop, toast and pipe wiring; decisions live in panel, tray, overview, settings_host, startup
-crates/tokenmon-app/src/shell/display\.rs  # MonitorFromPoint/GetDpiForMonitor wrappers; placement math is crate::placement
-crates/tokenmon-app/src/shell/panels\.rs  # creates and shows the one Slint panel window; view building is crate::panel, binding is tokenmon-ui's bridge
-crates/tokenmon-app/src/shell/tray_wiring\.rs  # tray icon creation, tray click and menu events, the 2 s tick; decisions are crate::tray, crate::placement, crate::panel
-crates/tokenmon-app/src/shell/system\.rs  # MessageBoxW, AllowSetForegroundWindow, session-end window; message decoding is crate::session
-crates/tokenmon-app/src/shell/theme\.rs  # RegGetValueW for SystemUsesLightTheme; the mapping is tokenmon-ui's TaskbarTheme
+crates/tokenmon-windows/src/shell\.rs  max-lines=860  # app composition on Windows: tray icon, panel windows, Slint event loop, toast and pipe wiring; decisions live in panel, tray, overview, settings_host, startup
+crates/tokenmon-windows/src/shell/display\.rs  # MonitorFromPoint/GetDpiForMonitor wrappers; placement math is crate::placement
+crates/tokenmon-windows/src/shell/panels\.rs  # creates and shows the one Slint panel window; view building is crate::panel, binding is tokenmon-ui's bridge
+crates/tokenmon-windows/src/shell/tray_wiring\.rs  # tray icon creation, tray click and menu events, the 2 s tick; decisions are crate::tray, crate::placement, crate::panel
+crates/tokenmon-windows/src/shell/system\.rs  # MessageBoxW, AllowSetForegroundWindow, session-end window; message decoding is crate::session
+crates/tokenmon-windows/src/shell/theme\.rs  # RegGetValueW for SystemUsesLightTheme; the mapping is tokenmon-ui's TaskbarTheme
 crates/tokenmon-platform-windows/src/shell/windows/registry\.rs  # HKCU Reg* calls; REG_SZ codec is shell::registry, key layout autostart/context_menu, all tested on MemoryRegistry
 crates/tokenmon-platform-windows/src/notify/windows\.rs  # WinRT ToastNotification calls; XML and activation parsing are notify::toast
 crates/tokenmon-platform-windows/src/power/windows\.rs  # hidden window for WM_POWERBROADCAST and connectivity hints; decoding and the gate are power::event and power::machine

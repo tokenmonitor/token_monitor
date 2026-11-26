@@ -158,12 +158,12 @@ version: ## Print the workspace version
 
 build: ## Debug build of TokenMon.exe
 	$(call say,Building $(APP_NAME) [debug])
-	$(CARGO) build $(LOCKED) -p tokenmon-app $(TARGET_FLAG)
+	$(CARGO) build $(LOCKED) -p tokenmon-windows $(TARGET_FLAG)
 	$(call ok,$(DEBUG_EXE))
 
 release: ## Release build of TokenMon.exe
 	$(call say,Building $(APP_NAME) [release])
-	$(CARGO) build $(LOCKED) --release -p tokenmon-app $(TARGET_FLAG)
+	$(CARGO) build $(LOCKED) --release -p tokenmon-windows $(TARGET_FLAG)
 	$(call ok,$(RELEASE_EXE))
 
 # Stops a running TokenMon (single instance). This has to happen BEFORE the build:
@@ -311,7 +311,7 @@ installer: ## [W] Per-user MSI: target/wix/tokenmon-windows-<version>-x64.msi
 	@"$(MAKE)" --no-print-directory release tools
 	$(call say,Building $(MSI))
 	@mkdir -p "$(DIST_DIR)"
-	"$(CARGO_WIX)" wix -p tokenmon-app --no-build --nocapture --target $(TARGET) \
+	"$(CARGO_WIX)" wix -p tokenmon-windows --no-build --nocapture --target $(TARGET) \
 		--bin-path "$$(cygpath -w "$$PWD/$(WIX_DIR)")" \
 		--include "$$(cygpath -w "$$PWD/installer/main.wxs")" \
 		--output "$$(cygpath -w "$$PWD/$(MSI)")"

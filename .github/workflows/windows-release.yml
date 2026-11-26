@@ -186,10 +186,10 @@ jobs:
           toolchain: ${{ needs.version.outputs.toolchain }}
           targets: x86_64-pc-windows-msvc
 
-      - name: cargo build --release (tokenmon-app)
+      - name: cargo build --release (tokenmon-windows)
         run: |
           set -euo pipefail
-          cargo build --locked --release -p tokenmon-app --target "$TARGET"
+          cargo build --locked --release -p tokenmon-windows --target "$TARGET"
           exe="target/$TARGET/release/TokenMon.exe"
           test -f "$exe"
           echo "APP_EXE=$PWD/$exe" >> "$GITHUB_ENV"
