@@ -4,8 +4,22 @@ import SwiftUI
 struct OpenRouterPanelView: View {
     let poller: OpenRouterUsagePoller
     let auth: OpenRouterAuthSession
-    @State private var apiKeyDraft = ""
-    @State private var isReplacingKey = false
+    @State private var apiKeyDraft: String
+    @State private var isReplacingKey: Bool
+
+    /// `apiKeyDraft` and `isReplacingKey` seed the key-entry state; the panel
+    /// opens with an empty field and no replace row by default.
+    init(
+        poller: OpenRouterUsagePoller,
+        auth: OpenRouterAuthSession,
+        apiKeyDraft: String = "",
+        isReplacingKey: Bool = false
+    ) {
+        self.poller = poller
+        self.auth = auth
+        _apiKeyDraft = State(initialValue: apiKeyDraft)
+        _isReplacingKey = State(initialValue: isReplacingKey)
+    }
 
     var body: some View {
         if auth.needsSignIn && poller.snapshot == nil {
@@ -158,7 +172,13 @@ struct OpenRouterModelsSection: View {
     let models: [OpenRouterModelUsage]
 
     private let previewCount = 3
-    @State private var showAll = false
+    @State private var showAll: Bool
+
+    /// `showAll` seeds whether the list opens past its first three models.
+    init(models: [OpenRouterModelUsage], showAll: Bool = false) {
+        self.models = models
+        _showAll = State(initialValue: showAll)
+    }
 
     private var visible: [OpenRouterModelUsage] {
         showAll ? models : Array(models.prefix(previewCount))
@@ -192,7 +212,7 @@ struct OpenRouterModelsSection: View {
     }
 }
 
-private struct OpenRouterModelRow: View {
+struct OpenRouterModelRow: View {
     let model: OpenRouterModelUsage
 
     private var costLabel: String {
