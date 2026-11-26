@@ -292,6 +292,7 @@
 		FC8460A2993D30AA5B9D3164 /* ISO8601.swift in Sources */ = {isa = PBXBuildFile; fileRef = A536607A4C132B9B95FD2E68 /* ISO8601.swift */; };
 		FD494ED4BBD4A5A3FD3B26E2 /* OpenCodeStatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 782349AA9FC5243305136053 /* OpenCodeStatsTests.swift */; };
 		FD726319A558497D45121E7E /* ClaudeCodeUsageLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42817B8BF1E4710FBDEC3144 /* ClaudeCodeUsageLedger.swift */; };
+		FDC6477E3208F924ADDDF2C0 /* CIDiagnosticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96EFC6F27351C7863E7CB066 /* CIDiagnosticsTests.swift */; };
 		FFA06F90ECA58530D1631AA8 /* CollapsibleSectionHeaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E0965BB07B19CF2D5881626 /* CollapsibleSectionHeaderTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -474,6 +475,7 @@
 		943EAC14F13A6E67FF5C4F72 /* MonitorProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorProvider.swift; sourceTree = "<group>"; };
 		951B842C4CF5D532CA0C9799 /* MetricStat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricStat.swift; sourceTree = "<group>"; };
 		9604EE2956CF38B9890E8646 /* UsageErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageErrorTests.swift; sourceTree = "<group>"; };
+		96EFC6F27351C7863E7CB066 /* CIDiagnosticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CIDiagnosticsTests.swift; sourceTree = "<group>"; };
 		9720EBF79E217B63CE39BE16 /* ReleaseFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseFeed.swift; sourceTree = "<group>"; };
 		98AF438463764D00181B1BDF /* GrokbotUsagePollerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokbotUsagePollerTests.swift; sourceTree = "<group>"; };
 		9945496BC4F5F1460E0D9980 /* MenuBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarController.swift; sourceTree = "<group>"; };
@@ -771,6 +773,7 @@
 			isa = PBXGroup;
 			children = (
 				8FC268956474B3A73CEE44CF /* AppBundleFixture.swift */,
+				96EFC6F27351C7863E7CB066 /* CIDiagnosticsTests.swift */,
 				C4EB246C2B81589DA55A5EEF /* FakeSignInAuth.swift */,
 				323AB6D42BFEF8ECA241651E /* HTTPStub.swift */,
 				99D2E036E380B0DDABA98D7A /* NeverRespondingURLProtocol.swift */,
@@ -1454,6 +1457,7 @@
 				79245FADBD6A716A6295D5A4 /* AuthenticatedRequestTests.swift in Sources */,
 				D481B87589069A78A657FE90 /* BackoffTimerTests.swift in Sources */,
 				8C77765336CA361A4E18C3D8 /* BillingPeriodWindowTests.swift in Sources */,
+				FDC6477E3208F924ADDDF2C0 /* CIDiagnosticsTests.swift in Sources */,
 				F0558FF27594E56BC58D7D79 /* CalendarDaysTests.swift in Sources */,
 				18E25EA4F0173604E6813A3A /* ChatGPTAccessTokenCacheTests.swift in Sources */,
 				F76094E54431E2DC183ABD50 /* ChatGPTLiveTransportTests.swift in Sources */,
