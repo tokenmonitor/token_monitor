@@ -226,17 +226,24 @@ struct DailyBudgetBarsView: View {
     }
 
     private func caption(_ day: DailyBudgetDay) -> some View {
-        VStack(spacing: 1) {
-            Text("\(max(0, Int(day.spentUSD.rounded())))%")
+        let lines = Self.captionLines(day)
+        return VStack(spacing: 1) {
+            Text(lines.percent)
                 .font(PanelTypography.microDigit)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
-            Text(String(Self.weekdayFormatter().string(from: day.date).prefix(2)))
+            Text(lines.weekday)
                 .font(PanelTypography.microDigit)
                 .foregroundStyle(.secondary)
         }
         .opacity(isFuture(day) ? 0.5 : 1)
+    }
+
+    /// The two lines under a day's stem: its rounded percent ("13%", never
+    /// negative) and its two-letter weekday ("Mo").
+    static func captionLines(_ day: DailyBudgetDay) -> (percent: String, weekday: String) {
+        ("\(max(0, Int(day.spentUSD.rounded())))%", String(weekdayFormatter().string(from: day.date).prefix(2)))
     }
 
     /// The weekday formatter for the current calendar, from the shared `Format` cache.
@@ -307,7 +314,26 @@ struct NavigableDailyBudgetCard: View {
     var resetsAt: Date?
     var daysForWeek: (Int) -> [DailyBudgetDay]
 
-    @State private var weekOffset = 0
+    @State private var weekOffset: Int
+
+    /// - Parameter weekOffset: The week shown first; 0 is the current window.
+    init(
+        style: Style,
+        accent: Color,
+        periodUsedPercent: Double? = nil,
+        periodStart: Date? = nil,
+        resetsAt: Date? = nil,
+        weekOffset: Int = 0,
+        daysForWeek: @escaping (Int) -> [DailyBudgetDay]
+    ) {
+        self.style = style
+        self.accent = accent
+        self.periodUsedPercent = periodUsedPercent
+        self.periodStart = periodStart
+        self.resetsAt = resetsAt
+        _weekOffset = State(initialValue: weekOffset)
+        self.daysForWeek = daysForWeek
+    }
 
     var body: some View {
         card

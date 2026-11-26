@@ -30,6 +30,20 @@ enum ViewHarness {
         NSHostingView(rootView: view.fixedSize()).fittingSize
     }
 
+    /// The pixels of `view` drawn into a `size` frame, so a test can tell two
+    /// states apart that show the same strings (a hover outline, a label
+    /// placed elsewhere). Lays out twice so measured sizes settle.
+    static func pixels(_ view: some View, size: CGSize = CGSize(width: 340, height: 120)) -> Data? {
+        let host = NSHostingView(rootView: view.frame(width: size.width, height: size.height))
+        host.frame = NSRect(origin: .zero, size: size)
+        host.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        host.layoutSubtreeIfNeeded()
+        guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return nil }
+        host.cacheDisplay(in: host.bounds, to: rep)
+        return rep.tiffRepresentation
+    }
+
     /// Renders `view` in dark, then light appearance; returns the light size.
     @discardableResult
     static func renderBothAppearances(_ view: some View, width: CGFloat = 340) -> CGSize {

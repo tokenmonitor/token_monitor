@@ -42,6 +42,22 @@ enum HoverLabelPlacement {
         }
     }
 
+    /// The pointer to float the label beside and the item under it, after a
+    /// hover `phase` over a container of `containerSize`: both nil once the
+    /// pointer leaves.
+    static func hoverState(
+        for phase: HoverPhase,
+        containerSize: CGSize,
+        index: (CGPoint, CGSize) -> Int?
+    ) -> (pointer: CGPoint?, item: Int?) {
+        switch phase {
+        case let .active(point):
+            return (point, index(point, containerSize))
+        case .ended:
+            return (nil, nil)
+        }
+    }
+
     /// Vertical distance from `y` to `frame`; 0 inside it.
     private static func distance(from y: CGFloat, to frame: CGRect) -> CGFloat {
         if y < frame.minY { return frame.minY - y }
@@ -69,6 +85,20 @@ private struct FloatingHoverLabelModifier<Label: View>: ViewModifier {
     /// Measured size of the container.
     @State private var containerSize: CGSize = .zero
 
+    init(
+        hoveredIndex: Binding<Int?>,
+        staysAboveBottomEdge: Bool,
+        initialPointer: CGPoint?,
+        index: @escaping (CGPoint, CGSize) -> Int?,
+        label: @escaping (Int) -> Label
+    ) {
+        _hoveredIndex = hoveredIndex
+        self.staysAboveBottomEdge = staysAboveBottomEdge
+        _location = State(initialValue: initialPointer)
+        self.index = index
+        self.label = label
+    }
+
     func body(content: Content) -> some View {
         content
             .contentShape(Rectangle())
@@ -78,14 +108,9 @@ private struct FloatingHoverLabelModifier<Label: View>: ViewModifier {
                 containerSize = size
             }
             .onContinuousHover { phase in
-                switch phase {
-                case let .active(point):
-                    location = point
-                    hoveredIndex = index(point, containerSize)
-                case .ended:
-                    location = nil
-                    hoveredIndex = nil
-                }
+                let state = HoverLabelPlacement.hoverState(for: phase, containerSize: containerSize, index: index)
+                location = state.pointer
+                hoveredIndex = state.item
             }
             .overlay(alignment: .topLeading) {
                 if let hoveredIndex, let location {
@@ -154,12 +179,15 @@ extension View {
     ///   - hoveredIndex: Set to the hovered item's index, or nil.
     ///   - staysAboveBottomEdge: Raises the label so it never hangs below the
     ///     container; for content at the bottom of the panel.
+    ///   - initialPointer: Where the pointer starts, for a view that opens
+    ///     already hovered (with `hoveredIndex` set); nil normally.
     ///   - index: The item under the pointer, from the pointer position and
     ///     the container size; nil when none is.
     ///   - label: The label for an item.
     func floatingHoverLabel(
         hoveredIndex: Binding<Int?>,
         staysAboveBottomEdge: Bool = false,
+        initialPointer: CGPoint? = nil,
         index: @escaping (_ pointer: CGPoint, _ containerSize: CGSize) -> Int?,
         @ViewBuilder label: @escaping (Int) -> some View
     ) -> some View {
@@ -167,6 +195,7 @@ extension View {
             FloatingHoverLabelModifier(
                 hoveredIndex: hoveredIndex,
                 staysAboveBottomEdge: staysAboveBottomEdge,
+                initialPointer: initialPointer,
                 index: index,
                 label: label
             )

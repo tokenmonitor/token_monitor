@@ -1,3 +1,4 @@
+import SwiftUI
 @testable import TokenMon
 import XCTest
 
@@ -42,5 +43,49 @@ final class FlowLayoutTests: XCTestCase {
 
     func testNoItemsMeansNoRows() {
         XCTAssertEqual(FlowLayout.rows(sizes: [], maxWidth: 300, spacing: 14), [])
+    }
+
+    // MARK: - Layout
+
+    private final class Frames {
+        var byIndex: [Int: CGRect] = [:]
+    }
+
+    @MainActor
+    private func flow(_ widths: [CGFloat], frames: Frames) -> some View {
+        FlowLayout(horizontalSpacing: 10, verticalSpacing: 6) {
+            ForEach(Array(widths.enumerated()), id: \.offset) { index, width in
+                Color.red
+                    .frame(width: width, height: 10)
+                    .onGeometryChange(for: CGRect.self) { proxy in
+                        proxy.frame(in: .named("flow"))
+                    } action: { frame in
+                        frames.byIndex[index] = frame
+                    }
+            }
+        }
+        .coordinateSpace(.named("flow"))
+    }
+
+    /// In 100pt, 40 + 40 share a spread row and the third wraps onto a
+    /// packed last row: 10 + 6 + 10 tall.
+    @MainActor
+    func testLayoutWrapsAndSpreadsRows() {
+        let frames = Frames()
+        let size = ViewHarness.render(flow([40, 40, 40], frames: frames), width: 100)
+        XCTAssertEqual(size.height, 26, accuracy: 0.5)
+        XCTAssertEqual(frames.byIndex[0]?.minX ?? -1, 0, accuracy: 0.5)
+        XCTAssertEqual(frames.byIndex[1]?.minX ?? -1, 60, accuracy: 0.5)
+        XCTAssertEqual(frames.byIndex[2]?.minX ?? -1, 0, accuracy: 0.5)
+        XCTAssertEqual(frames.byIndex[2]?.minY ?? -1, 16, accuracy: 0.5)
+    }
+
+    /// Unconstrained, everything sits on one row at the minimum gap.
+    @MainActor
+    func testUnconstrainedLayoutIsOneRow() {
+        let size = ViewHarness.idealSize(flow([40, 40, 40], frames: Frames()))
+        XCTAssertEqual(size.width, 140, accuracy: 0.5)
+        XCTAssertEqual(size.height, 10, accuracy: 0.5)
+        XCTAssertEqual(ViewHarness.idealSize(flow([], frames: Frames())).height, 0)
     }
 }

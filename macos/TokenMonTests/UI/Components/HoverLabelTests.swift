@@ -1,3 +1,4 @@
+import SwiftUI
 @testable import TokenMon
 import XCTest
 
@@ -97,5 +98,38 @@ final class HoverLabelTests: XCTestCase {
         tokens.add(model: "Mystery", output: 10, costUSD: nil)
         XCTAssertNil(DailyBudgetHoverLabel.valueText(tokens))
         XCTAssertNil(DailyBudgetHoverLabel.valueText(DailyTokenUsage(source: .thisComputer)))
+    }
+
+    // MARK: - Views
+
+    /// A label built from the shared pieces shows each of them.
+    @MainActor
+    func testLabelPiecesShowTheirText() {
+        let label = HoverLabelCard {
+            HoverLabelTitle(text: "Opus 5.5")
+            HoverLabelCaption(text: "41% of tokens")
+            HoverLabelDivider()
+            HoverLabelTokenTotal(tokens: 44_000_000, valueText: "≈ $12.40", source: .thisComputer)
+            HoverLabelRows(rows: HoverLabelRow.breakdown(input: 1_200, output: 3_400_000, cacheRead: 0, cacheWrite: 5))
+        }
+        ViewHarness.renderBothAppearances(label)
+        XCTAssertEqual(
+            ViewTree(label).texts,
+            [
+                "Opus 5.5", "41% of tokens", "44M", "tokens on this Mac", "≈ $12.40",
+                "Input", "1K", "Output", "3.4M", "Cache read", "0", "Cache write", "5"
+            ]
+        )
+    }
+
+    /// Without a value the total shows only the count and its unit, and is
+    /// no wider than with one.
+    @MainActor
+    func testTokenTotalWithoutValue() {
+        let bare = HoverLabelTokenTotal(tokens: 1_500, source: .account)
+        let priced = HoverLabelTokenTotal(tokens: 1_500, valueText: "≈ $0.10", source: .account)
+        ViewHarness.render(bare)
+        XCTAssertEqual(ViewTree(bare).texts, ["2K", "tokens"])
+        XCTAssertLessThan(ViewHarness.idealSize(bare).width, ViewHarness.idealSize(priced).width)
     }
 }

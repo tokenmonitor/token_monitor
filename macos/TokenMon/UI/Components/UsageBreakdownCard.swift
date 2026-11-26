@@ -24,7 +24,7 @@ struct UsageBreakdownCard: View {
 
     var body: some View {
         let amounts = items.map { max(0, $0.amount) }
-        let poolPercents = items.allSatisfy { $0.valueText == nil } ? Self.poolPercents(amounts) : nil
+        let legend = Self.legendValues(items)
         let segmentPercents = Self.segmentPercents(amounts)
         let segments = zip(items, segmentPercents).map { item, percent in
             SegmentedUsageBar.Segment(id: item.id, percent: percent, color: item.color)
@@ -38,10 +38,19 @@ struct UsageBreakdownCard: View {
                     UsageLegendChip(
                         color: item.color,
                         label: item.label,
-                        value: item.valueText ?? "\(poolPercents?[index] ?? 0)%"
+                        value: legend[index]
                     )
                 }
             }
+        }
+    }
+
+    /// The legend's figure for each item: its `valueText`, or, when every
+    /// item is a percent of the pool, that percent ("25%").
+    static func legendValues(_ items: [Item]) -> [String] {
+        let percents = items.allSatisfy { $0.valueText == nil } ? poolPercents(items.map(\.amount)) : nil
+        return items.indices.map { index in
+            items[index].valueText ?? "\(percents?[index] ?? 0)%"
         }
     }
 

@@ -1,3 +1,4 @@
+import SwiftUI
 @testable import TokenMon
 import XCTest
 
@@ -42,5 +43,50 @@ final class UsageBreakdownCardTests: XCTestCase {
         XCTAssertEqual(dollars[1], 100.0 / 3, accuracy: 0.001)
         XCTAssertEqual(UsageBreakdownCard.segmentPercents([0, 0]), [0, 0])
         XCTAssertEqual(UsageBreakdownCard.segmentPercents([]), [])
+    }
+
+    // MARK: - Card
+
+    /// Percent items show their share of the pool in the legend.
+    @MainActor
+    func testCardLegendShowsPoolPercents() {
+        let items: [UsageBreakdownCard.Item] = [
+            .init(id: "chat", label: "Chat", color: .blue, amount: 25),
+            .init(id: "build", label: "Build", color: .green, amount: 12),
+            .init(id: "voice", label: "Voice", color: .red, amount: -2)
+        ]
+        XCTAssertEqual(UsageBreakdownCard.legendValues(items), ["25%", "12%", "0%"])
+        let card = UsageBreakdownCard(items: items)
+        XCTAssertGreaterThan(ViewHarness.renderBothAppearances(card).height, 0)
+        XCTAssertTrue(ViewTree(card).shows("Usage Breakdown"))
+    }
+
+    /// Quantity items show their own figure instead of a percent.
+    @MainActor
+    func testCardLegendShowsQuantities() {
+        let items: [UsageBreakdownCard.Item] = [
+            .init(id: "opus", label: "Opus", color: .orange, amount: 2, valueText: "$2.00"),
+            .init(id: "haiku", label: "Haiku", color: .purple, amount: 1, valueText: "$1.00")
+        ]
+        XCTAssertEqual(UsageBreakdownCard.legendValues(items), ["$2.00", "$1.00"])
+        XCTAssertGreaterThan(ViewHarness.render(UsageBreakdownCard(items: items)).height, 0)
+    }
+
+    /// One quantity among percents makes the others fall back to 0%, since
+    /// a pool share is meaningless beside dollars.
+    func testMixedItemsKeepTheirQuantity() {
+        let items: [UsageBreakdownCard.Item] = [
+            .init(id: "a", label: "A", color: .orange, amount: 30),
+            .init(id: "b", label: "B", color: .purple, amount: 1, valueText: "$1.00")
+        ]
+        XCTAssertEqual(UsageBreakdownCard.legendValues(items), ["0%", "$1.00"])
+        XCTAssertEqual(UsageBreakdownCard.legendValues([]), [])
+    }
+
+    @MainActor
+    func testLegendChipShowsNameAndValue() {
+        let chip = UsageLegendChip(color: .red, label: "Grok 4", value: "18%")
+        ViewHarness.render(chip)
+        XCTAssertEqual(ViewTree(chip).texts, ["Grok 4", "18%"])
     }
 }

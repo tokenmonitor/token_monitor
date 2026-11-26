@@ -12,9 +12,21 @@ enum DailyBudgetHover {
         return index < columns ? index : nil
     }
 
-    /// The column whose stem is under `x`: the stem is centered in its column,
-    /// and `x` must lie within ``stemHitSlop`` of it. Nil in the gaps between
+    /// The column whose stem is under `pointer`, in a row of `columns` equal
+    /// columns filling `size`: the stem is centered in its column, and the
+    /// pointer must lie within ``stemHitSlop`` of it. Nil in the gaps between
     /// stems, so the label hides as the pointer leaves a bar.
+    static func stemIndex(at pointer: CGPoint, in size: CGSize, columns: Int) -> Int? {
+        stemIndex(
+            x: pointer.x,
+            columnWidth: columns > 0 ? size.width / CGFloat(columns) : 0,
+            columns: columns,
+            stemWidth: PanelChartStem.width
+        )
+    }
+
+    /// The stem under `x` in a row of `columns` columns of `columnWidth`
+    /// whose stems are `stemWidth` wide; see ``stemIndex(at:in:columns:)``.
     static func stemIndex(x: CGFloat, columnWidth: CGFloat, columns: Int, stemWidth: CGFloat) -> Int? {
         guard let index = columnIndex(x: x, columnWidth: columnWidth, columns: columns) else { return nil }
         let center = columnWidth * (CGFloat(index) + 0.5)
@@ -93,18 +105,25 @@ struct DailyBarsRow<Stem: View, Caption: View>: View {
 
     /// Index into `days` of the stem under the pointer, if any.
     @State private var hoveredIndex: Int?
+    /// Where the pointer starts when the row opens already hovered.
+    private let initialPointer: CGPoint?
 
     /// - Parameters:
+    ///   - initialHover: The stem and pointer position of a row that opens
+    ///     already hovered; nil normally.
     ///   - stem: The fill of a day's stem; the row sizes, clips, and outlines it.
     ///   - caption: The text under a day's stem.
     init(
         days: [DailyBudgetDay],
         allowanceNoun: String,
+        initialHover: (index: Int, pointer: CGPoint)? = nil,
         @ViewBuilder stem: @escaping (Int) -> Stem,
         @ViewBuilder caption: @escaping (Int) -> Caption
     ) {
         self.days = days
         self.allowanceNoun = allowanceNoun
+        _hoveredIndex = State(initialValue: initialHover?.index)
+        initialPointer = initialHover?.pointer
         self.stem = stem
         self.caption = caption
     }
@@ -122,7 +141,12 @@ struct DailyBarsRow<Stem: View, Caption: View>: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: PanelChartStem.height)
-            .dailyBarsHover(days: days, allowanceNoun: allowanceNoun, hoveredIndex: $hoveredIndex)
+            .dailyBarsHover(
+                days: days,
+                allowanceNoun: allowanceNoun,
+                hoveredIndex: $hoveredIndex,
+                initialPointer: initialPointer
+            )
             // The hover label hangs over the captions below.
             .zIndex(1)
 
@@ -142,19 +166,16 @@ struct DailyBarsRow<Stem: View, Caption: View>: View {
 extension View {
     /// Floats a day's detail label beside the pointer over this row of
     /// `days.count` equal-width columns while it is over a column's centered
-    /// stem, and reports the hovered column.
+    /// stem, and reports the hovered column. `initialPointer` places the
+    /// label of a row that opens already hovered.
     func dailyBarsHover(
         days: [DailyBudgetDay],
         allowanceNoun: String,
-        hoveredIndex: Binding<Int?>
+        hoveredIndex: Binding<Int?>,
+        initialPointer: CGPoint? = nil
     ) -> some View {
-        floatingHoverLabel(hoveredIndex: hoveredIndex) { pointer, size in
-            DailyBudgetHover.stemIndex(
-                x: pointer.x,
-                columnWidth: days.isEmpty ? 0 : size.width / CGFloat(days.count),
-                columns: days.count,
-                stemWidth: PanelChartStem.width
-            )
+        floatingHoverLabel(hoveredIndex: hoveredIndex, initialPointer: initialPointer) { pointer, size in
+            DailyBudgetHover.stemIndex(at: pointer, in: size, columns: days.count)
         } label: { index in
                 if days.indices.contains(index) {
                     DailyBudgetHoverLabel(
