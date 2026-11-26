@@ -19,8 +19,9 @@ use crate::clock::Clock;
 /// How many days of history are kept.
 pub const RETENTION_DAYS: i64 = 40;
 
-/// The persisted shape. Both day encodings are written; `days` is the macOS
-/// flat `[ref-seconds, value, ...]` array and is only read when `dayTotals` is absent.
+/// The persisted shape. `dayTotals` holds the days by key; `days`, the older
+/// flat `[ref-seconds, value, ...]` array, is only read when `dayTotals` is
+/// absent and is never written.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DailyPayload {
@@ -328,11 +329,6 @@ impl DailyQuotaDeltaStore {
     }
 
     fn payload(&self) -> DailyPayload {
-        let days: Vec<Num> = self
-            .spent_by_day()
-            .into_iter()
-            .flat_map(|(day, v)| [Num(to_apple_seconds(day)), Num(v)])
-            .collect();
         let date = |d: Option<DateTime<Utc>>| d.map(|d| Num(to_apple_seconds(d)));
         DailyPayload {
             day_totals: Some(
@@ -341,7 +337,7 @@ impl DailyQuotaDeltaStore {
                     .map(|(k, v)| (k.clone(), Num(*v)))
                     .collect(),
             ),
-            days: Some(days),
+            days: None,
             last_used_percent: self.last_used_percent.map(Num),
             window_start: date(self.window_start),
             interrupted_window_start: date(self.interrupted_window_start),

@@ -210,6 +210,8 @@ final class HourlyDeltaActivityStoreTests: XCTestCase {
         XCTAssertEqual(activity.hourWeights[15], 3, accuracy: 0.001)
         let rewritten = try XCTUnwrap(backing.value(forKey: "grok_hourly_today"))
         XCTAssertTrue(rewritten.contains("\"dayKey\":\"2026-10-10\""), rewritten)
+        // The instant-keyed `dayStart` is read but no longer written.
+        XCTAssertFalse(rewritten.contains("dayStart"), rewritten)
     }
 
     /// An instant-keyed payload from a previous day starts today empty, with no baseline.
@@ -224,5 +226,26 @@ final class HourlyDeltaActivityStoreTests: XCTestCase {
         activity.record(usedPercent: 50, at: nextDay)
 
         XCTAssertEqual(activity.hourWeights.reduce(0, +), 0, accuracy: 0.001)
+    }
+
+    /// A write that fails (here: a read-only directory) is not remembered as done, so the next
+    /// `persist()` of the same payload retries and the file appears once the directory is writable.
+    func testFailedWriteIsRetriedByALaterPersistOfTheSamePayload() throws {
+        let (backing, dir) = try makeBacking()
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
+            try? FileManager.default.removeItem(at: dir)
+        }
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: dir.path)
+        let activity = HourlyDeltaActivityStore(store: backing, storageKey: "grok_hourly_today")
+        let now = Date()
+
+        activity.record(usedPercent: 10, at: now)
+        XCTAssertNil(backing.value(forKey: "grok_hourly_today"))
+
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
+        activity.record(usedPercent: 10, at: now)
+
+        XCTAssertNotNil(backing.value(forKey: "grok_hourly_today"))
     }
 }

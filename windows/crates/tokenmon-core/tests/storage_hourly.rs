@@ -6,7 +6,7 @@ mod common;
 
 use std::sync::Arc;
 
-use common::{at, utc_clock};
+use common::{FlakyStore, at, utc_clock};
 use tokenmon_core::storage::{
     HourlyDeltaActivityStore, InMemoryStringStore, TextStore, to_apple_seconds,
 };
@@ -186,7 +186,8 @@ fn test_persisted_json_shape_matches_macos() {
     s.record(30.0, at(0, 9));
     let value: serde_json::Value = serde_json::from_str(&backing.value(KEY).unwrap()).unwrap();
     assert_eq!(value["dayKey"], "2026-10-10");
-    assert_eq!(value["dayStart"].as_f64(), Some(to_apple_seconds(at(0, 0))));
+    // The old `dayStart` is read but no longer written.
+    assert!(value.get("dayStart").is_none(), "{value}");
     assert_eq!(value["hourWeights"].as_array().unwrap().len(), 24);
     assert_eq!(value["lastUsedPercent"], 30);
 }
@@ -198,4 +199,17 @@ fn test_non_finite_samples_are_ignored() {
     s.record(10.0, at(0, 9));
     s.record(f64::NAN, at(0, 9));
     assert_eq!(s.last_used_percent(), Some(10.0));
+}
+
+/// A write that fails is not remembered as done: the next persist of the same
+/// payload retries, and the value appears once the store recovers.
+#[test]
+fn test_failed_write_is_retried_by_a_later_persist_of_the_same_payload() {
+    let flaky = FlakyStore::failing();
+    let mut s = HourlyDeltaActivityStore::new(flaky.clone(), KEY, utc_clock(at(0, 12)));
+    s.record(10.0, at(0, 9));
+    assert!(flaky.value(KEY).is_none());
+    flaky.recover();
+    s.record(10.0, at(0, 9));
+    assert!(flaky.value(KEY).is_some());
 }

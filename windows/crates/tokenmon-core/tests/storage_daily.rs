@@ -7,7 +7,7 @@ mod common;
 use std::sync::Arc;
 
 use chrono::{Duration, TimeZone, Utc};
-use common::{at, offset_clock, utc_clock};
+use common::{FlakyStore, at, offset_clock, utc_clock};
 use tokenmon_core::storage::{
     DailyQuotaDeltaStore, InMemoryStringStore, QuotaWindow, QuotaWindowTransition as T, TextStore,
     to_apple_seconds,
@@ -385,7 +385,34 @@ fn test_instant_keyed_payload_loads_and_is_rewritten() {
     assert_eq!(s.last_used_percent(), Some(35.0));
     let rewritten = backing.value(KEY).unwrap();
     assert!(rewritten.contains(r#""2026-09-14":7"#), "{rewritten}");
-    assert!(rewritten.contains(r#""days":["#), "{rewritten}");
+    // The flat `days` array is read but no longer written.
+    assert!(!rewritten.contains(r#""days""#), "{rewritten}");
+}
+
+/// New payloads carry the days once, as day keys.
+#[test]
+fn test_persisted_payload_has_day_keys_and_no_legacy_days_field() {
+    let backing = Arc::new(InMemoryStringStore::default());
+    let mut s = new_store(&backing);
+    s.record(10.0, at(0, 9), None, 7);
+    s.record(25.0, at(0, 10), None, 7);
+    let raw = backing.value(KEY).unwrap();
+    assert!(raw.contains(r#""dayTotals""#), "{raw}");
+    assert!(!raw.contains(r#""days""#), "{raw}");
+}
+
+/// A write that fails is not remembered as done: the next persist of the same
+/// payload retries, and the value appears once the store recovers.
+#[test]
+fn test_failed_write_is_retried_by_a_later_persist_of_the_same_payload() {
+    let flaky = FlakyStore::failing();
+    let store: Arc<dyn TextStore> = flaky.clone();
+    let mut s = DailyQuotaDeltaStore::new(store, KEY, utc_clock(at(0, 12)));
+    s.record(10.0, at(0, 9), None, 7);
+    assert!(flaky.value(KEY).is_none());
+    flaky.recover();
+    s.record(10.0, at(0, 9), None, 7);
+    assert!(flaky.value(KEY).is_some());
 }
 
 /// Window fields are Apple reference-date seconds.
