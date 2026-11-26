@@ -14,4 +14,12 @@ Agent skills for working in this repository. Each lives in `skills/<skill-id>/SK
 
 These are verbatim copies of the maintainer's shared skill set. They are refreshed by copying the folders over and are never edited here.
 
+## Project skills
+
+Written for this repository and edited here, unlike the shared copies above.
+
+| Skill | Use |
+|---|---|
+| [`tokenmon-rust-desktop`](tokenmon-rust-desktop/SKILL.md) | The Windows port and the planned Linux port (Rust + Slint): the `make clippy` gate, where logic may live, test layout, 90% coverage on lines/regions/functions/branches, the macOS parity ledger, Windows traps, the `common/` extraction plan, how agents commit and hand off. Load with `rust-engineer`. |
+
 Project-specific guidance lives next to the code: [`macos/docs/DEVELOPMENT.md`](../macos/docs/DEVELOPMENT.md) for the macOS app and [`windows/docs/`](../windows/docs/) for the Windows port.
