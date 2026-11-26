@@ -83,6 +83,7 @@ final class AppSettings {
         didSet {
             let clamped = Self.clampActivePoll(activePollSeconds)
             if activePollSeconds != clamped { activePollSeconds = clamped }
+            guard !Self.isSaved(activePollSeconds, in: defaults, forKey: Keys.activePoll) else { return }
             defaults.set(activePollSeconds, forKey: Keys.activePoll)
         }
     }
@@ -91,12 +92,16 @@ final class AppSettings {
         didSet {
             let clamped = Self.clampIdlePoll(idlePollSeconds)
             if idlePollSeconds != clamped { idlePollSeconds = clamped }
+            guard !Self.isSaved(idlePollSeconds, in: defaults, forKey: Keys.idlePoll) else { return }
             defaults.set(idlePollSeconds, forKey: Keys.idlePoll)
         }
     }
 
     var thresholdEnabled: Bool {
-        didSet { defaults.set(thresholdEnabled, forKey: Keys.thresholdEnabled) }
+        didSet {
+            guard thresholdEnabled != oldValue else { return }
+            defaults.set(thresholdEnabled, forKey: Keys.thresholdEnabled)
+        }
     }
 
     /// Providers the usage alert watches while it is on. Only these keep
@@ -117,12 +122,14 @@ final class AppSettings {
         didSet {
             let clamped = Self.clampThreshold(thresholdPercent)
             if thresholdPercent != clamped { thresholdPercent = clamped }
+            guard !Self.isSaved(thresholdPercent, in: defaults, forKey: Keys.thresholdPercent) else { return }
             defaults.set(thresholdPercent, forKey: Keys.thresholdPercent)
         }
     }
 
     var visibleProductIDs: Set<String> {
         didSet {
+            guard visibleProductIDs != oldValue else { return }
             defaults.set(Array(visibleProductIDs), forKey: Keys.visibleProducts)
         }
     }
@@ -313,6 +320,13 @@ final class AppSettings {
     static let activePollRange = 15...300
     static let idlePollRange = 60...3600
     static let thresholdRange: ClosedRange<Double> = 50...99
+
+    /// Whether `defaults` already holds `value` under `key`. A clamped property compares with the
+    /// saved value instead of `oldValue`: assigning the clamped value inside `didSet` runs `didSet`
+    /// again, with the unclamped value as that run's `oldValue`.
+    private static func isSaved<Value: Equatable>(_ value: Value, in defaults: UserDefaults, forKey key: String) -> Bool {
+        (defaults.object(forKey: key) as? Value) == value
+    }
 
     private static func clampActivePoll(_ value: Int) -> Int {
         min(activePollRange.upperBound, max(activePollRange.lowerBound, value))

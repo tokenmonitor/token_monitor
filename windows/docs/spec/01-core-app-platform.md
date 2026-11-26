@@ -408,10 +408,11 @@ Private state: `lastUsedPercent: Double?` (the baseline), `dayKey: String`, and 
 On-disk JSON (Swift `JSONEncoder`; nil optionals are **omitted**):
 
 ```json
-{"dayKey":"2026-10-10","dayStart":813304800,"hourWeights":[0,0,...24 numbers],"lastUsedPercent":30}
+{"dayKey":"2026-10-10","hourWeights":[0,0,...24 numbers],"lastUsedPercent":30}
 ```
 
-`dayStart` is ref-seconds. Old payloads may lack `dayKey`.
+Old payloads name the day by `dayStart` (ref-seconds, a Swift `Date`) instead of
+`dayKey`. `dayStart` is read only when `dayKey` is missing and is never written.
 
 Constants: `Percent.noiseFloor = 0.05`, `Percent.resetDropFloor = 5`.
 
@@ -420,10 +421,10 @@ Constants: `Percent.noiseFloor = 0.05`, `Percent.resetDropFloor = 5`.
 1. Set `dayStart = startOfDay(now)`, `dayKey = DayKey(now)` and 24 zeros.
 2. `loadOrReset(now)`. If the raw value is missing or does not decode, `persist()`
    (writes an empty day) and return. Otherwise set `persisted = payload` and
-   compute `storedKey = payload.dayKey ?? DayKey.key(forStoredStartOfDay: payload.dayStart, preferredOffset: tzOffset(at: payload.dayStart))`.
+   compute `storedKey = payload.dayKey ?? payload.dayStart.map { DayKey.key(forStoredStartOfDay: $0, preferredOffset: tzOffset(at: $0)) }`.
    If `storedKey == dayKey` and there are 24 weights, restore the weights and
    `lastUsedPercent`. Otherwise use zeros and `lastUsedPercent = nil`. Then
-   `persist()`, which rewrites a legacy payload once with `dayKey`.
+   `persist()`, which rewrites a legacy payload once, with `dayKey` and without `dayStart`.
 3. Observe system time-zone changes. On a change, re-derive
    `dayStart = DayKey.startOfDay(dayKey)` in the new zone, if it differs.
 
@@ -456,7 +457,8 @@ Other operations:
   Set `lastUsedPercent = 0` so the first sample of the new window is credited whole,
   then `persist()`. Pass `keepingHours: true` after an early reset.
 * `persist()`: build the payload. **Skip the write if it equals `persisted`.**
-  Otherwise encode, write and update `persisted`.
+  Otherwise encode and write; update `persisted` **only when the write returns
+  true**, so a failed write is retried by the next `persist()`.
 
 #### 1.3.5 `QuotaWindow`, `QuotaWindowTransition` and `DailyQuotaDeltaStore`
 
@@ -493,19 +495,19 @@ It uses the `activity_` prefix.
 * Window state: `windowStart`, `interruptedWindowStart`, `observedStart`,
   `windowResetsAt`, `lastUsedPercent`.
 
-On-disk JSON. Both day shapes are written; nil fields are omitted:
+On-disk JSON. Only `dayTotals` is written; nil fields are omitted:
 
 ```json
 {"dayTotals":{"2026-09-14":7,"2026-09-15":4},
- "days":[811058400,7,811144800,4],
  "lastUsedPercent":35,
  "windowStart":813093922.556,"interruptedWindowStart":...,
  "observedStart":813093922.556,"windowResetsAt":813698722.556}
 ```
 
-* `days` is a Swift `[Date: Double]`, encoded as a **flat array alternating
-  `[ref-seconds, value, …]`**. It holds the same totals keyed by the local
-  start-of-day instant. On load, `days` is read only when `dayTotals` is missing.
+* Older payloads hold `days` instead: a Swift `[Date: Double]`, encoded as a
+  **flat array alternating `[ref-seconds, value, …]`**, the totals keyed by the
+  local start-of-day instant. On load, `days` is read only when `dayTotals` is
+  missing, and it is never written.
 * Every date field is ref-seconds.
 
 `init(store, storageKey, calendar = local, now = Date.init)` calls `load()`:
@@ -514,8 +516,8 @@ On-disk JSON. Both day shapes are written; nil fields are omitted:
 2. `days = payload.dayTotals ?? convertLegacyDays(payload.days)`. Legacy conversion
    is `DayKey.key(forStoredStartOfDay: instant, preferredOffset: tz.secondsFromGMT(instant))`,
    summing collisions.
-3. `prune(days, now())`, restore every field, then `persist()` (rewrites the
-   legacy format once).
+3. `prune(days, now())`, restore every field, then `persist()` (rewrites an
+   older payload once, as `dayTotals`).
 4. Observe time-zone changes and republish `spentByDay`.
 
 `record(windowUsedPercent, at date, window?, periodDays = 7, calendar?) -> transition`.
@@ -559,6 +561,8 @@ beginNewWindow(startingAt: min(candidate ?? date, date), interruptedWindowStart:
 `>= cutoff` (string comparison, which sorts chronologically).
 
 `persist()`: skip the write when the payload equals the last persisted payload.
+Update the persisted payload only when the write returns true, so a failed write
+is retried by the next `persist()`.
 
 Callers that see `.rollover` or `.earlyReset` reset their own per-window state, for
 example hourly `beginNewWindow(keepingHours: transition == .earlyReset)`. That
@@ -1065,12 +1069,12 @@ observable. Arrays of providers are stored as raw-value string arrays.
 
 Write behaviour:
 
-* These properties persist only when the value actually changes:
-  `showCategories`, `menuBarGraphs`, `checksForUpdates`, `showSelected`,
-  `alertProviders`, `collapsedPanelSections`, `providerOrder`, `enabledProviderIDs`
-  and `selectedProvider`.
-* `activePoll`, `idlePoll`, `thresholdEnabled`, `thresholdPercent` and
-  `visibleProductIDs` write on every set.
+* Every property persists only when the value actually changes: `showCategories`,
+  `menuBarGraphs`, `checksForUpdates`, `showSelected`, `alertProviders`,
+  `collapsedPanelSections`, `providerOrder`, `enabledProviderIDs`,
+  `selectedProvider`, `activePoll`, `idlePoll`, `thresholdEnabled`,
+  `thresholdPercent` and `visibleProductIDs`. A clamped value is compared after
+  clamping, so a set that clamps back to the stored value writes nothing.
 
 **Migration of per-provider graph flags.** This runs when `menuBarGraphProviders`
 is absent. For each of these pairs:
@@ -1895,7 +1899,7 @@ provider crates; `mac` means it is macOS-only and has a suggested Windows analog
 | | testClassifyLateEarlyResetIsNotMistakenForRollover | old reset tomorrow, drop 90→1, moved: earlyReset |
 | | testClassifyRolloverNeedsOldResetPassedAndHalfPeriodAdvance | +7 days gives rollover; +1 day gives none |
 | | testUnchangedSampleDoesNotRewriteTheFile | the file is not rewritten for the same state; it is rewritten after a change |
-| | testInstantKeyedPayloadLoadsAndIsRewritten | Denver: the flat `days` array loads; rewritten with `"2026-09-14":7` and `"days":[` |
+| | testInstantKeyedPayloadLoadsAndIsRewritten | Denver: the flat `days` array loads; rewritten with `"2026-09-14":7` and no `"days"` |
 | | testInstantKeyedPayloadWithWindowMetadataLoads | window fields as ref-seconds (813093922.556 and so on) |
 | | testDaysKeepTheirDatesAfterATimeZoneChange | recorded in Denver, read in Tokyo: "2026-09-15" = 6 |
 | | testPruneKeepsFortyDaysInTheInjectedCalendar | the day is kept at +31 days and pruned at +41 days |

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::calendar::{
     day_key, from_apple_seconds, key_for_stored_start_of_day, local_hour, shift_instant_days,
-    start_of_day, to_apple_seconds,
+    start_of_day,
 };
 use super::delta::{NOISE_FLOOR, credited_delta};
 use super::numfmt::Num;
@@ -18,16 +18,18 @@ use crate::clock::Clock;
 /// [`TextStore`]; this is the number of hours in a day.
 const HOURS: usize = 24;
 
-/// The persisted shape: `{"dayKey":..,"dayStart":<ref-secs>,"hourWeights":[24],"lastUsedPercent":..}`.
+/// The persisted shape: `{"dayKey":..,"hourWeights":[24],"lastUsedPercent":..}`.
 ///
-/// Optionals are omitted when `None` (as Swift's `JSONEncoder` does); `dayKey`
-/// may be absent in old payloads.
+/// Optionals are omitted when `None` (as Swift's `JSONEncoder` does). Old
+/// payloads name the day by `dayStart` (reference seconds) instead of `dayKey`;
+/// it is read only when `dayKey` is absent and is never written.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HourlyPayload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     day_key: Option<String>,
-    day_start: Num,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    day_start: Option<Num>,
     hour_weights: Vec<Num>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     last_used_percent: Option<Num>,
@@ -199,7 +201,7 @@ impl HourlyDeltaActivityStore {
     }
 
     fn legacy_key(&self, payload: &HourlyPayload) -> Option<String> {
-        let instant = from_apple_seconds(payload.day_start.0)?;
+        let instant = from_apple_seconds(payload.day_start?.0)?;
         let offset = self.clock.local_offset_at(instant).local_minus_utc();
         Some(key_for_stored_start_of_day(instant, offset))
     }
@@ -207,7 +209,7 @@ impl HourlyDeltaActivityStore {
     fn payload(&self) -> HourlyPayload {
         HourlyPayload {
             day_key: Some(self.day_key.clone()),
-            day_start: Num(to_apple_seconds(self.day_start())),
+            day_start: None,
             hour_weights: self.hour_weights.iter().copied().map(Num).collect(),
             last_used_percent: self.last_used_percent.map(Num),
         }

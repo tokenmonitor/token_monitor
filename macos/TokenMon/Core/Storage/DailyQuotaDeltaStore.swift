@@ -125,11 +125,10 @@ final class DailyQuotaDeltaStore {
     private var persisted: Payload?
     @ObservationIgnored private var timeZoneObserver: NSObjectProtocol?
 
-    /// `dayTotals` holds the days by `DayKey`. `days` holds the same totals
-    /// keyed by start-of-day instants, the format of payloads without
-    /// `dayTotals`; writing both keeps the history readable in either format.
-    /// On load `days` is read only when `dayTotals` is missing. Window fields
-    /// decode as nil when absent from the payload.
+    /// `dayTotals` holds the days by `DayKey`. `days` holds totals keyed by
+    /// start-of-day instants, the format of payloads written without
+    /// `dayTotals`: it is read only when `dayTotals` is missing and is never
+    /// written. Window fields decode as nil when absent from the payload.
     private struct Payload: Codable, Equatable {
         var dayTotals: [String: Double]?
         var days: [Date: Double]?
@@ -347,21 +346,10 @@ final class DailyQuotaDeltaStore {
         return converted
     }
 
-    /// `dayTotals` keyed by each day's start in `calendar`.
-    private static func startOfDayInstants(_ totals: [String: Double], calendar: Calendar) -> [Date: Double] {
-        var instants: [Date: Double] = [:]
-        for (key, value) in totals {
-            if let start = DayKey.startOfDay(for: key, calendar: calendar) {
-                instants[start, default: 0] += value
-            }
-        }
-        return instants
-    }
-
     private func persist() {
         let payload = Payload(
             dayTotals: dayTotals,
-            days: Self.startOfDayInstants(dayTotals, calendar: calendar),
+            days: nil,
             lastUsedPercent: lastUsedPercent,
             windowStart: windowStart,
             interruptedWindowStart: interruptedWindowStart,
@@ -372,7 +360,8 @@ final class DailyQuotaDeltaStore {
               let data = try? encoder.encode(payload),
               let raw = String(data: data, encoding: .utf8)
         else { return }
-        store.set(raw, forKey: storageKey)
+        // A failed write leaves `persisted` as it was, so the next persist() retries.
+        guard store.set(raw, forKey: storageKey) else { return }
         persisted = payload
     }
 }

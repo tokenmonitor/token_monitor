@@ -474,8 +474,8 @@ final class DailyQuotaDeltaStoreTests: XCTestCase {
         XCTAssertEqual(store.spentByDay[referenceDate(811_231_200)] ?? 0, 24, accuracy: 0.001)
         let rewritten = try XCTUnwrap(backing.value(forKey: "claude_daily_usage"))
         XCTAssertTrue(rewritten.contains("\"2026-09-14\":7"), rewritten)
-        // The instant-keyed `days` is written too, for readers of that form.
-        XCTAssertTrue(rewritten.contains("\"days\":["), rewritten)
+        // The instant-keyed `days` is read but no longer written.
+        XCTAssertFalse(rewritten.contains("\"days\""), rewritten)
 
         let reloaded = DailyQuotaDeltaStore(store: backing, storageKey: "claude_daily_usage", calendar: calendar, now: { now })
         XCTAssertEqual(reloaded.spentByDay, store.spentByDay)
@@ -540,5 +540,42 @@ final class DailyQuotaDeltaStoreTests: XCTestCase {
         store.record(windowUsedPercent: 8, at: beyond)
         XCTAssertNil(store.spentByDay[calendar.startOfDay(for: start)])
         XCTAssertEqual(store.spentByDay[calendar.startOfDay(for: beyond)] ?? 0, 2, accuracy: 0.001)
+    }
+
+    /// New payloads carry the days once, as day keys; the instant-keyed `days` is not written.
+    func testPersistedPayloadHasDayKeysAndNoLegacyDaysField() throws {
+        let (backing, dir) = try makeBacking()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let calendar = try denver()
+        let now = referenceDate(811_231_200 + 15 * 3_600)
+        let store = DailyQuotaDeltaStore(store: backing, storageKey: "claude_daily_usage", calendar: calendar, now: { now })
+
+        store.record(windowUsedPercent: 10, at: now, calendar: calendar)
+        store.record(windowUsedPercent: 25, at: now, calendar: calendar)
+
+        let raw = try XCTUnwrap(backing.value(forKey: "claude_daily_usage"))
+        XCTAssertTrue(raw.contains("\"dayTotals\""), raw)
+        XCTAssertFalse(raw.contains("\"days\""), raw)
+    }
+
+    /// A write that fails (here: a read-only directory) is not remembered as done, so the next
+    /// `persist()` of the same payload retries and the file appears once the directory is writable.
+    func testFailedWriteIsRetriedByALaterPersistOfTheSamePayload() throws {
+        let (backing, dir) = try makeBacking()
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
+            try? FileManager.default.removeItem(at: dir)
+        }
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: dir.path)
+        let store = DailyQuotaDeltaStore(store: backing, storageKey: "claude_daily_usage")
+        let now = Date()
+
+        store.record(windowUsedPercent: 10, at: now)
+        XCTAssertNil(backing.value(forKey: "claude_daily_usage"))
+
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
+        store.record(windowUsedPercent: 10, at: now)
+
+        XCTAssertNotNil(backing.value(forKey: "claude_daily_usage"))
     }
 }

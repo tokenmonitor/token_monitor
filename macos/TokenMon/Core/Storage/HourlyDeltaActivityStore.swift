@@ -29,10 +29,11 @@ final class HourlyDeltaActivityStore {
     private let decoder = JSONDecoder()
 
     /// `dayKey` names the day. `dayStart` names it by its start-of-day instant,
-    /// the format of payloads without `dayKey`.
+    /// the format of payloads written without `dayKey`: it is read only when
+    /// `dayKey` is missing and is never written.
     private struct Payload: Codable, Equatable {
         var dayKey: String?
-        var dayStart: Date
+        var dayStart: Date?
         var hourWeights: [Double]
         var lastUsedPercent: Double?
     }
@@ -167,11 +168,10 @@ final class HourlyDeltaActivityStore {
         }
         persisted = payload
 
-        let storedKey = payload.dayKey ?? DayKey.key(
-            forStoredStartOfDay: payload.dayStart,
-            preferredOffset: calendar.timeZone.secondsFromGMT(for: payload.dayStart)
-        )
-        if storedKey == dayKey, payload.hourWeights.count == 24 {
+        let storedKey = payload.dayKey ?? payload.dayStart.map {
+            DayKey.key(forStoredStartOfDay: $0, preferredOffset: calendar.timeZone.secondsFromGMT(for: $0))
+        }
+        if let storedKey, storedKey == dayKey, payload.hourWeights.count == 24 {
             hourWeights = payload.hourWeights
             lastUsedPercent = payload.lastUsedPercent
         } else {
@@ -185,7 +185,7 @@ final class HourlyDeltaActivityStore {
     private func persist() {
         let payload = Payload(
             dayKey: dayKey,
-            dayStart: dayStart,
+            dayStart: nil,
             hourWeights: hourWeights,
             lastUsedPercent: lastUsedPercent
         )
@@ -193,7 +193,8 @@ final class HourlyDeltaActivityStore {
               let data = try? encoder.encode(payload),
               let raw = String(data: data, encoding: .utf8)
         else { return }
-        store.set(raw, forKey: storageKey)
+        // A failed write leaves `persisted` as it was, so the next persist() retries.
+        guard store.set(raw, forKey: storageKey) else { return }
         persisted = payload
     }
 }
