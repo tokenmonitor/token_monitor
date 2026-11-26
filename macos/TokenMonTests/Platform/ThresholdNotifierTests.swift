@@ -1,4 +1,5 @@
 @testable import TokenMon
+import UserNotifications
 import XCTest
 
 /// Pure decision logic for threshold alerts: fire once per crossing,
@@ -227,5 +228,79 @@ final class ThresholdNotifierTests: XCTestCase {
         XCTAssertTrue(recorder.calls.isEmpty)
         notifier.evaluate(provider: .claude, usedPercent: 91, settings: settings, account: nil)
         XCTAssertEqual(recorder.calls, [91])
+    }
+
+    // MARK: - Notification center
+
+    /// Records what the notifier asks of the notification center.
+    private final class FakeCenter: UserNotificationCentering {
+        var status: UNAuthorizationStatus = .notDetermined
+        var grant: Result<Bool, Error> = .success(true)
+        var authorizationRequests = 0
+        var scheduled: [UNNotificationRequest] = []
+
+        func authorizationStatus() async -> UNAuthorizationStatus { status }
+
+        func requestAlertAuthorization() async throws -> Bool {
+            authorizationRequests += 1
+            return try grant.get()
+        }
+
+        func schedule(_ request: UNNotificationRequest) {
+            scheduled.append(request)
+        }
+    }
+
+    @MainActor
+    func testAsksForPermissionOnlyWhenNotYetAsked() async {
+        let center = FakeCenter()
+        let defaults = UserDefaults(suiteName: "ThresholdNotifierTests-\(UUID().uuidString)")!
+        let notifier = ThresholdNotifier(defaults: defaults, center: center)
+
+        await notifier.requestAuthorizationIfNeeded().value
+        XCTAssertEqual(center.authorizationRequests, 1)
+
+        for status in [UNAuthorizationStatus.authorized, .denied, .provisional] {
+            center.status = status
+            await notifier.requestAuthorizationIfNeeded().value
+        }
+        XCTAssertEqual(center.authorizationRequests, 1, "a decided permission is never asked again")
+    }
+
+    /// A refusal or a failed request is logged, never surfaced or retried.
+    @MainActor
+    func testDeniedOrFailedPermissionRequestIsTolerated() async {
+        let center = FakeCenter()
+        let defaults = UserDefaults(suiteName: "ThresholdNotifierTests-\(UUID().uuidString)")!
+        let notifier = ThresholdNotifier(defaults: defaults, center: center)
+        center.grant = .success(false)
+        await notifier.requestAuthorizationIfNeeded().value
+        center.grant = .failure(CocoaError(.userCancelled))
+        await notifier.requestAuthorizationIfNeeded().value
+        XCTAssertEqual(center.authorizationRequests, 2)
+        XCTAssertTrue(center.scheduled.isEmpty)
+    }
+
+    /// Without a delivery seam, a crossing posts one local notification.
+    @MainActor
+    func testCrossingPostsALocalNotification() throws {
+        let suite = "ThresholdNotifierTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = makeSettings(defaults, threshold: 80)
+        settings.alertProviders = [.claude]
+        let center = FakeCenter()
+        let notifier = ThresholdNotifier(defaults: defaults, center: center)
+
+        notifier.evaluate(provider: .claude, usedPercent: 84.6, settings: settings, account: nil)
+        notifier.evaluate(provider: .claude, usedPercent: 90, settings: settings, account: nil)
+
+        XCTAssertEqual(center.scheduled.count, 1)
+        let request = try XCTUnwrap(center.scheduled.first)
+        XCTAssertEqual(request.identifier, "claude-usage-threshold-80")
+        XCTAssertEqual(request.content.title, "TokenMon Alert")
+        XCTAssertEqual(request.content.body, "Claude usage is at 85% (threshold 80%).")
+        XCTAssertNotNil(request.content.sound)
+        XCTAssertNil(request.trigger, "delivered at once")
     }
 }

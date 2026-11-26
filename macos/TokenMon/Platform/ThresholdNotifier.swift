@@ -9,27 +9,59 @@ struct ThresholdAlert: Equatable {
     var threshold: Double
 }
 
+/// The notification-center calls the alerts make; tests substitute a recorder.
+protocol UserNotificationCentering: AnyObject {
+    /// Whether the user has been asked, allowed, or denied notifications.
+    func authorizationStatus() async -> UNAuthorizationStatus
+    /// Asks the user to allow alert and sound notifications.
+    func requestAlertAuthorization() async throws -> Bool
+    /// Posts `request` now.
+    func schedule(_ request: UNNotificationRequest)
+}
+
+extension UNUserNotificationCenter: UserNotificationCentering {
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await notificationSettings().authorizationStatus
+    }
+
+    func requestAlertAuthorization() async throws -> Bool {
+        try await requestAuthorization(options: [.alert, .sound])
+    }
+
+    func schedule(_ request: UNNotificationRequest) {
+        add(request)
+    }
+}
+
 /// Fires one local notification per usage-threshold crossing, tracked
 /// separately for each provider and account.
 @MainActor
 final class ThresholdNotifier {
     private let logger = Logger(category: "Alerts")
     private let defaults: UserDefaults
+    /// Resolved on first use, so building a notifier never touches the center.
+    private let center: () -> any UserNotificationCentering
     /// Delivery seam (tests record calls); defaults to a local notification.
     private let deliver: (ThresholdAlert) -> Void
 
-    init(defaults: UserDefaults = .standard, deliver: ((ThresholdAlert) -> Void)? = nil) {
+    init(
+        defaults: UserDefaults = .standard,
+        center: @autoclosure @escaping () -> any UserNotificationCentering = UNUserNotificationCenter.current(),
+        deliver: ((ThresholdAlert) -> Void)? = nil
+    ) {
         self.defaults = defaults
-        self.deliver = deliver ?? Self.postLocalNotification
+        self.center = center
+        self.deliver = deliver ?? { alert in center().schedule(Self.request(for: alert)) }
     }
 
-    func requestAuthorizationIfNeeded() {
-        Task { @MainActor [weak self] in
-            let center = UNUserNotificationCenter.current()
-            let settings = await center.notificationSettings()
-            guard settings.authorizationStatus == .notDetermined else { return }
+    /// Asks for notification permission when the user has not been asked yet.
+    @discardableResult
+    func requestAuthorizationIfNeeded() -> Task<Void, Never> {
+        let center = center()
+        return Task { @MainActor [weak self] in
+            guard await center.authorizationStatus() == .notDetermined else { return }
             do {
-                let granted = try await center.requestAuthorization(options: [.alert, .sound])
+                let granted = try await center.requestAlertAuthorization()
                 if !granted {
                     self?.logger.info("User denied notification permission")
                 }
@@ -127,16 +159,17 @@ final class ThresholdNotifier {
         return String(format: "%@ is at %.0f%% (threshold %.0f%%).", usage, alert.usedPercent, alert.threshold)
     }
 
-    private static func postLocalNotification(_ alert: ThresholdAlert) {
+    /// The local notification for `alert`, delivered at once. One identifier
+    /// per provider and threshold, so a repeat replaces the earlier banner.
+    nonisolated static func request(for alert: ThresholdAlert) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.title = "TokenMon Alert"
         content.body = body(for: alert)
         content.sound = .default
-        let request = UNNotificationRequest(
+        return UNNotificationRequest(
             identifier: "\(alert.provider.rawValue)-usage-threshold-\(Int(alert.threshold))",
             content: content,
             trigger: nil
         )
-        UNUserNotificationCenter.current().add(request)
     }
 }

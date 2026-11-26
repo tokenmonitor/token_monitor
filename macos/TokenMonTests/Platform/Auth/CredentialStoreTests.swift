@@ -509,4 +509,51 @@ final class CredentialStoreTests: XCTestCase {
         XCTAssertFalse(store.set("secret", forKey: "session"))
         XCTAssertNil(store.value(forKey: "session"))
     }
+
+    func testFileWriteFailureMessageNamesTheFolder() {
+        let error = CredentialStoreError.fileWriteFailed
+        XCTAssertTrue(error.description.contains("~/Library/Application Support/TokenMon"))
+        XCTAssertEqual(error.localizedDescription, error.description)
+        XCTAssertNotEqual(error, .secureStoreRefused)
+    }
+
+    /// A vault item that does not decode is never overwritten: credentials
+    /// read as absent and writes are refused.
+    func testUnreadableVaultLeavesCredentialsUnavailable() {
+        let keychain = FakeKeychain()
+        keychain.items[vaultKey] = Data("not json".utf8)
+        let store = makeStore("claude_", keychain)
+
+        XCTAssertNil(store.value(forKey: "session"))
+        XCTAssertThrowsError(try store.set("sessionKey=abc", forKey: "session")) { error in
+            XCTAssertEqual(error as? CredentialStoreError, .secureStoreRefused)
+        }
+        XCTAssertEqual(keychain.items[vaultKey], Data("not json".utf8))
+    }
+
+    /// The default file store lives under the app's support folder (a
+    /// temporary folder under XCTest).
+    func testDefaultFileStoreRoundTrips() throws {
+        let prefix = "test_\(UUID().uuidString)_"
+        let store = FileBackedCredentialStore(filenamePrefix: prefix)
+        defer { store.remove(forKey: "email") }
+
+        try store.set("a@b.com", forKey: "email")
+        XCTAssertEqual(store.value(forKey: "email"), "a@b.com")
+        store.remove(forKey: "email")
+        XCTAssertNil(store.value(forKey: "email"))
+    }
+
+    /// The live store keeps non-secret keys in files; building it moves nothing
+    /// when there is no legacy secret file.
+    func testLiveStoreKeepsLabelsInFiles() throws {
+        let prefix = "test_\(UUID().uuidString)_"
+        let files = FileBackedCredentialStore(filenamePrefix: prefix)
+        let store = SecretRoutingCredentialStore.live(filenamePrefix: prefix, secretKeys: ["session"])
+        defer { store.remove(forKey: "email") }
+
+        try store.set("a@b.com", forKey: "email")
+        XCTAssertEqual(store.value(forKey: "email"), "a@b.com")
+        XCTAssertEqual(files.value(forKey: "email"), "a@b.com")
+    }
 }

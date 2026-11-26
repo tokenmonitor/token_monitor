@@ -17,6 +17,7 @@ final class SystemWakeGate {
     private let onReady: @MainActor () -> Void
     private let fallbackDelay: TimeInterval
     private let sleep: Sleeper
+    private let workspaceCenter: NotificationCenter
     private var monitor: NWPathMonitor?
     private var observers: [NSObjectProtocol] = []
     private var fallbackTask: Task<Void, Never>?
@@ -31,8 +32,10 @@ final class SystemWakeGate {
     /// - Parameters:
     ///   - observeSystem: Subscribe to workspace sleep/wake and start the path
     ///     monitor. Tests pass false and drive the handlers directly.
+    ///   - workspaceCenter: Where sleep and wake notifications arrive.
     init(
         observeSystem: Bool = true,
+        workspaceCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
         fallbackDelay: TimeInterval = 30,
         sleep: @escaping Sleeper = { seconds in
             try await Task.sleep(nanoseconds: UInt64(min(max(0, seconds), 86_400) * 1_000_000_000))
@@ -44,6 +47,7 @@ final class SystemWakeGate {
         self.sleep = sleep
         self.onSleep = onSleep
         self.onReady = onReady
+        self.workspaceCenter = workspaceCenter
         guard observeSystem else { return }
         observeWorkspace()
         startPathMonitor()
@@ -53,7 +57,7 @@ final class SystemWakeGate {
         monitor?.cancel()
         fallbackTask?.cancel()
         for observer in observers {
-            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            workspaceCenter.removeObserver(observer)
         }
     }
 
@@ -97,7 +101,7 @@ final class SystemWakeGate {
     }
 
     private func observeWorkspace() {
-        let center = NSWorkspace.shared.notificationCenter
+        let center = workspaceCenter
         observers.append(center.addObserver(
             forName: NSWorkspace.willSleepNotification,
             object: nil,
