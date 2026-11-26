@@ -216,6 +216,17 @@ jobs:
       - name: Build & run unit tests with coverage
         run: make test
 
+      # Same tables as `make coverage-report`, as Markdown in the job summary.
+      - name: Coverage summary
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## macOS coverage"
+            echo
+            python3 -I scripts/coverage_report.py --files 25 --markdown
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Convert coverage to LCOV (app target only)
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         run: |
