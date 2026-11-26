@@ -15,7 +15,7 @@ import extract_swift_tests as ex  # noqa: E402
 
 
 def write(root: Path, rel: str, text: str) -> None:
-    path = root / rel
+    path = root / ex.MACOS_ROOT / rel
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(textwrap.dedent(text), encoding="utf-8")
 

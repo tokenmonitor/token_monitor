@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Extract every macOS (Swift) test so the Windows parity ledger can track it.
 
-Two sources are scanned, relative to the repository root:
+Two sources are scanned, under ``macos/`` in the repository (test IDs below are
+relative to ``macos/``):
 
 * ``TokenMonTests/**/*.swift``: every XCTest method. A method counts when it is
   an instance method named ``test...`` that takes no parameters, is declared
@@ -43,6 +44,9 @@ import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+# The macOS app lives in this directory of the repository. Test IDs and ledger
+# rows are relative to it (``TokenMonTests/...``), so they do not carry it.
+MACOS_ROOT = "macos"
 XCTEST_ROOT = "TokenMonTests"
 CORE_MAIN = "Tests/Manual/CoreTestsMain.swift"
 CORE_CLASS = "CoreTestsMain"
@@ -307,13 +311,14 @@ def _is_test_case(name: str, supertypes: dict[str, list[str]], seen: set[str] | 
 
 
 def extract_xctests(repo: Path) -> list[SwiftTest]:
-    root = repo / XCTEST_ROOT
+    mac = repo / MACOS_ROOT
+    root = mac / XCTEST_ROOT
     if not root.is_dir():
         return []
     per_file: list[tuple[str, list[Candidate]]] = []
     supertypes: dict[str, list[str]] = {}
     for path in sorted(root.rglob("*.swift")):
-        rel = path.relative_to(repo).as_posix()
+        rel = path.relative_to(mac).as_posix()
         code = blank_swift(path.read_text(encoding="utf-8"))
         candidates, file_supers = scan_swift_file(code)
         _unattributed_swift_testing(rel, code, candidates)
@@ -397,7 +402,7 @@ def scan_core_checks(source: str) -> list[Candidate]:
 
 
 def extract_core_checks(repo: Path) -> list[SwiftTest]:
-    path = repo / CORE_MAIN
+    path = repo / MACOS_ROOT / CORE_MAIN
     if not path.is_file():
         return []
     return [

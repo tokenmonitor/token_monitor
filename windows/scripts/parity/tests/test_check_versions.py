@@ -15,8 +15,9 @@ REPO = Path(__file__).resolve().parents[4]
 
 def write_repo(root: Path, mac: str | None, win: str | None) -> None:
     (root / "windows").mkdir(parents=True)
+    (root / "macos").mkdir(parents=True)
     if mac is not None:
-        (root / "project.yml").write_text(
+        (root / "macos" / "project.yml").write_text(
             f'targets:\n  TokenMon:\n    settings:\n      base:\n        MARKETING_VERSION: "{mac}"\n',
             encoding="utf-8",
         )
@@ -59,7 +60,7 @@ class CheckVersionsTests(unittest.TestCase):
             cv.windows_version(other)
 
     def test_this_repository_ships_one_version(self) -> None:
-        """The real check: project.yml and windows/Cargo.toml agree."""
+        """The real check: macos/project.yml and windows/Cargo.toml agree."""
         self.assertIsNone(cv.check(REPO), cv.check(REPO))
 
 

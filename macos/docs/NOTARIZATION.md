@@ -1,6 +1,6 @@
 # Notarization and distribution
 
-Requires an Apple Developer Program membership and **Xcode.app** with a Developer ID Application certificate.
+Requires an Apple Developer Program membership and **Xcode.app** with a Developer ID Application certificate. Commands below run from `macos/`.
 
 ## 1. Archive
 
@@ -40,7 +40,7 @@ xcodebuild -exportArchive -archivePath build/TokenMon.xcarchive \
 
 ## 3. Ship
 
-`make release` writes `dist/TokenMon-<version>.zip`, `.pkg`, and `-dSYM.zip`, and prints their SHA-256. Pushing a `vX.Y.Z` tag that matches `MARKETING_VERSION` in `project.yml` runs `.github/workflows/release.yml`: it calls `ci.yml` (`static-checks`, `secrets`, `build-and-test`) against the tagged commit, then attaches the three files to the GitHub release. The CI runner has no Developer ID certificate, so those files are **ad-hoc signed and not notarized**; Gatekeeper warns on a first manual download.
+`make release` writes `dist/TokenMon-<version>.zip`, `.pkg`, and `-dSYM.zip`, and prints their SHA-256. Pushing a `vX.Y.Z` tag that matches `MARKETING_VERSION` in `macos/project.yml` runs `.github/workflows/release.yml`: it calls `ci.yml` (`static-checks`, `secrets`, `build-and-test`) against the tagged commit, then attaches the three files to the GitHub release. The CI runner has no Developer ID certificate, so those files are **ad-hoc signed and not notarized**; Gatekeeper warns on a first manual download.
 
 ## In-app updates
 

@@ -1,7 +1,7 @@
 # Spec 03 — Providers: Claude, ChatGPT, OpenCode, OpenRouter
 
-Source of truth: `TokenMon/Providers/{Claude,ChatGPT,OpenCode,OpenRouter}/*.swift` and
-`TokenMonTests/Providers/{Claude,ChatGPT,OpenCode,OpenRouter}/*.swift` on branch `windows-port`
+Source of truth: `macos/TokenMon/Providers/{Claude,ChatGPT,OpenCode,OpenRouter}/*.swift` and
+`macos/TokenMonTests/Providers/{Claude,ChatGPT,OpenCode,OpenRouter}/*.swift` on branch `windows-port`
 (HEAD `3ac5c6b`). This document lets a Rust implementer reach behavioural parity without reading
 Swift. Shared Core pieces (ProviderHTTP, ProviderAuthSession, PollingLoop, DailyBudget,
 DailyQuotaDeltaStore, HourlyDeltaActivityStore, Format, DayKey, credential stores, cookie capture)

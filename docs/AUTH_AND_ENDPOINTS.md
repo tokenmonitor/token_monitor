@@ -268,4 +268,4 @@ Not a provider, but the app's only other network traffic (Settings → Check for
 | GET | `https://api.github.com/repos/<owner>/<repo>/releases/latest` | Unauthenticated |
 | GET | `https://github.com/<owner>/<repo>/releases/download/…` | Release zip / pkg; redirects are allowed only to `objects.githubusercontent.com` and `release-assets.githubusercontent.com` |
 
-See `NOTARIZATION.md` for how a download is verified before it is installed.
+See [macos/docs/NOTARIZATION.md](../macos/docs/NOTARIZATION.md) for how a download is verified before it is installed.

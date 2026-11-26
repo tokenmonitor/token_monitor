@@ -22,7 +22,7 @@ class CheckParityTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
-        swift = self.root / "TokenMonTests/Core/ATests.swift"
+        swift = self.root / "macos/TokenMonTests/Core/ATests.swift"
         swift.parent.mkdir(parents=True)
         swift.write_text("final class ATests: XCTestCase {\n func testA() {}\n func testB() {}\n}\n")
         rust = self.root / "windows/crates/tokenmon-core/tests/a.rs"

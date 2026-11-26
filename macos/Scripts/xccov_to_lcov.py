@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Writes the line coverage in an .xcresult bundle as LCOV for Codecov.
 
-Usage: Scripts/xccov_to_lcov.py <Test.xcresult> [source-root] > coverage.lcov
+Usage: macos/Scripts/xccov_to_lcov.py <Test.xcresult> [repo-root] > coverage.lcov
 
 Reads `xcrun xccov view --archive --json`, keeps only files under
-<source-root>/TokenMon/ (the app target only), and
-emits paths relative to <source-root> (default: the current directory).
+<repo-root>/macos/TokenMon/ (the app target only), and
+emits paths relative to <repo-root> (default: the repository root, two levels
+above this script), such as macos/TokenMon/App/AppDelegate.swift.
 Exits non-zero when no app source has coverage data.
 """
 import json
@@ -19,8 +20,9 @@ def main() -> int:
         print(__doc__, file=sys.stderr)
         return 2
     result = sys.argv[1]
-    root = os.path.realpath(sys.argv[2] if len(sys.argv) == 3 else os.getcwd())
-    app_prefix = os.path.join(root, "TokenMon") + os.sep
+    default_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    root = os.path.realpath(sys.argv[2] if len(sys.argv) == 3 else default_root)
+    app_prefix = os.path.join(root, "macos", "TokenMon") + os.sep
 
     archive = json.loads(
         subprocess.check_output(["xcrun", "xccov", "view", "--archive", "--json", result])

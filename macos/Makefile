@@ -39,7 +39,7 @@ DEVELOPER_ID_INSTALLER ?= $(shell security find-identity -v 2>/dev/null | sed -n
 # Team ID is the (XXXXXXXXXX) suffix on the identity string, when present.
 DEVELOPMENT_TEAM ?= $(shell printf '%s' '$(DEVELOPER_ID_APP)' | sed -n 's/.*(\([A-Z0-9]\{10\}\))$$/\1/p')
 
-# Notarytool keychain profile (see Docs/NOTARIZATION.md)
+# Notarytool keychain profile (see docs/NOTARIZATION.md)
 NOTARY_PROFILE ?= AC_PASSWORD
 
 # Colors
@@ -363,8 +363,8 @@ format-fix: ## Auto-format all Swift sources
 secrets: ## Secret scan gate — working tree and full git history
 	$(call say,Running gitleaks (secret scan)…)
 	@command -v gitleaks >/dev/null || { printf "$(RED)🚨 gitleaks not installed. brew install gitleaks$(RESET)\n"; exit 1; }
-	@gitleaks dir . --no-banner
-	@gitleaks detect --no-banner --log-opts="--all"
+	@gitleaks dir .. --no-banner
+	@gitleaks detect --source .. --no-banner --log-opts="--all"
 	$(call ok,No secrets found)
 
 # Project maintenance

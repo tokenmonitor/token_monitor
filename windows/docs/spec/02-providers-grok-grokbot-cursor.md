@@ -2,11 +2,11 @@
 
 Source of truth (Swift, read in full for this spec):
 
-- `TokenMon/Providers/Grok/*` (GRPCWebParser, GrokUsageClient, GrokModels, GrokAuthSession, GrokSignIn, GrokUsagePoller, GrokDailyUsageBuilder, GrokDailyUsagePreview, GrokHistoryStore, GrokHistoryImport, GrokExportService, GrokPanelView, GrokUsageBreakdownCard)
-- `TokenMon/Providers/Grokbot/*` (GrokbotModels, GrokbotUsageClient, GrokbotUsageBreakdown, GrokbotUsageBreakdownCard, GrokbotUsagePoller, GrokbotPanelView)
-- `TokenMon/UI/Components/UsageBreakdownCard.swift` (the shared Usage Breakdown card)
-- `TokenMon/Providers/Cursor/*` (CursorAuthSession, CursorSignIn, CursorModels, CursorUsageClient, CursorUsageEvents, CursorUsagePoller, CursorPanelView)
-- Tests: `TokenMonTests/Providers/{Grok,Grokbot,Cursor}/*`
+- `macos/TokenMon/Providers/Grok/*` (GRPCWebParser, GrokUsageClient, GrokModels, GrokAuthSession, GrokSignIn, GrokUsagePoller, GrokDailyUsageBuilder, GrokDailyUsagePreview, GrokHistoryStore, GrokHistoryImport, GrokExportService, GrokPanelView, GrokUsageBreakdownCard)
+- `macos/TokenMon/Providers/Grokbot/*` (GrokbotModels, GrokbotUsageClient, GrokbotUsageBreakdown, GrokbotUsageBreakdownCard, GrokbotUsagePoller, GrokbotPanelView)
+- `macos/TokenMon/UI/Components/UsageBreakdownCard.swift` (the shared Usage Breakdown card)
+- `macos/TokenMon/Providers/Cursor/*` (CursorAuthSession, CursorSignIn, CursorModels, CursorUsageClient, CursorUsageEvents, CursorUsagePoller, CursorPanelView)
+- Tests: `macos/TokenMonTests/Providers/{Grok,Grokbot,Cursor}/*`
 
 Shared Core types (`ProviderAuthSession`, `WebKitCookieCapture`, `ProviderHTTP`, `AuthenticatedRequest`, `ProviderRefresh`, `PollingLoop`, `DailyBudget`, `DailyQuotaDeltaStore`, `HourlyDeltaActivityStore`, `QuotaWindow`, `DailyTokenUsage`, `Format`, `JSON`, `Percent`, `Domain`, shared panel components) are specified elsewhere. This document records only how these three providers use them, plus the exact constants needed for parity.
 
@@ -1065,7 +1065,7 @@ Derived:
 
 All dates in these tests are UTC Gregorian unless noted. Tests that call `Calendar.current` must run under a deterministic local time zone in Rust, or be rewritten with an injected calendar.
 
-### 5.1 `TokenMonTests/Providers/Grok/GrokUsageParsingTests.swift`
+### 5.1 `macos/TokenMonTests/Providers/Grok/GrokUsageParsingTests.swift`
 
 | Test | Asserts |
 |---|---|

@@ -1,7 +1,7 @@
 # TokenMon
 
 <p align="center">
-  <img src="Docs/tokenmon-logo.png" alt="TokenMon" width="280">
+  <img src="docs/tokenmon-logo.png" alt="TokenMon" width="280">
 </p>
 
 TokenMon is a native macOS menu bar app that shows how much of your AI usage allowances you have used, across the coding assistants, chat subscriptions and model APIs you connect, in real time.
@@ -47,7 +47,7 @@ Every window is anchored to the provider's own reset metadata (`resetsAt`, billi
 | **History** | Daily usage kept on this Mac for the charts; SuperGrok snapshots export as CSV or JSON |
 | **Alerts** | Optional notification when a provider's usage crosses a threshold; choose the threshold and which providers it watches in Settings › General (off by default) |
 | **Settings** | Four tabs: General (launch at login, updates, refresh intervals, alerts), Providers (tab order and menu bar graphs), Accounts (sign-in for each provider), and Data (product categories, export) |
-| **Updates** | Optional check for new GitHub releases, shown as an "Update available" pill at the bottom of the panel; verified in-place install (see [Docs/NOTARIZATION.md](Docs/NOTARIZATION.md#in-app-updates)) |
+| **Updates** | Optional check for new GitHub releases, shown as an "Update available" pill at the bottom of the panel; verified in-place install (see [macos/docs/NOTARIZATION.md](macos/docs/NOTARIZATION.md#in-app-updates)) |
 | **Agent app** | No Dock icon by default (`LSUIElement`) |
 
 ## Requirements
@@ -63,7 +63,7 @@ Every window is anchored to the provider's own reset metadata (`resetsAt`, billi
 ```bash
 git clone https://github.com/tokenmonitor/token_monitor.git
 cd token_monitor
-open TokenMon.xcodeproj
+open macos/TokenMon.xcodeproj
 ```
 
 Select the **TokenMon** scheme → **My Mac** → Run (⌘R). The app appears in the menu bar (no Dock icon).
@@ -84,15 +84,17 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 xcodebuild -runFirstLaunch
 ```
 
-Use the Makefile (preferred):
+Use the Makefile in `macos/` (preferred). Run it as `make -C macos <target>` from the repository root, or `cd macos` and run `make <target>`:
 
 ```bash
-make help
+make -C macos help
 ```
 
 All targets are listed below (`make help` also shows your detected signing identities).
 
 ### All Makefile targets
+
+The targets below run from `macos/`.
 
 | Target | Description |
 |--------|-------------|
@@ -110,10 +112,10 @@ All targets are listed below (`make help` also shows your detected signing ident
 | `make test-core` | Run the CLT-only parser/builder tests (no app host) |
 | `make lint` | **SwiftLint strict gate** — every warning is an error; must be clean before a PR |
 | `make lint-fix` | Auto-correct autocorrectable SwiftLint violations, then enforce the strict gate |
-| `make format` | **SwiftFormat gate** — fails on formatting drift (config: `.swiftformat`) |
+| `make format` | **SwiftFormat gate** — fails on formatting drift (config: `macos/.swiftformat`) |
 | `make format-fix` | Auto-format all Swift sources |
 | `make secrets` | **gitleaks secret scan** of the working tree **and** full git history — must be clean before a PR |
-| `make project` | Regenerate `TokenMon.xcodeproj` with [XcodeGen](https://github.com/yonaskolb/XcodeGen) |
+| `make project` | Regenerate `macos/TokenMon.xcodeproj` with [XcodeGen](https://github.com/yonaskolb/XcodeGen) |
 | `make icon` | Regenerate the app icon asset catalog |
 | `make check` | Verify the Xcode toolchain (`xcode-select`, versions) |
 | `make open` | Open the project in Xcode |
@@ -122,59 +124,63 @@ All targets are listed below (`make help` also shows your detected signing ident
 
 ### Signing & distribution
 
-`make release` auto-detects **Developer ID Application** / **Installer** certs from your keychain (any team). Without them it falls back to ad-hoc signing and an unsigned `.pkg`. Optional notarization: `make release NOTARY=1` (see [Docs/NOTARIZATION.md](Docs/NOTARIZATION.md)).
+`make release` auto-detects **Developer ID Application** / **Installer** certs from your keychain (any team). Without them it falls back to ad-hoc signing and an unsigned `.pkg`. Optional notarization: `make release NOTARY=1` (see [macos/docs/NOTARIZATION.md](macos/docs/NOTARIZATION.md)).
 
 ### Regenerating the project
 
-After adding or removing source files: `make project` (requires [XcodeGen](https://github.com/yonaskolb/XcodeGen)). Regenerate the app icon with `make icon`.
+After adding or removing source files: `make -C macos project` (requires [XcodeGen](https://github.com/yonaskolb/XcodeGen)). Regenerate the app icon with `make -C macos icon`.
 
 ## Testing & linting
 
 ```bash
-make test        # full Xcode unit test suite
-make test-core   # CLT-only parsers/builders (no app host)
-make lint        # SwiftLint strict gate (must pass before a PR)
-make lint-fix    # auto-fix issues, then re-run the strict gate
-make format      # SwiftFormat drift gate
-make secrets     # gitleaks secret scan (working tree + full history)
+make -C macos test        # full Xcode unit test suite
+make -C macos test-core   # CLT-only parsers/builders (no app host)
+make -C macos lint        # SwiftLint strict gate (must pass before a PR)
+make -C macos lint-fix    # auto-fix issues, then re-run the strict gate
+make -C macos format      # SwiftFormat drift gate
+make -C macos secrets     # gitleaks secret scan (working tree + full history)
 ```
 
-`make lint` runs `swiftlint lint --strict`, so **every warning is treated as an error**. Configuration lives in `.swiftlint.yml`. Keep it green before opening a PR.
+`make lint` runs `swiftlint lint --strict`, so **every warning is treated as an error**. Configuration lives in `macos/.swiftlint.yml`. Keep it green before opening a PR.
 
 ## Project layout
 
 ```
-TokenMon/
-  App/           Entry point, AppModel service graph, AppDelegate
-  Core/          Networking, polling, storage, usage maths, utilities (no UI frameworks)
-  Platform/      Auth sessions and Keychain storage, sleep/wake, alerts
-  UI/            Shared components, menu bar, sign-in window
-  Providers/     One folder per provider, plus the provider registry
-  Features/      Overview, Settings, Update
-  Resources/     Info.plist, entitlements, assets
-Docs/            Architecture, auth/endpoints, notarization
-Scripts/         Icon generator, core tests, notarize, coverage conversion
-TokenMonTests/   XCTest suite, mirroring the TokenMon folders
-Tests/Manual/    Optional CLT-only subset (see Scripts/run_core_tests.sh)
+macos/             The macOS app
+  TokenMon/
+    App/           Entry point, AppModel service graph, AppDelegate
+    Core/          Networking, polling, storage, usage maths, utilities (no UI frameworks)
+    Platform/      Auth sessions and Keychain storage, sleep/wake, alerts
+    UI/            Shared components, menu bar, sign-in window
+    Providers/     One folder per provider, plus the provider registry
+    Features/      Overview, Settings, Update
+    Resources/     Info.plist, entitlements, assets
+  TokenMonTests/   XCTest suite, mirroring the TokenMon folders
+  Tests/Manual/    Optional CLT-only subset (see Scripts/run_core_tests.sh)
+  Scripts/         Icon generator, core tests, notarize, coverage conversion
+  docs/            Notarization
+windows/           The Windows app
+docs/              Architecture, auth/endpoints
+plans/             Open plans (index: plans/OPEN_WORK.md)
 ```
 
 ## Adding a provider
 
-Each provider lives in `TokenMon/Providers/<Name>/` and implements the same pieces:
+Each provider lives in `macos/TokenMon/Providers/<Name>/` and implements the same pieces:
 
 1. **Session**: a `ProviderAuthSession` subclass (cookie sign-in) with its `ProviderSignInProviding.signInConfig`, or a key-based session like OpenRouter's.
 2. **Client and models**: fetches and parses the provider's usage into a snapshot.
 3. **Poller**: a `ProviderUsagePoller` that runs its fetch through `ProviderRefresh.run` and reports its headline percentage, reset instant and account for the menu bar and alerts.
 4. **Panel**: the dropdown tab.
 
-Then add a `MonitorProvider` case (name, accent colour, whether it has a menu-bar graph), one `ProviderRegistry` entry in `AppModel`, its panel in `MenuBarPanelView` and its card in the Overview. Tests go in `TokenMonTests/Providers/<Name>/`. Architecture details: [Docs/ARCHITECTURE.md](Docs/ARCHITECTURE.md).
+Then add a `MonitorProvider` case (name, accent colour, whether it has a menu-bar graph), one `ProviderRegistry` entry in `AppModel`, its panel in `MenuBarPanelView` and its card in the Overview. Tests go in `macos/TokenMonTests/Providers/<Name>/`. Architecture details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Privacy
 
 - **Credentials** (session cookies and API keys) are stored in the **macOS login Keychain** (one item: service `com.modelmonitor.app.credentials`, account `vault`; this device only, never synced). Account emails and workspace ids stay in user-only files (mode `0600`) under `~/Library/Application Support/TokenMon/`. TokenMon never stores credentials unencrypted: if the Keychain refuses a sign-in, the sign-in fails instead of falling back to a file. Credentials an older version left as files in that folder are moved into the Keychain at launch, and the files deleted; if the Keychain refuses them, the files are still deleted and you sign in again.
 - **Keychain prompts after updates.** Release builds are ad-hoc signed, so after each update macOS asks once whether the new TokenMon may read its Keychain item. Choose **Always Allow** to keep it from asking again until the next update.
 - **Network access** is limited to:
-  - each connected provider's own hosts, for usage and sign-in (listed per provider in [Docs/AUTH_AND_ENDPOINTS.md](Docs/AUTH_AND_ENDPOINTS.md)), plus the identity pages a provider's sign-in redirects to;
+  - each connected provider's own hosts, for usage and sign-in (listed per provider in [docs/AUTH_AND_ENDPOINTS.md](docs/AUTH_AND_ENDPOINTS.md)), plus the identity pages a provider's sign-in redirects to;
   - GitHub, for update checks and downloads: `api.github.com`, `github.com`, and its release-asset hosts `objects.githubusercontent.com` / `release-assets.githubusercontent.com`. Turn off automatic checks in Settings to stop these.
 - **Local files read**, always read-only, where a provider's tool keeps usage on this Mac:
 
@@ -191,15 +197,15 @@ Then add a `MonitorProvider` case (name, accent colour, whether it has a menu-ba
 
 | Doc | Contents |
 |-----|----------|
-| [Docs/ARCHITECTURE.md](Docs/ARCHITECTURE.md) | Module map and data flow |
-| [Docs/AUTH_AND_ENDPOINTS.md](Docs/AUTH_AND_ENDPOINTS.md) | Auth model, endpoints, usage-window limitations |
-| [Docs/NOTARIZATION.md](Docs/NOTARIZATION.md) | Developer ID signing and notarization |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Module map and data flow |
+| [docs/AUTH_AND_ENDPOINTS.md](docs/AUTH_AND_ENDPOINTS.md) | Auth model, endpoints, usage-window limitations |
+| [macos/docs/NOTARIZATION.md](macos/docs/NOTARIZATION.md) | Developer ID signing and notarization |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to develop and open PRs |
 | [SECURITY.md](SECURITY.md) | How to report vulnerabilities |
 
 ## Distribution
 
-For a signed, notarized release build, see [Docs/NOTARIZATION.md](Docs/NOTARIZATION.md) and `Scripts/notarize.sh`.
+For a signed, notarized release build, see [macos/docs/NOTARIZATION.md](macos/docs/NOTARIZATION.md) and `macos/Scripts/notarize.sh`.
 
 ## Notes on usage windows
 

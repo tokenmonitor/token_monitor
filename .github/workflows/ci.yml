@@ -31,6 +31,9 @@ jobs:
     name: Lint, format, and XcodeGen drift
     runs-on: macos-15
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: macos
     env:
       SWIFTLINT_VERSION: "0.59.1"
       SWIFTLINT_SHA256: "58f9be8a4677900c945e2c618168223f4dd620a0cc65c9ccc5ea0f70433e89c1"
@@ -83,7 +86,8 @@ jobs:
           /tmp/xcodegen/xcodegen/bin/xcodegen generate
           # `git status --porcelain` covers untracked generated files too (e.g. a
           # new .xcscheme), unlike `git diff --exit-code`. The
-          # entitlements file is generated from project.yml too.
+          # entitlements file is generated from project.yml too. The paths are
+          # relative to macos/ (the job's working directory).
           paths=(TokenMon.xcodeproj TokenMon/Resources/TokenMon.entitlements)
           if [ -n "$(git status --porcelain "${paths[@]}")" ]; then
             echo "XcodeGen drift detected; run 'make project' and commit the result:"
@@ -127,8 +131,11 @@ jobs:
     name: Build, test, and Release build
     runs-on: macos-26
     timeout-minutes: 45
-    # The committed TokenMon.xcodeproj is used as-is; static-checks fails the
-    # run when it differs from what project.yml generates. The job runs
+    defaults:
+      run:
+        working-directory: macos
+    # The committed macos/TokenMon.xcodeproj is used as-is; static-checks fails
+    # the run when it differs from what macos/project.yml generates. The job runs
     # uncached: the project has no Swift packages, and a fresh checkout's
     # timestamps invalidate DerivedData.
     steps:
@@ -157,6 +164,7 @@ jobs:
         run: |
           set -euo pipefail
           result="$(find build/DerivedData/Logs/Test -maxdepth 1 -name '*.xcresult' | head -1)"
+          # SF paths are repo-relative (macos/TokenMon/...), which Codecov maps.
           python3 -I Scripts/xccov_to_lcov.py "$result" "$GITHUB_WORKSPACE" > coverage.lcov
 
       - name: Upload coverage
@@ -164,7 +172,7 @@ jobs:
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage.lcov
+          files: macos/coverage.lcov
           disable_search: true
           # Fails the job only when a CODECOV_TOKEN is configured; coverage is
           # informational (codecov.yml).

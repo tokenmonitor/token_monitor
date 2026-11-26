@@ -18,7 +18,7 @@ Already Linux-shaped: the Claude Code log reader (`~/.claude/projects`, `~/.conf
 
 ## Architecture
 
-Two parts in one Swift package (`Package.swift`; `project.yml` stays the macOS app definition):
+Two parts in one Swift package (`Package.swift`; `macos/project.yml` stays the macOS app definition):
 
 - **`TokenMonCore`**: provider clients, parsers, pollers, Daily Budget, history, settings model, credential protocols. No AppKit, SwiftUI, WebKit, Security, SwiftData, or Combine imports. Builds on macOS and Linux.
 - **Platform layers**: `TokenMonMac` (the existing app) and `TokenMonLinux` (GTK4 shell, tray, WebKitGTK sign-in, libsecret, desktop integration).
@@ -79,7 +79,7 @@ Phases 1 and 2 run alongside Phase 0 once 0.6 passes.
 ## Tests and CI
 
 - `ci.yml` gains an `ubuntu-24.04` job: `swift build`, `swift test` for `TokenMonCore`.
-- `Scripts/run_core_tests.sh` stops using `xcrun` and an Apple target; its source list contains no AppKit file.
+- `macos/Scripts/run_core_tests.sh` stops using `xcrun` and an Apple target; its source list contains no AppKit file.
 - Existing XCTest files for Foundation-only code move to the package test target. UI, WebKit, and Keychain tests stay macOS-only.
 - Provider clients get fixture-based tests that run on both platforms. Live-account checks stay manual.
 

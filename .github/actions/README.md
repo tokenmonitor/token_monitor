@@ -10,13 +10,13 @@ builds work until the certificates exist.
 | Action | Does | Needs |
 |---|---|---|
 | `macos-import-signing` | Imports the Developer ID `.p12` files into a temporary keychain; `make` auto-detects them | optional certificate inputs |
-| `macos-build-app` | Release build, staged as `dist/TokenMon.app` | |
-| `macos-notarize` | Notarizes and staples an `.app` or `.pkg` (`Scripts/notarize.sh`) | optional Apple notary inputs |
-| `macos-pkg` | `dist/TokenMon-<version>.pkg` from `dist/TokenMon.app` | |
+| `macos-build-app` | Release build, staged as `macos/dist/TokenMon.app` | |
+| `macos-notarize` | Notarizes and staples an `.app` or `.pkg` (`macos/Scripts/notarize.sh`) | optional Apple notary inputs |
+| `macos-pkg` | `macos/dist/TokenMon-<version>.pkg` from `macos/dist/TokenMon.app` | |
 
 Order: `macos-import-signing`, `macos-build-app`, `macos-notarize` (app),
 `macos-pkg`, `macos-notarize` (pkg). The zip and dSYM zip come from
-`make _zip _dsym`. `.github/workflows/macos-installers.yml` wires them together
+`make -C macos _zip _dsym`. `.github/workflows/macos-installers.yml` wires them together
 and `release.yml` calls it.
 
 ## Windows (run on a Windows runner, bash shell)

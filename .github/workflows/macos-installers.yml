@@ -14,7 +14,7 @@ name: macOS installers
 #     pipeline, and on manual dispatch (Actions tab);
 #   * the steps are the same ones to reuse from any other workflow:
 #       macos-import-signing -> macos-build-app -> macos-notarize (app)
-#       -> macos-pkg -> macos-notarize (pkg), then `make _zip _dsym`.
+#       -> macos-pkg -> macos-notarize (pkg), then `make -C macos _zip _dsym`.
 #
 # Signing and notarization are off until the Apple secrets exist: each action
 # does nothing when its inputs are empty, so an unsigned build works today.
@@ -55,7 +55,7 @@ on:
     paths:
       - ".github/actions/macos-*/**"
       - ".github/workflows/macos-installers.yml"
-      - "Scripts/notarize.sh"
+      - "macos/Scripts/notarize.sh"
 
 permissions:
   contents: read
@@ -69,6 +69,11 @@ jobs:
     name: Build pkg, zip and dSYM
     runs-on: macos-26
     timeout-minutes: 45
+    # `run` steps start in macos/; the composite actions run from the
+    # workspace root and prefix their paths with macos/.
+    defaults:
+      run:
+        working-directory: macos
     outputs:
       version: ${{ steps.app.outputs.version }}
     steps:
@@ -145,6 +150,6 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ inputs.artifact-name || 'tokenmon-macos' }}
-          path: out/
+          path: macos/out/
           if-no-files-found: error
           retention-days: 14
