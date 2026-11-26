@@ -21,6 +21,8 @@ final class MenuBarController: NSObject {
     private var hosting: NSHostingController<MenuBarPanelContent>?
     /// Whether the panel is shorter than its content; drives the scroll bar.
     private let scrollState = MenuBarPanelScrollState()
+    /// Whether the screen cut the open panel short of its content.
+    var isPanelHeightClamped: Bool { scrollState.isHeightClamped }
     private var statusLoop: ObservationLoop?
     private var regions: [MenuBarStatusRenderer.Region] = []
     private var escapeMonitor: Any?
@@ -238,6 +240,7 @@ final class MenuBarController: NSObject {
         guard panel.isVisible, hosting != nil else { return }
         let frame = fittedFrame(for: panelContentSize())
         guard abs(frame.height - panel.frame.height) > 0.5
+            || abs(frame.width - panel.frame.width) > 0.5
             || abs(frame.origin.x - panel.frame.origin.x) > 0.5
             || abs(frame.origin.y - panel.frame.origin.y) > 0.5 else { return }
         panel.setFrame(frame, display: true)
@@ -246,12 +249,25 @@ final class MenuBarController: NSObject {
     /// `panelFrame(for:)`, also recording whether the screen cut the panel
     /// short of `size`, which is the only case that needs a scroll bar.
     private func fittedFrame(for size: NSSize) -> NSRect {
-        let frame = panelFrame(for: size)
-        let isClamped = size.height > frame.height + 0.5
+        let isClamped = size.height > panelFrame(for: size).height + 0.5
         if scrollState.isHeightClamped != isClamped {
             scrollState.isHeightClamped = isClamped
         }
-        return frame
+        return panelFrame(for: NSSize(width: Self.panelWidth(isHeightClamped: isClamped), height: size.height))
+    }
+
+    /// The panel's width: `MenuBarPanelView.panelWidth`, plus the room a legacy
+    /// scroll bar takes when the screen clamps the height and the bar shows. An
+    /// overlay scroll bar floats over the content and adds nothing. The content
+    /// keeps its fixed width either way, so the frame must grow with the bar or
+    /// AppKit widens the window by itself and the panel is no longer centred
+    /// under the status item.
+    static func panelWidth(
+        isHeightClamped: Bool,
+        scrollerStyle: NSScroller.Style = NSScroller.preferredScrollerStyle
+    ) -> CGFloat {
+        guard isHeightClamped, scrollerStyle == .legacy else { return MenuBarPanelView.panelWidth }
+        return MenuBarPanelView.panelWidth + NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
     }
 
     /// The content's full height: the height SwiftUI reported for it, or the

@@ -97,6 +97,7 @@
 		4F312E8A0D23AC719D23BF4C /* DailyBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D1811D20FD36F1FE6B12397 /* DailyBudget.swift */; };
 		4F7AF2848D6E5132DA07DE03 /* SystemWakeGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBD2464BB2DF33F4A3B9AF7F /* SystemWakeGate.swift */; };
 		4FB8BE7C54DA042D83726D15 /* ProviderSignOutButtonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058558EF93DF1EC9D07858D3 /* ProviderSignOutButtonTests.swift */; };
+		5150A839923227C4B0606EA2 /* ViewTreeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2297DF16F85D22ABA60F9A8F /* ViewTreeTests.swift */; };
 		52F367B5CEB6523C276BFA37 /* LegacyCacheCleanupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7170C1555B956864F463F26 /* LegacyCacheCleanupTests.swift */; };
 		5303514EA7C8E65C522F60E6 /* AppVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 900E667C6972741C36D32F47 /* AppVersion.swift */; };
 		54C4CF3CAB2D21856F87BDE4 /* ProviderSignInButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0688525C0C56E615E584676 /* ProviderSignInButton.swift */; };
@@ -352,6 +353,7 @@
 		1E0965BB07B19CF2D5881626 /* CollapsibleSectionHeaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollapsibleSectionHeaderTests.swift; sourceTree = "<group>"; };
 		208DE1472F36E49ECB046CB8 /* GrokHistoryImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokHistoryImport.swift; sourceTree = "<group>"; };
 		2288F22C54AB836EBE566F50 /* ClaudeCodeLocalStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCodeLocalStats.swift; sourceTree = "<group>"; };
+		2297DF16F85D22ABA60F9A8F /* ViewTreeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewTreeTests.swift; sourceTree = "<group>"; };
 		22B73774C672331884BCCD27 /* DailyBudgetWeekOffsetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyBudgetWeekOffsetTests.swift; sourceTree = "<group>"; };
 		22CDEB40CD2C6229C53B7B4B /* ProviderRefreshTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderRefreshTests.swift; sourceTree = "<group>"; };
 		23603966B9AF3E2C6DB6EA45 /* BackoffTimer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackoffTimer.swift; sourceTree = "<group>"; };
@@ -776,6 +778,7 @@
 				99D2E036E380B0DDABA98D7A /* NeverRespondingURLProtocol.swift */,
 				272DA88178BA65200C0629CD /* ObservationProbe.swift */,
 				6C959DA0D99EF4835C267129 /* ViewHarness.swift */,
+				2297DF16F85D22ABA60F9A8F /* ViewTreeTests.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -1578,6 +1581,7 @@
 				7CFDD0BBA9255D6221B1DA55 /* UsageSourceTagTests.swift in Sources */,
 				E81D484901DB8B194CB1093F /* UsageSourceTests.swift in Sources */,
 				E5E387716D831E2424120DFC /* ViewHarness.swift in Sources */,
+				5150A839923227C4B0606EA2 /* ViewTreeTests.swift in Sources */,
 				A0CA70731D8293825C8C112F /* WebKitCookieCaptureTests.swift in Sources */,
 				DDEDEFECA1732D8CD3CB684A /* WebKitCookieStoreTests.swift in Sources */,
 			);
