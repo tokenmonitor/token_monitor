@@ -181,7 +181,7 @@ def crash_markdown(row: dict, run_url: str = "") -> str:
             "sh",
         ),
         "",
-        "Then turn it into a regression test (skills/rust-quality-pipeline §4: "
+        "Then turn it into a regression test (skills/rust-fuzzing, \"Handling a finding\": "
         "minimized input under `tests/fixtures/fuzz/<target>/` plus a stable-toolchain test).",
     ]
     if run_url:

@@ -2,6 +2,8 @@
 
 ## Overview
 
+Build, test and review conventions for this app are in [DEVELOPMENT.md](DEVELOPMENT.md).
+
 TokenMon is an agent-style macOS app (`LSUIElement` + a custom `NSStatusItem`, not `MenuBarExtra`) with provider-specific services for Grok, OpenCode, Cursor, Claude, ChatGPT, OpenRouter, and Grokbot, plus an Overview aggregate. The shared shell owns provider selection, menu-bar presentation, settings, and lifecycle; each provider owns its authentication and usage implementation.
 
 ```

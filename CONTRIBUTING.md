@@ -35,6 +35,8 @@ make -C macos icon
 
 ## Before you open a PR
 
+The macOS app's testing rules, quality gate and project conventions are in [macos/docs/DEVELOPMENT.md](macos/docs/DEVELOPMENT.md).
+
 - Keep changes focused on one concern.
 - Prefer clear commit messages that explain *why*.
 - Run the checks CI runs: `make -C macos lint`, `make -C macos format`, `make -C macos secrets`, and the
