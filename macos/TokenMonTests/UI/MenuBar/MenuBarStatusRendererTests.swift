@@ -288,6 +288,54 @@ final class MenuBarStatusRendererTests: XCTestCase {
         XCTAssertNil(MenuBarStatusRenderer.providerSnapped(atX: -50, in: status.regions))
     }
 
+    /// With categories on, a signed-in Grok segment lists each visible
+    /// product after its figure, which widens the status item.
+    func testGrokCategoriesWidenTheCompositeLabel() {
+        let snapshot = WeeklyUsageSnapshot(
+            usedPercent: 47,
+            products: [
+                ProductUsage(id: "chat", displayName: "Chat", percentOfPool: 25),
+                ProductUsage(id: "build", displayName: "Build", percentOfPool: 22)
+            ]
+        )
+        let plain = MenuBarStatusRenderer.render(input(
+            provider: .grok, showSelectedProvider: false, snapshot: snapshot,
+            isGrokSignedIn: true, menuBarGraphs: [.grok], showGrokCategories: false
+        ))
+        let categorized = MenuBarStatusRenderer.render(input(
+            provider: .grok, showSelectedProvider: false, snapshot: snapshot,
+            isGrokSignedIn: true, menuBarGraphs: [.grok], showGrokCategories: true
+        ))
+        XCTAssertGreaterThan(categorized.image.size.width, plain.image.size.width)
+        XCTAssertNotEqual(categorized.key, plain.key)
+        // Hiding the products takes the categories back out.
+        let hidden = MenuBarStatusRenderer.render(input(
+            provider: .grok, showSelectedProvider: false, snapshot: snapshot,
+            isGrokSignedIn: true, menuBarGraphs: [.grok], showGrokCategories: true, visibleProductIDs: []
+        ))
+        XCTAssertEqual(hidden.image.size.width, plain.image.size.width)
+    }
+
+    /// Without an appearance the renderer uses the menu bar's own, and the
+    /// input enables every usage provider unless told otherwise.
+    func testRendersWithTheMenuBarAppearanceByDefault() {
+        let defaults = MenuBarStatusRenderer.Input(
+            selectedProvider: .claude,
+            showSelectedProvider: true,
+            usedPercent: [.claude: 42],
+            grokSnapshot: nil,
+            isGrokSignedIn: false,
+            menuBarGraphs: [],
+            showGrokCategories: false,
+            providerOrder: MonitorProvider.usageProviders,
+            visibleProductIDs: []
+        )
+        XCTAssertEqual(defaults.enabledProviders, Set(MonitorProvider.usageProviders))
+        let status = MenuBarStatusRenderer.render(defaults)
+        XCTAssertGreaterThan(status.image.size.width, 0)
+        XCTAssertEqual(status.regions.map(\.provider), [.claude])
+    }
+
     private func renderStatus(
         provider: MonitorProvider,
         showSelectedProvider: Bool,

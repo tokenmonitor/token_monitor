@@ -350,15 +350,10 @@ enum MenuBarStatusRenderer {
         if let exact = provider(atX: x, in: regions) { return exact }
         var bestProvider: MonitorProvider?
         var bestDistance = CGFloat.greatestFiniteMagnitude
+        // No region contains `x` (the exact lookup found none), so it lies
+        // wholly before or after each one.
         for region in regions {
-            let distance: CGFloat
-            if x < region.minX {
-                distance = region.minX - x
-            } else if x > region.maxX {
-                distance = x - region.maxX
-            } else {
-                distance = 0
-            }
+            let distance = x < region.minX ? region.minX - x : x - region.maxX
             if distance < bestDistance {
                 bestDistance = distance
                 bestProvider = region.provider

@@ -143,26 +143,60 @@ final class MenuBarController: NSObject {
         statusItem.button?.image = rendered.image
     }
 
+    /// What a click on the status item does.
+    enum ClickResponse: Equatable {
+        /// Show this provider's tab in the open panel.
+        case switchTab(MonitorProvider)
+        /// Close the open panel.
+        case close
+        /// Open the panel, on this provider's tab when one was clicked.
+        case open(MonitorProvider?)
+    }
+
+    /// The response to a click on `clicked`'s bar (nil for a miss). With the
+    /// panel open, another provider's bar switches tabs in place and the
+    /// active provider (or a miss) closes it; with it closed, the click opens
+    /// it on the clicked provider, and a miss keeps the selection.
+    static func clickResponse(
+        clicked: MonitorProvider?,
+        selected: MonitorProvider,
+        isPanelVisible: Bool
+    ) -> ClickResponse {
+        guard isPanelVisible else { return .open(clicked) }
+        if let clicked, clicked != selected {
+            return .switchTab(clicked)
+        }
+        return .close
+    }
+
+    /// Whether the dropdown panel is on screen.
+    var isPanelVisible: Bool {
+        panel.isVisible
+    }
+
     @objc private func handleStatusItemClick(_ sender: Any?) {
         guard let button = statusItem.button else { return }
-        let clicked = clickedProvider(in: button)
+        handleClick(on: clickedProvider(in: button))
+    }
 
-        if panel.isVisible {
-            // Switch tabs in place when another provider's bar is clicked;
-            // only toggle closed when the active provider (or a miss) is clicked.
-            if let clicked, clicked != model.settings.selectedProvider {
-                model.settings.selectedProvider = clicked
-                return
-            }
+    /// Responds to a status-item click on `clicked`'s bar (nil for a miss).
+    func handleClick(on clicked: MonitorProvider?) {
+        let response = Self.clickResponse(
+            clicked: clicked,
+            selected: model.settings.selectedProvider,
+            isPanelVisible: panel.isVisible
+        )
+        switch response {
+        case let .switchTab(provider):
+            model.settings.selectedProvider = provider
+        case .close:
             hidePanel()
-            return
+        case let .open(provider):
+            if let provider {
+                model.settings.selectedProvider = provider
+            }
+            showPanel()
         }
-
-        // Open on the provider whose bar was clicked; a miss keeps the selection.
-        if let clicked {
-            model.settings.selectedProvider = clicked
-        }
-        showPanel()
     }
 
     // MARK: - Panel
@@ -243,9 +277,15 @@ final class MenuBarController: NSObject {
         let buttonFrame = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
         let visible = (buttonWindow.screen ?? NSScreen.main)?.visibleFrame
             ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        return Self.panelFrame(for: size, under: buttonFrame, in: visible, gap: panelGap)
+    }
+
+    /// A panel of `size` centered `gap` below `buttonFrame`, kept 8pt inside
+    /// `visible` and no taller than it allows.
+    static func panelFrame(for size: NSSize, under buttonFrame: NSRect, in visible: NSRect, gap: CGFloat) -> NSRect {
         let height = min(size.height, visible.height - 16)
         var x = buttonFrame.midX - size.width / 2
-        var y = buttonFrame.minY - panelGap - height
+        var y = buttonFrame.minY - gap - height
         x = min(max(x, visible.minX + 8), visible.maxX - size.width - 8)
         y = min(max(y, visible.minY + 8), visible.maxY - height - 8)
         return NSRect(x: x, y: y, width: size.width, height: height)
