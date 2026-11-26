@@ -29,6 +29,11 @@ VERSION := $(if $(VERSION),$(VERSION),1.0.0)
 BUILD_NUMBER ?= $(shell git rev-list --count HEAD 2>/dev/null)
 BUILD_NUMBER_FLAG := $(if $(BUILD_NUMBER),CURRENT_PROJECT_VERSION=$(BUILD_NUMBER),)
 
+# XcodeGen version CI uses (XCODEGEN_VERSION in ../.github/workflows/ci.yml).
+# `make project` refuses any other version, because generated output differs
+# between versions and CI fails the build on drift.
+XCODEGEN_VERSION := $(shell sed -n 's/.*XCODEGEN_VERSION: *"\([^"]*\)".*/\1/p' ../.github/workflows/ci.yml 2>/dev/null | head -1)
+
 # Destination for local install
 INSTALL_DIR    ?= /Applications
 
@@ -371,7 +376,10 @@ secrets: ## Secret scan gate — working tree and full git history
 
 project: ## Regenerate Xcode project with xcodegen
 	$(call say,Running xcodegen…)
-	@command -v xcodegen >/dev/null || { printf "$(RED)🚨 xcodegen not installed. brew install xcodegen$(RESET)\n"; exit 1; }
+	@command -v xcodegen >/dev/null || { printf "$(RED)🚨 xcodegen not installed. Install $(XCODEGEN_VERSION) from https://github.com/yonaskolb/XcodeGen/releases/tag/$(XCODEGEN_VERSION)$(RESET)\n"; exit 1; }
+	@test -n "$(XCODEGEN_VERSION)" || { printf "$(RED)🚨 XCODEGEN_VERSION not found in ../.github/workflows/ci.yml$(RESET)\n"; exit 1; }
+	@found="$$(xcodegen version | awk '{print $$2}')"; test "$$found" = "$(XCODEGEN_VERSION)" || { \
+		printf "$(RED)🚨 xcodegen $$found found; CI pins $(XCODEGEN_VERSION). Install it from https://github.com/yonaskolb/XcodeGen/releases/tag/$(XCODEGEN_VERSION)$(RESET)\n"; exit 1; }
 	@xcodegen generate
 	$(call ok,TokenMon.xcodeproj regenerated)
 
