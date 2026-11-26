@@ -13,9 +13,10 @@ name: Windows parity
 #   `Windows-Parity: <reason>` trailer. An open `windows-parity` issue that the
 #   change references (or that names its commit) covers both.
 #
-# Runs on every branch, master included.
+# Runs on every pull request and on every push to master.
 on:
   push:
+    branches: [master]
   pull_request:
     # `edited` re-runs the guard after a PR description gains an issue reference.
     types: [opened, synchronize, reopened, edited]
