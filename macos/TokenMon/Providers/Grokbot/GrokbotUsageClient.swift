@@ -29,10 +29,14 @@ struct GrokbotUsageClient: Sendable {
 
     private let cookieHeader: String
     private let accountEmail: String?
+    private let session: URLSession
 
-    init(cookieHeader: String, accountEmail: String? = nil) {
+    /// Requests go through `session`: the shared provider session unless a
+    /// test stubs it.
+    init(cookieHeader: String, accountEmail: String? = nil, session: URLSession = ProviderURLSession.shared) {
         self.cookieHeader = cookieHeader
         self.accountEmail = accountEmail
+        self.session = session
     }
 
     /// Posts to the usage-status endpoint and parses the allowance snapshot.
@@ -60,7 +64,8 @@ struct GrokbotUsageClient: Sendable {
             context: .grokbot,
             json: [:],
             bearerToken: token,
-            headers: ["Connect-Protocol-Version": "1"]
+            headers: ["Connect-Protocol-Version": "1"],
+            session: session
         )
         return GrokbotUsageBreakdown.parse(try ProviderHTTP.jsonObject(data, context: .grokbot))
     }
@@ -176,7 +181,8 @@ struct GrokbotUsageClient: Sendable {
             json: json,
             cookieHeader: cookieHeader,
             referer: "https://cursor.com/bot",
-            origin: "https://cursor.com"
+            origin: "https://cursor.com",
+            session: session
         )
     }
 }

@@ -104,18 +104,22 @@ struct ChatGPTUsageClient: Sendable {
 
 extension ChatGPTUsageClient.Transport {
     /// Cookie-authenticated requests against chatgpt.com.
-    static let live = Self(
-        session: { cookieHeader in
+    static let live = live(through: ProviderURLSession.shared)
+
+    /// As `live`, sent through `urlSession` (a test passes a stub transport).
+    static func live(through urlSession: URLSession) -> Self {
+        let session: @Sendable (String) async throws -> (Data, [String]) = { cookieHeader in
             let result = try await ProviderHTTP.getWithResponse(
                 "api/auth/session",
                 baseURL: ChatGPTUsageClient.baseURL,
                 context: .chatGPT,
                 cookieHeader: cookieHeader,
-                referer: "https://chatgpt.com/"
+                referer: "https://chatgpt.com/",
+                session: urlSession
             )
             return (result.data, ProviderHTTP.setCookieHeaders(from: result.response))
-        },
-        usage: { cookieHeader, accessToken, accountID in
+        }
+        let usage: @Sendable (String, String, String?) async throws -> (Data, [String]) = { cookieHeader, accessToken, accountID in
             let result = try await ProviderHTTP.getWithResponse(
                 "/backend-api/wham/usage",
                 baseURL: ChatGPTUsageClient.baseURL,
@@ -123,11 +127,13 @@ extension ChatGPTUsageClient.Transport {
                 cookieHeader: cookieHeader,
                 bearerToken: accessToken,
                 referer: "https://chatgpt.com/",
-                headers: accountID.map { ["ChatGPT-Account-Id": $0] } ?? [:]
+                headers: accountID.map { ["ChatGPT-Account-Id": $0] } ?? [:],
+                session: urlSession
             )
             return (result.data, ProviderHTTP.setCookieHeaders(from: result.response))
         }
-    )
+        return Self(session: session, usage: usage)
+    }
 }
 
 /// In-memory cache of the web access token exchanged for a session cookie.

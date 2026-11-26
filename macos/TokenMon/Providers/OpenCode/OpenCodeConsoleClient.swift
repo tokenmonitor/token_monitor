@@ -48,9 +48,11 @@ struct OpenCodeConsoleClient: Sendable {
 
     private let getData: Get
 
-    init(cookieHeader: String) {
+    /// Cookie-authenticated console requests through `session` (the shared
+    /// provider session unless a test stubs it).
+    init(cookieHeader: String, session: URLSession = ProviderURLSession.shared) {
         self.init { path, orgID in
-            try await Self.liveGet(path, orgID: orgID, cookieHeader: cookieHeader)
+            try await Self.liveGet(path, orgID: orgID, cookieHeader: cookieHeader, session: session)
         }
     }
 
@@ -141,7 +143,12 @@ struct OpenCodeConsoleClient: Sendable {
 
     private static let log = Logger(category: "OpenCodeConsole")
 
-    private static func liveGet(_ path: String, orgID: String?, cookieHeader: String) async throws -> Data {
+    private static func liveGet(
+        _ path: String,
+        orgID: String?,
+        cookieHeader: String,
+        session: URLSession
+    ) async throws -> Data {
         guard let url = URL(string: path, relativeTo: baseURL)?.absoluteURL else {
             throw ProviderError.network(.openCode, "malformed path: \(path)")
         }
@@ -153,7 +160,7 @@ struct OpenCodeConsoleClient: Sendable {
         request.setValue(AppIdentity.userAgent, forHTTPHeaderField: "User-Agent")
         if let orgID { request.setValue(orgID, forHTTPHeaderField: "x-org-id") }
 
-        let (data, response) = try await AuthenticatedRequest.data(for: request, session: ProviderURLSession.shared)
+        let (data, response) = try await AuthenticatedRequest.data(for: request, session: session)
         guard let http = response as? HTTPURLResponse else {
             throw ProviderError.network(.openCode, "invalid response")
         }

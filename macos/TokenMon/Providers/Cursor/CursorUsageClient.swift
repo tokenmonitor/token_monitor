@@ -405,8 +405,9 @@ struct CursorUsageClient: Sendable {
 }
 
 extension CursorUsageClient.Transport {
-    /// Cookie-authenticated requests against cursor.com.
-    static func live(cookieHeader: String) -> Self {
+    /// Cookie-authenticated requests against cursor.com, sent through
+    /// `session` (the shared provider session unless a test stubs it).
+    static func live(cookieHeader: String, session: URLSession = ProviderURLSession.shared) -> Self {
         Self(
             get: { path in
                 try await ProviderHTTP.get(
@@ -414,7 +415,8 @@ extension CursorUsageClient.Transport {
                     baseURL: CursorUsageClient.baseURL,
                     context: .cursor,
                     cookieHeader: cookieHeader,
-                    referer: "https://cursor.com"
+                    referer: "https://cursor.com",
+                    session: session
                 )
             },
             eventsPage: { startMs, endMs, page, pageSize in
@@ -430,7 +432,8 @@ extension CursorUsageClient.Transport {
                     ],
                     cookieHeader: cookieHeader,
                     referer: "https://cursor.com",
-                    origin: "https://cursor.com"
+                    origin: "https://cursor.com",
+                    session: session
                 )
             }
         )

@@ -5,9 +5,13 @@ struct ClaudeUsageClient: Sendable {
     static let baseURL = URL(staticString: "https://claude.ai")
 
     private let cookieHeader: String
+    private let session: URLSession
 
-    init(cookieHeader: String) {
+    /// Requests go through `session`: the shared provider session unless a
+    /// test stubs it.
+    init(cookieHeader: String, session: URLSession = ProviderURLSession.shared) {
         self.cookieHeader = cookieHeader
+        self.session = session
     }
 
     /// Fetches usage for the org in the cookie header; throws `.notSignedIn` without one.
@@ -24,7 +28,8 @@ struct ClaudeUsageClient: Sendable {
             baseURL: Self.baseURL,
             context: .claude,
             cookieHeader: cookieHeader,
-            referer: "https://claude.ai/"
+            referer: "https://claude.ai/",
+            session: session
         )
         let response = try ClaudeUsageResponse.parse(data, now: now)
         return (response, now)

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00B92C5183FFD11BCE2DFD55 /* ProviderHTTPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C11AC0DFC98B9CB1DE6750D7 /* ProviderHTTPTests.swift */; };
 		0202D9BAD67E4678DEA2DD47 /* ThisMacLabelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0668884322F617D2924E37C0 /* ThisMacLabelTests.swift */; };
 		0204174C087D5C3C2EDB0697 /* OpenCodeSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA6EAEC0FC8596666ED9C1D9 /* OpenCodeSignIn.swift */; };
 		022CDBAC0DC5B0255C333910 /* DailyBudgetPace.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDEE04D675F839698D199A6B /* DailyBudgetPace.swift */; };
@@ -106,6 +107,7 @@
 		6F60C79FA0A704C2E4662003 /* OpenCodeLocalStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FA109A5FFAFAD7AE90662C /* OpenCodeLocalStats.swift */; };
 		6F971AA7396C1EE3F876D256 /* UsageBreakdownCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FACC7D56F3A746C8EC99537 /* UsageBreakdownCard.swift */; };
 		70BAEB5A4675D210F58A3333 /* StaleDataCaption.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2FA51F495C72B4BB25886FB /* StaleDataCaption.swift */; };
+		72A664D830283559ECE348C6 /* HTTPStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 323AB6D42BFEF8ECA241651E /* HTTPStub.swift */; };
 		75A05879484445E300236BD7 /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54B8FBB66829DE1680196FBA /* FlowLayout.swift */; };
 		79245FADBD6A716A6295D5A4 /* AuthenticatedRequestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EC4E051E4FF734757565848 /* AuthenticatedRequestTests.swift */; };
 		794664BDA04B15365D88BF49 /* OverviewHourlyHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A3C12CF7CE4ACA1F91372F /* OverviewHourlyHistoryTests.swift */; };
@@ -312,6 +314,7 @@
 		2831F536A3D09C69497FEF69 /* AppInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInstaller.swift; sourceTree = "<group>"; };
 		28872C006636ABC29F513E90 /* GrokbotUsagePoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokbotUsagePoller.swift; sourceTree = "<group>"; };
 		29A70ECCF9E72CB23C94ADBF /* ProviderHourlyUsageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderHourlyUsageTests.swift; sourceTree = "<group>"; };
+		323AB6D42BFEF8ECA241651E /* HTTPStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPStub.swift; sourceTree = "<group>"; };
 		3402B921DA57B768509C6CFE /* HourlyDeltaActivityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HourlyDeltaActivityStore.swift; sourceTree = "<group>"; };
 		3449727664B975097B6A218E /* FlowLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayoutTests.swift; sourceTree = "<group>"; };
 		34CEC1CB335D2F1AEEF0C1A6 /* WebKitCookieCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebKitCookieCapture.swift; sourceTree = "<group>"; };
@@ -449,6 +452,7 @@
 		BE993F50A438BDC9B7E9136A /* ClaudeModelHoverDetailTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModelHoverDetailTests.swift; sourceTree = "<group>"; };
 		BEACE0C551D957D16FFE77A9 /* OpenCodeConsoleClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeConsoleClientTests.swift; sourceTree = "<group>"; };
 		C0C36666A29CD67949F2198A /* GrokModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokModels.swift; sourceTree = "<group>"; };
+		C11AC0DFC98B9CB1DE6750D7 /* ProviderHTTPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderHTTPTests.swift; sourceTree = "<group>"; };
 		C2FA51F495C72B4BB25886FB /* StaleDataCaption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaleDataCaption.swift; sourceTree = "<group>"; };
 		C30126089A362723703A372E /* ChatGPTUsageClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTUsageClient.swift; sourceTree = "<group>"; };
 		C31933106A9D643D9A424D46 /* OverviewHourlyUsageChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewHourlyUsageChart.swift; sourceTree = "<group>"; };
@@ -670,6 +674,7 @@
 		21AF8BFBCDD4C0C7E335655E /* Support */ = {
 			isa = PBXGroup;
 			children = (
+				323AB6D42BFEF8ECA241651E /* HTTPStub.swift */,
 				99D2E036E380B0DDABA98D7A /* NeverRespondingURLProtocol.swift */,
 				272DA88178BA65200C0629CD /* ObservationProbe.swift */,
 				6C959DA0D99EF4835C267129 /* ViewHarness.swift */,
@@ -975,6 +980,7 @@
 			isa = PBXGroup;
 			children = (
 				5EC4E051E4FF734757565848 /* AuthenticatedRequestTests.swift */,
+				C11AC0DFC98B9CB1DE6750D7 /* ProviderHTTPTests.swift */,
 				9604EE2956CF38B9890E8646 /* UsageErrorTests.swift */,
 			);
 			path = Networking;
@@ -1347,6 +1353,7 @@
 				5D1EE45FD49F459C720947E1 /* GrokbotUsageBreakdownTests.swift in Sources */,
 				050FC38C3C439004A9F7C918 /* GrokbotUsageClientTests.swift in Sources */,
 				B02C357FF0A3CAC55F2A0C42 /* GrokbotUsagePollerTests.swift in Sources */,
+				72A664D830283559ECE348C6 /* HTTPStub.swift in Sources */,
 				3AF5EFE5AD41508CCC5D59AD /* HourlyDeltaActivityStoreTests.swift in Sources */,
 				CA28DE860F1E71F2D155D1D7 /* HoverLabelTests.swift in Sources */,
 				455C2EF0544FEE8B10260D90 /* JSONTests.swift in Sources */,
@@ -1379,6 +1386,7 @@
 				D62C237CC3D971D516CBE8A3 /* ProviderAuthSessionTests.swift in Sources */,
 				1AAED15EBF5C0F54EC39CA21 /* ProviderColorsTests.swift in Sources */,
 				9588F854C86CFDBD9A58E6FA /* ProviderCookieAllowlistTests.swift in Sources */,
+				00B92C5183FFD11BCE2DFD55 /* ProviderHTTPTests.swift in Sources */,
 				DC0761C7CD76DA5559B1432C /* ProviderHourlyUsageTests.swift in Sources */,
 				E034A31E376D3E03047EDF44 /* ProviderRefreshTests.swift in Sources */,
 				0F4B29F57DC82A008117C9B1 /* ProviderSwitcherLayoutTests.swift in Sources */,

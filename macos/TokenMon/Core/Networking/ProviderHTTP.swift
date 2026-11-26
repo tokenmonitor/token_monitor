@@ -1,6 +1,10 @@
 import Foundation
 
 /// Shared HTTP plumbing for cookie/bearer-authenticated provider requests.
+///
+/// Every request goes through `session`, which defaults to
+/// `ProviderURLSession.shared`; callers pass another only to route requests
+/// through a stub transport.
 enum ProviderHTTP {
     static func get(
         _ path: String,
@@ -9,7 +13,8 @@ enum ProviderHTTP {
         cookieHeader: String? = nil,
         bearerToken: String? = nil,
         referer: String? = nil,
-        headers: [String: String] = [:]
+        headers: [String: String] = [:],
+        session: URLSession = ProviderURLSession.shared
     ) async throws -> Data {
         try await getWithResponse(
             path,
@@ -18,7 +23,8 @@ enum ProviderHTTP {
             cookieHeader: cookieHeader,
             bearerToken: bearerToken,
             referer: referer,
-            headers: headers
+            headers: headers,
+            session: session
         ).data
     }
 
@@ -31,7 +37,8 @@ enum ProviderHTTP {
         cookieHeader: String? = nil,
         bearerToken: String? = nil,
         referer: String? = nil,
-        headers: [String: String] = [:]
+        headers: [String: String] = [:],
+        session: URLSession = ProviderURLSession.shared
     ) async throws -> (data: Data, response: HTTPURLResponse) {
         try await send(
             path,
@@ -41,7 +48,8 @@ enum ProviderHTTP {
             cookieHeader: cookieHeader,
             bearerToken: bearerToken,
             referer: referer,
-            headers: headers
+            headers: headers,
+            session: session
         )
     }
 
@@ -61,7 +69,8 @@ enum ProviderHTTP {
         bearerToken: String? = nil,
         referer: String? = nil,
         origin: String? = nil,
-        headers: [String: String] = [:]
+        headers: [String: String] = [:],
+        session: URLSession = ProviderURLSession.shared
     ) async throws -> Data {
         try await send(
             path,
@@ -73,7 +82,8 @@ enum ProviderHTTP {
             referer: referer,
             origin: origin,
             headers: headers,
-            json: json
+            json: json,
+            session: session
         ).data
     }
 
@@ -179,7 +189,8 @@ enum ProviderHTTP {
         referer: String?,
         origin: String? = nil,
         headers: [String: String] = [:],
-        json: [String: Any]? = nil
+        json: [String: Any]? = nil,
+        session: URLSession
     ) async throws -> (data: Data, response: HTTPURLResponse) {
         guard let resolved = resolve(path, baseURL: baseURL) else {
             throw ProviderError.badResponse(context, "Invalid path \(path)")
@@ -203,7 +214,11 @@ enum ProviderHTTP {
             request.httpBody = try JSONSerialization.data(withJSONObject: json)
         }
         let forbidden = context.forbiddenMessage.map { ProviderError.custom(message: $0, usage: .badResponse($0)) }
-        return try await AuthenticatedRequest.performWithResponse(request, forbidden: forbidden) { usageError in
+        return try await AuthenticatedRequest.performWithResponse(
+            request,
+            session: session,
+            forbidden: forbidden
+        ) { usageError in
             ProviderError(usageError, context: context)
         }
     }

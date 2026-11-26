@@ -24,13 +24,16 @@ struct OpenRouterUsageClient: Sendable {
     private let fetch: Fetch
     private let decoder = JSONDecoder()
 
-    init(apiKey: String) {
+    /// Authenticates with `apiKey` as a bearer token, through `session` (the
+    /// shared provider session unless a test stubs it).
+    init(apiKey: String, session: URLSession = ProviderURLSession.shared) {
         self.init { endpoint in
             try await ProviderHTTP.get(
                 endpoint.rawValue,
                 baseURL: Self.baseURL,
                 context: .openRouter,
-                bearerToken: apiKey
+                bearerToken: apiKey,
+                session: session
             )
         }
     }
