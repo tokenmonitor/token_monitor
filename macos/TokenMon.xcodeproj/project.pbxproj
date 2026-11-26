@@ -35,6 +35,7 @@
 		19A6456CEFB0C64A620E77B4 /* ChatGPTModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F71507C2900E51A1CA4035 /* ChatGPTModels.swift */; };
 		19B20A32278934CE358B8A1A /* GrokDailyUsagePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE3048765692ED6A04E4FD2A /* GrokDailyUsagePreview.swift */; };
 		1AAED15EBF5C0F54EC39CA21 /* ProviderColorsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A704659C81EAD8F363D298F0 /* ProviderColorsTests.swift */; };
+		1ABC1675F461FEE8BDA59614 /* ChatGPTPanelViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F5ECAF726A9FC4EB936946 /* ChatGPTPanelViewTests.swift */; };
 		1B0013D9C72857476273DD03 /* ClaudeUsagePollerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5404678F894BE67E948C598B /* ClaudeUsagePollerTests.swift */; };
 		1BC0CD80FDE99901F1D88A0A /* ProviderError.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAF038CD13AC827DC16AADA9 /* ProviderError.swift */; };
 		1EB24EA3097D0F0EF135E4E5 /* MenuBarStatusRendererTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A54FF93D09BE7BC172616F12 /* MenuBarStatusRendererTests.swift */; };
@@ -406,6 +407,7 @@
 		7F3D6079EADCE7FAFE6973C7 /* UsagePoolTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsagePoolTests.swift; sourceTree = "<group>"; };
 		8001BC8DA86414D01D4DA1D2 /* OpenCodePollerFallbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodePollerFallbackTests.swift; sourceTree = "<group>"; };
 		80C9BA690FBDE2552436BE62 /* ChatGPTPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTPanelView.swift; sourceTree = "<group>"; };
+		81F5ECAF726A9FC4EB936946 /* ChatGPTPanelViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTPanelViewTests.swift; sourceTree = "<group>"; };
 		846EA62429F22B08E47CD558 /* GrokUsageClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokUsageClientTests.swift; sourceTree = "<group>"; };
 		8472924EA1AD232D4CB97C0F /* WebKitCookieCaptureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebKitCookieCaptureTests.swift; sourceTree = "<group>"; };
 		85EFE5125A1EF1DFE9803712 /* OverviewPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewPanelView.swift; sourceTree = "<group>"; };
@@ -621,6 +623,7 @@
 				0D22D6EEACD62BFA89A36B71 /* ChatGPTAccessTokenCacheTests.swift */,
 				7C3D2817CD38402540E77488 /* ChatGPTLiveTransportTests.swift */,
 				0EEADA0A84C2C559AF1C9C53 /* ChatGPTModelsTests.swift */,
+				81F5ECAF726A9FC4EB936946 /* ChatGPTPanelViewTests.swift */,
 				035D5817CDF2B39ABB3D7C99 /* ChatGPTUsageClientTests.swift */,
 				7879DA76CC6E538136EABF42 /* ChatGPTUsagePollerTests.swift */,
 			);
@@ -1364,6 +1367,7 @@
 				18E25EA4F0173604E6813A3A /* ChatGPTAccessTokenCacheTests.swift in Sources */,
 				F76094E54431E2DC183ABD50 /* ChatGPTLiveTransportTests.swift in Sources */,
 				489284C744B890A815638D75 /* ChatGPTModelsTests.swift in Sources */,
+				1ABC1675F461FEE8BDA59614 /* ChatGPTPanelViewTests.swift in Sources */,
 				36184DD589D91241A2D881FD /* ChatGPTUsageClientTests.swift in Sources */,
 				2AB0FABADA87E4DE2A5E9A0F /* ChatGPTUsagePollerTests.swift in Sources */,
 				9B3652C1E9161B9D35718AF1 /* ClaudeCodeLocalStatsTests.swift in Sources */,
