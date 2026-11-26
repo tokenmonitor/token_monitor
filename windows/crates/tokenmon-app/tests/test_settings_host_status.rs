@@ -15,9 +15,10 @@ use tokenmon_app::sessions::{HostBrowserCleaner, Sessions};
 use tokenmon_app::settings_host::{AppHost, AppSettingsBackend, HostParts};
 use tokenmon_app::signin::SignInService;
 use tokenmon_app::sources::NoHistory;
+use tokenmon_app::testing::RefusingInstaller;
 use tokenmon_app::updates::UpdateService;
 use tokenmon_core::settings::{AppSettings, SettingsFile, ThemePreference};
-use tokenmon_core::update::UrlOpener;
+use tokenmon_core::update::{ReleaseSource, UrlOpener};
 use tokenmon_core::{
     BoxFuture, BrowserStateCleaner, Clock, ProviderError, ProviderErrorContext, ProviderId,
     ProviderUsagePoller,
@@ -133,11 +134,12 @@ fn rig_with(refreshed_pollers: bool) -> Rig {
         Arc::new(|_| {}),
     ));
     let updates = Arc::new(
-        UpdateService::production(
+        UpdateService::with_http_feed(
+            ReleaseSource::new("windows-v", "tokenmon-windows-"),
             &settings,
             "1.2.3",
-            "TokenMon.exe".into(),
             Arc::new(NoOpener),
+            Arc::new(RefusingInstaller),
         )
         .expect("updates"),
     );

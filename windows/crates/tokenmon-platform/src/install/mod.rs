@@ -23,7 +23,9 @@ pub mod verify;
 
 pub use download::{DownloadedFile, Downloader, HttpDownloader, TrustPolicy};
 pub use feed::HttpFeedFetcher;
-pub use installer::WindowsUpdateInstaller;
+pub use installer::{
+    WINDOWS_ASSET_PREFIX, WINDOWS_TAG_PREFIX, WindowsUpdateInstaller, windows_release_source,
+};
 pub use pe_version::{
     PackageVersionReader, SystemVersionReader, pe_has_icon_group, read_pe_version,
 };

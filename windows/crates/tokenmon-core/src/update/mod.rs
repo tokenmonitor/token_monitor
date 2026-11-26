@@ -1,16 +1,19 @@
-//! Update checking for the Windows build (spec 01 section 3).
+//! Update checking (spec 01 section 3).
 //!
 //! Everything here is portable and free of I/O: version parsing and ordering
-//! ([`AppVersion`]), release-feed parsing and Windows asset selection
+//! ([`AppVersion`]), release-feed parsing and per-channel asset selection
 //! ([`feed`]), URL trust rules ([`trust`]), the streaming SHA-256 helper
 //! ([`digest`]), the typed errors ([`error`]) and the [`UpdateChecker`] state
 //! machine ([`checker`]). The side-effecting half (download, verify, staged
 //! replace, relaunch) lives in `tokenmon-platform::install` and plugs in
 //! through the [`UpdateInstaller`] trait.
 //!
-//! Windows releases share a repository with other platforms, so a release is
-//! only considered when its tag is `windows-vX.Y.Z` and only assets named
-//! `tokenmon-windows-*` are ever selected; the macOS zip can never be picked.
+//! Releases of every platform share one repository, so a platform app passes
+//! its channel as data ([`ReleaseSource::new`]): a release is only considered
+//! when its tag starts with the channel's tag prefix (`windows-v` for the
+//! Windows app) and only assets whose names start with its asset prefix
+//! (`tokenmon-windows-`) are ever selected, so another platform's file can
+//! never be picked.
 
 pub mod checker;
 pub mod digest;

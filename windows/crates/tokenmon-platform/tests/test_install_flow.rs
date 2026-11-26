@@ -90,7 +90,7 @@ fn rig(body: Vec<u8>, fail_launch: bool) -> Rig {
         ..FakeLauncher::default()
     });
     let installer = WindowsUpdateInstaller::new(
-        ReleaseSource::default(),
+        ReleaseSource::new("windows-v", "tokenmon-windows-"),
         exe.clone(),
         4242,
         work.clone(),
@@ -332,7 +332,7 @@ impl PackageVersionReader for FixedMsiVersion {
 fn msi_rig(body: &[u8], declared: &'static str) -> (Rig, WindowsUpdateInstaller) {
     let r = rig(body.to_vec(), false);
     let installer = WindowsUpdateInstaller::new(
-        ReleaseSource::default(),
+        ReleaseSource::new("windows-v", "tokenmon-windows-"),
         r.exe.clone(),
         4242,
         r.work.clone(),
@@ -455,7 +455,7 @@ async fn test_msi_swapped_after_verification_is_not_launched() {
     let body = fake_msi();
     let r = rig(body.clone(), false);
     let installer = WindowsUpdateInstaller::new(
-        ReleaseSource::default(),
+        ReleaseSource::new("windows-v", "tokenmon-windows-"),
         r.exe.clone(),
         4242,
         r.work.clone(),

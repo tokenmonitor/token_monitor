@@ -1,8 +1,8 @@
 //! Updates: the periodic release check and the in-place installer (spec 01
-//! section 3), wired with the policy the updater workstream chose
-//! (`AcceptUnsignedWithDigest`, repository from `configured_repository()`).
+//! section 3). The platform app supplies the release channel
+//! ([`ReleaseSource`]) and the installer that knows how to replace its own
+//! executable; this module wires them to the checker and the periodic loop.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -12,11 +12,7 @@ use tokenmon_core::update::{
     AppVersion, CHECK_INTERVAL_SECS, ReleaseSource, UpdateChecker, UpdateInstaller, UpdateSettings,
     UrlOpener,
 };
-use tokenmon_platform::install::relaunch::StdLauncher;
-use tokenmon_platform::install::verify::{SignaturePolicy, verifier_for_policy};
-use tokenmon_platform::install::{
-    HttpDownloader, HttpFeedFetcher, TrustPolicy, WindowsUpdateInstaller,
-};
+use tokenmon_platform::install::HttpFeedFetcher;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
@@ -38,38 +34,22 @@ pub struct UpdateService {
 }
 
 impl UpdateService {
-    /// Wires the production checker and installer.
+    /// Wires the checker over the real GitHub release feed for `source`, with
+    /// `installer` doing the platform-specific replace.
     ///
     /// # Errors
     /// The HTTP stack could not start.
-    pub fn production(
+    pub fn with_http_feed(
+        source: ReleaseSource,
         settings: &Arc<AppSettings>,
         version: &str,
-        running_exe: PathBuf,
         opener: Arc<dyn UrlOpener>,
+        installer: Arc<dyn UpdateInstaller>,
     ) -> Result<Self, String> {
-        let source = ReleaseSource::default();
         let user_agent = tokenmon_core::util::user_agent(Some(version));
         let fetcher: Arc<dyn ReleaseFeedFetcher> = Arc::new(
             HttpFeedFetcher::new(source.releases_url(), &user_agent).map_err(|e| e.to_string())?,
         );
-        let installer = WindowsUpdateInstaller::new(
-            source.clone(),
-            running_exe,
-            std::process::id(),
-            std::env::temp_dir(),
-            Arc::new(
-                HttpDownloader::new(TrustPolicy::Repository(source.clone()), &user_agent)
-                    .map_err(|e| e.to_string())?,
-            ),
-            verifier_for_policy(SignaturePolicy::AcceptUnsignedWithDigest),
-            Arc::new(StdLauncher),
-        );
-        // The MSI records its folder in HKCU; without the registry (non-Windows
-        // builds) the app is never treated as MSI-installed.
-        #[cfg(windows)]
-        let installer =
-            installer.with_registry(Arc::new(tokenmon_platform::shell::windows::WinRegistry));
         Ok(Self {
             checker: Arc::new(UpdateChecker::new(
                 source,
@@ -78,7 +58,7 @@ impl UpdateService {
                 fetcher,
                 opener,
             )),
-            installer: Arc::new(installer),
+            installer,
         })
     }
 

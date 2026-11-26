@@ -8,6 +8,7 @@ use chrono::FixedOffset;
 use tokenmon_app::app::{App, AppInputs};
 use tokenmon_app::settings_host::{AppHost, AppSettingsBackend, HostParts, refresh_time};
 use tokenmon_app::sources::HistoryAccess;
+use tokenmon_app::testing::RefusingInstaller;
 use tokenmon_app::updates::UpdateService;
 use tokenmon_core::BoxFuture;
 use tokenmon_core::ProviderId;
@@ -88,8 +89,14 @@ fn fixture_with(updates: Option<Arc<UpdateService>>) -> Fixture {
     let q = Arc::clone(&quit);
     let updates = updates.unwrap_or_else(|| {
         Arc::new(
-            UpdateService::production(&app.settings, "1.2.3", EXE.into(), Arc::new(NoOpener))
-                .expect("updates"),
+            UpdateService::with_http_feed(
+                ReleaseSource::new("windows-v", "tokenmon-windows-"),
+                &app.settings,
+                "1.2.3",
+                Arc::new(NoOpener),
+                Arc::new(RefusingInstaller),
+            )
+            .expect("updates"),
         )
     });
     let host = Arc::new(AppHost::new(HostParts {
@@ -315,7 +322,7 @@ impl UpdateInstaller for FakeInstaller {
 /// A service that already found 1.6.0 and installs through `installer`.
 async fn service_with_update(installer: FakeInstaller) -> Arc<UpdateService> {
     let checker = Arc::new(UpdateChecker::new(
-        ReleaseSource::default(),
+        ReleaseSource::new("windows-v", "tokenmon-windows-"),
         AppVersion::parse("1.5.0"),
         Arc::new(AlwaysOn),
         Arc::new(OneRelease),

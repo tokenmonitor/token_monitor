@@ -8,6 +8,8 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use tokenmon_core::storage::HostOs;
+
 /// Title of the message box shown for a startup failure.
 pub const FAILURE_TITLE: &str = "TokenMon could not start";
 
@@ -25,7 +27,8 @@ pub enum StartupFailure {
 }
 
 impl StartupFailure {
-    /// The text for the message box and the log.
+    /// The text for the message box and the log, naming the log folder of the
+    /// running OS ([`log_location`]).
     ///
     /// ```
     /// use tokenmon_app::startup::StartupFailure;
@@ -33,21 +36,48 @@ impl StartupFailure {
     /// assert!(text.contains("tray icon") && text.contains("no taskbar"));
     /// ```
     pub fn message(&self) -> String {
+        self.message_for(HostOs::current())
+    }
+
+    /// [`message`](Self::message) for a given OS family.
+    ///
+    /// ```
+    /// use tokenmon_app::startup::StartupFailure;
+    /// use tokenmon_core::storage::HostOs;
+    /// let text = StartupFailure::Assembly("x".into()).message_for(HostOs::Windows);
+    /// assert!(text.contains("%LOCALAPPDATA%\\TokenMon\\logs"));
+    /// ```
+    pub fn message_for(&self, os: HostOs) -> String {
+        let logs = log_location(os);
         match self {
             Self::Tray(e) => format!(
                 "TokenMon could not create its tray icon ({e}).\n\nIf Windows Explorer is \
-                 still starting, start TokenMon again in a moment. The log is in \
-                 %LOCALAPPDATA%\\TokenMon\\logs."
+                 still starting, start TokenMon again in a moment. The log is in {logs}."
             ),
-            Self::Assembly(e) => format!(
-                "TokenMon could not set itself up ({e}).\n\nThe log is in \
-                 %LOCALAPPDATA%\\TokenMon\\logs."
-            ),
+            Self::Assembly(e) => {
+                format!("TokenMon could not set itself up ({e}).\n\nThe log is in {logs}.")
+            }
             Self::Pipe(e) => format!(
                 "TokenMon could not set up its single-instance channel ({e}).\n\nThe log is \
-                 in %LOCALAPPDATA%\\TokenMon\\logs."
+                 in {logs}."
             ),
         }
+    }
+}
+
+/// Where the log folder is, in words a person can follow: the data directory
+/// that [`tokenmon_core::storage::AppPaths::from_env_for`] resolves for `os`, plus `TokenMon\logs`.
+///
+/// ```
+/// use tokenmon_app::startup::log_location;
+/// use tokenmon_core::storage::HostOs;
+/// assert_eq!(log_location(HostOs::Windows), "%LOCALAPPDATA%\\TokenMon\\logs");
+/// assert_eq!(log_location(HostOs::Unix), "$XDG_DATA_HOME/TokenMon/logs (~/.local/share/TokenMon/logs by default)");
+/// ```
+pub const fn log_location(os: HostOs) -> &'static str {
+    match os {
+        HostOs::Windows => "%LOCALAPPDATA%\\TokenMon\\logs",
+        HostOs::Unix => "$XDG_DATA_HOME/TokenMon/logs (~/.local/share/TokenMon/logs by default)",
     }
 }
 

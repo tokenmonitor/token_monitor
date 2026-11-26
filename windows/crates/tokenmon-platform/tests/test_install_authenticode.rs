@@ -71,7 +71,7 @@ fn rig(zip: &[u8]) -> Rig {
     let exe = app.join("TokenMon.exe");
     fs::write(&exe, fake_pe("old")).unwrap();
     let installer = WindowsUpdateInstaller::new(
-        ReleaseSource::default(),
+        ReleaseSource::new("windows-v", "tokenmon-windows-"),
         exe.clone(),
         4242,
         work.clone(),

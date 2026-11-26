@@ -13,18 +13,47 @@ pub const DIRECTORY_NAME: &str = "TokenMon";
 /// Name of the pre-rename folder, migrated on first use.
 pub const LEGACY_DIRECTORY_NAME: &str = "ModelMonitor";
 
+/// The operating-system family that decides where per-user data lives.
+///
+/// A value rather than `cfg!` inside the resolver so both families are tested
+/// on every host.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostOs {
+    /// Windows: `%LOCALAPPDATA%\TokenMon`.
+    Windows,
+    /// Linux and other Unix systems: `$XDG_DATA_HOME/TokenMon`.
+    Unix,
+}
+
+impl HostOs {
+    /// The family of the OS this binary was built for.
+    ///
+    /// ```
+    /// use tokenmon_core::storage::HostOs;
+    /// assert_eq!(HostOs::current() == HostOs::Windows, cfg!(windows));
+    /// ```
+    pub const fn current() -> Self {
+        if cfg!(windows) {
+            Self::Windows
+        } else {
+            Self::Unix
+        }
+    }
+}
+
 /// Errors resolving the base directory.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum PathsError {
-    /// Neither `LOCALAPPDATA` nor a fallback location is available.
+    /// Neither the OS data location nor a fallback is available.
     #[error("no local application data directory could be determined")]
     NoBaseDirectory,
 }
 
 /// Resolves and creates the TokenMon data directory under an injectable base.
 ///
-/// In production the base is `%LOCALAPPDATA%` (so data lives in
-/// `%LOCALAPPDATA%\TokenMon`); tests pass a temp directory.
+/// In production the base is `%LOCALAPPDATA%` on Windows (so data lives in
+/// `%LOCALAPPDATA%\TokenMon`) and `$XDG_DATA_HOME` elsewhere; tests pass a temp
+/// directory.
 ///
 /// # Examples
 ///
@@ -65,11 +94,29 @@ impl AppPaths {
         Self::from_env(|name| std::env::var_os(name))
     }
 
-    /// Resolves the base from an environment lookup: `LOCALAPPDATA`, else
-    /// `XDG_DATA_HOME`, else `$HOME/.local/share` (non-Windows development).
+    /// Resolves the base from an environment lookup for the running OS
+    /// ([`HostOs::current`]); see [`AppPaths::from_env_for`].
     pub fn from_env(get: impl Fn(&str) -> Option<OsString>) -> Result<Self, PathsError> {
+        Self::from_env_for(HostOs::current(), get)
+    }
+
+    /// Resolves the base from an environment lookup for `os`.
+    ///
+    /// * [`HostOs::Windows`]: `LOCALAPPDATA`, else `XDG_DATA_HOME`, else
+    ///   `$HOME/.local/share`.
+    /// * [`HostOs::Unix`]: `XDG_DATA_HOME`, else `$HOME/.local/share`.
+    ///
+    /// Empty values count as unset.
+    pub fn from_env_for(
+        os: HostOs,
+        get: impl Fn(&str) -> Option<OsString>,
+    ) -> Result<Self, PathsError> {
         let non_empty = |name: &str| get(name).filter(|v| !v.is_empty()).map(PathBuf::from);
-        let base = non_empty("LOCALAPPDATA")
+        let local_app_data = match os {
+            HostOs::Windows => non_empty("LOCALAPPDATA"),
+            HostOs::Unix => None,
+        };
+        let base = local_app_data
             .or_else(|| non_empty("XDG_DATA_HOME"))
             .or_else(|| non_empty("HOME").map(|h| h.join(".local").join("share")))
             .ok_or(PathsError::NoBaseDirectory)?;

@@ -65,7 +65,8 @@ fn test_zero_dpi_is_treated_as_the_base_dpi() {
 /// The assembly failure tells the user where the log is.
 #[test]
 fn test_assembly_failure_message_names_the_log_folder() {
-    let text = StartupFailure::Assembly("disk full".into()).message();
+    let text = StartupFailure::Assembly("disk full".into())
+        .message_for(tokenmon_core::storage::HostOs::Windows);
     assert!(text.contains("set itself up") && text.contains("disk full"));
     assert!(text.contains("TokenMon\\logs"));
 }

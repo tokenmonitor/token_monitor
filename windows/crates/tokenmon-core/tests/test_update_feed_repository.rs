@@ -14,7 +14,7 @@ fn test_latest_release_url_is_the_organization_repository() {
     let source = ReleaseSource {
         owner: owner.to_owned(),
         repository: repository.to_owned(),
-        ..ReleaseSource::default()
+        ..ReleaseSource::new("windows-v", "tokenmon-windows-")
     };
     assert_eq!(
         source.releases_url(),

@@ -9,7 +9,7 @@ use tokenmon_core::update::{
 };
 
 fuzz_target!(|data: &[u8]| {
-    let source = ReleaseSource::default();
+    let source = ReleaseSource::new("windows-v", "tokenmon-windows-");
     let current = AppVersion::parse("1.0.0").expect("constant parses");
     let Ok(Some(release)) = newer_release(data, &current, &source) else {
         return;

@@ -17,7 +17,7 @@ fn test_parse_repository_accepts_slugs_only() {
 #[test]
 fn test_default_repository_is_valid_and_used() {
     assert!(parse_repository(DEFAULT_REPOSITORY).is_some());
-    let s = ReleaseSource::default();
+    let s = ReleaseSource::new("windows-v", "tokenmon-windows-");
     assert!(
         s.releases_url()
             .contains(&format!("{}/{}", s.owner, s.repository))

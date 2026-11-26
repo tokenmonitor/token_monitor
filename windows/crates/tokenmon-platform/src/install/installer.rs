@@ -14,11 +14,32 @@ use tokenmon_core::update::{
 use crate::shell::Registry;
 
 use super::archive::{extract_zip, locate_exe};
-use super::download::Downloader;
+use super::download::{Downloader, HttpDownloader, TrustPolicy};
 use super::pe_version::{PackageVersionReader, SystemVersionReader};
-use super::relaunch::{ProcessLauncher, msiexec_spec, relaunch_spec};
+use super::relaunch::{ProcessLauncher, StdLauncher, msiexec_spec, relaunch_spec};
 use super::swap::{can_replace_running_exe, commit_swap, stage_next_to};
-use super::verify::SignatureVerifier;
+use super::verify::{SignaturePolicy, SignatureVerifier, verifier_for_policy};
+
+/// Tag prefix of the Windows release channel (`windows-vX.Y.Z`).
+pub const WINDOWS_TAG_PREFIX: &str = "windows-v";
+
+/// Asset-name prefix of the Windows release channel (`tokenmon-windows-*`).
+pub const WINDOWS_ASSET_PREFIX: &str = "tokenmon-windows-";
+
+/// The release channel the Windows app follows: only `windows-v*` releases and
+/// `tokenmon-windows-*` assets are ever considered.
+///
+/// # Examples
+///
+/// ```
+/// use tokenmon_platform::install::windows_release_source;
+/// let source = windows_release_source();
+/// assert_eq!(source.tag_prefix, "windows-v");
+/// assert_eq!(source.asset_prefix, "tokenmon-windows-");
+/// ```
+pub fn windows_release_source() -> ReleaseSource {
+    ReleaseSource::new(WINDOWS_TAG_PREFIX, WINDOWS_ASSET_PREFIX)
+}
 
 /// Installs an update over the running executable (zip) or via `msiexec` (MSI).
 ///
@@ -61,6 +82,51 @@ impl WindowsUpdateInstaller {
             versions: Arc::new(SystemVersionReader),
             registry: None,
         }
+    }
+
+    /// The production installer: real downloads restricted to `source`'s
+    /// repository, the unsigned-with-digest policy, real process launches and,
+    /// on Windows, the registry the MSI records its folder in (elsewhere the
+    /// app is never treated as MSI-installed).
+    ///
+    /// # Errors
+    ///
+    /// [`InstallError::Download`] if the HTTP stack cannot start.
+    pub fn production(
+        source: ReleaseSource,
+        running_exe: PathBuf,
+        user_agent: &str,
+    ) -> Result<Self, InstallError> {
+        let downloader = HttpDownloader::new(TrustPolicy::Repository(source.clone()), user_agent)?;
+        let installer = Self::new(
+            source,
+            running_exe,
+            std::process::id(),
+            std::env::temp_dir(),
+            Arc::new(downloader),
+            verifier_for_policy(SignaturePolicy::AcceptUnsignedWithDigest),
+            Arc::new(StdLauncher),
+        );
+        #[cfg(windows)]
+        let installer = installer.with_registry(Arc::new(crate::shell::windows::WinRegistry));
+        Ok(installer)
+    }
+
+    /// The Windows release channel and its production installer for the app
+    /// at `running_exe`, as the pair the update service is wired from.
+    ///
+    /// # Errors
+    ///
+    /// The HTTP stack could not start.
+    pub fn production_parts(
+        running_exe: PathBuf,
+        version: &str,
+    ) -> Result<(ReleaseSource, Arc<dyn UpdateInstaller>), String> {
+        let source = windows_release_source();
+        let user_agent = tokenmon_core::util::user_agent(Some(version));
+        let installer = Self::production(source.clone(), running_exe, &user_agent)
+            .map_err(|e| e.to_string())?;
+        Ok((source, Arc::new(installer)))
     }
 
     /// Replaces how a downloaded binary's own version is read (tests).

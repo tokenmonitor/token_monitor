@@ -8,9 +8,10 @@ use std::time::Duration;
 
 use common::env;
 use tokenmon_app::providers::{ProviderDeps, build_registry};
+use tokenmon_app::testing::RefusingInstaller;
 use tokenmon_app::updates::UpdateService;
 use tokenmon_core::storage::AppPaths;
-use tokenmon_core::update::UrlOpener;
+use tokenmon_core::update::{ReleaseSource, UrlOpener};
 use tokenmon_core::{Clock, ProviderId};
 use tokenmon_provider_opencode::db::DataDirEnv;
 
@@ -64,11 +65,12 @@ async fn test_every_production_poller_obeys_the_lifecycle_controls() {
 async fn test_update_loop_idles_when_checks_are_disabled() {
     let e = env();
     e.settings.set_checks_for_updates(false);
-    let service = UpdateService::production(
+    let service = UpdateService::with_http_feed(
+        ReleaseSource::new("windows-v", "tokenmon-windows-"),
         &e.settings,
         "1.2.3",
-        "TokenMon.exe".into(),
         Arc::new(NoOpener),
+        Arc::new(RefusingInstaller),
     )
     .expect("updates");
     let task = service.spawn_loop(&tokio::runtime::Handle::current());

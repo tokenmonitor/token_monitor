@@ -16,7 +16,11 @@ fn check(
     body: &str,
     current: &str,
 ) -> Result<Option<tokenmon_core::update::AvailableRelease>, UpdateError> {
-    newer_release(body.as_bytes(), &cur(current), &ReleaseSource::default())
+    newer_release(
+        body.as_bytes(),
+        &cur(current),
+        &ReleaseSource::new("windows-v", "tokenmon-windows-"),
+    )
 }
 
 fn release_with_assets(tag: &str, assets: &str) -> String {
@@ -130,7 +134,14 @@ fn test_unexpected_payloads_are_rejected() {
 #[test]
 fn test_oversized_payload_is_rejected() {
     let big = vec![b' '; MAX_FEED_BYTES + 1];
-    assert!(newer_release(&big, &cur("1.0.0"), &ReleaseSource::default()).is_err());
+    assert!(
+        newer_release(
+            &big,
+            &cur("1.0.0"),
+            &ReleaseSource::new("windows-v", "tokenmon-windows-")
+        )
+        .is_err()
+    );
 }
 
 /// The Windows zip and msi are selected; the macOS zip never is.

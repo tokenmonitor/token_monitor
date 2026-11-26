@@ -1,4 +1,4 @@
-//! GitHub release feed parsing and Windows asset selection (spec 01 section 3.3).
+//! GitHub release feed parsing and per-channel asset selection (spec 01 section 3.3).
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
@@ -14,14 +14,18 @@ pub const MAX_FEED_BYTES: usize = 2 * 1024 * 1024;
 /// Most releases examined from a list payload.
 const MAX_RELEASES_EXAMINED: usize = 100;
 
-/// Where releases live and how the Windows ones are recognised.
+/// Where releases live and how one platform's releases are recognised.
+///
+/// The repository publishes several platforms' releases side by side, so the
+/// platform app passes its own channel (tag prefix and asset-name prefix) as
+/// data; this crate knows no platform names.
 ///
 /// # Examples
 ///
 /// ```
 /// use tokenmon_core::update::ReleaseSource;
 ///
-/// let s = ReleaseSource::default();
+/// let s = ReleaseSource::new("windows-v", "tokenmon-windows-");
 /// assert!(s.releases_url().starts_with("https://api.github.com/repos/"));
 /// assert_eq!(s.tag_prefix, "windows-v");
 /// ```
@@ -76,19 +80,20 @@ pub fn configured_repository() -> (&'static str, &'static str) {
         .unwrap_or(("tokenmonitor", "token_monitor"))
 }
 
-impl Default for ReleaseSource {
-    fn default() -> Self {
+impl ReleaseSource {
+    /// The configured repository ([`configured_repository`]) with a channel:
+    /// releases whose tag starts with `tag_prefix` and whose assets start with
+    /// `asset_prefix` (both compared in lowercase).
+    pub fn new(tag_prefix: impl Into<String>, asset_prefix: impl Into<String>) -> Self {
         let (owner, repository) = configured_repository();
         Self {
             owner: owner.to_owned(),
             repository: repository.to_owned(),
-            tag_prefix: "windows-v".to_owned(),
-            asset_prefix: "tokenmon-windows-".to_owned(),
+            tag_prefix: tag_prefix.into(),
+            asset_prefix: asset_prefix.into(),
         }
     }
-}
 
-impl ReleaseSource {
     /// The release-list endpoint. The repository also publishes other
     /// platforms' releases, so `releases/latest` could be a macOS release that
     /// would hide a newer Windows one; the list is scanned instead.
@@ -213,7 +218,7 @@ fn is_true(obj: &Value, key: &str) -> bool {
 ///
 /// let body = br#"{"tag_name":"windows-v1.2.0","html_url":"https://github.com/gubatron/token_monitor/releases/tag/windows-v1.2.0"}"#;
 /// let current = AppVersion::parse("1.1.0").unwrap();
-/// let r = newer_release(body, &current, &ReleaseSource::default()).unwrap().unwrap();
+/// let r = newer_release(body, &current, &ReleaseSource::new("windows-v", "tokenmon-windows-")).unwrap().unwrap();
 /// assert_eq!(r.version.to_string(), "1.2.0");
 /// ```
 pub fn newer_release(

@@ -40,7 +40,7 @@ fn check_version(data: &[u8]) {
 
 /// Same invariants as `fuzz/src/bin/update_release_feed.rs`.
 fn check_feed(data: &[u8]) {
-    let source = ReleaseSource::default();
+    let source = ReleaseSource::new("windows-v", "tokenmon-windows-");
     let current = AppVersion::parse("1.0.0").unwrap();
     let Ok(Some(r)) = newer_release(data, &current, &source) else {
         return;
@@ -104,7 +104,7 @@ fn test_windows_release_seed_is_offered() {
     let r = newer_release(
         &seed,
         &AppVersion::parse("1.0.0").unwrap(),
-        &ReleaseSource::default(),
+        &ReleaseSource::new("windows-v", "tokenmon-windows-"),
     )
     .unwrap()
     .unwrap();

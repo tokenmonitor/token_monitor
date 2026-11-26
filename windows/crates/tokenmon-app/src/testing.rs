@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use tokenmon_core::update::{InstallError, InstallOutcome, InstallRequest, UpdateInstaller};
 use tokenmon_core::{BoxFuture, ProviderError, ProviderId, ProviderUsagePoller};
 
 use crate::poller::ManagedPoller;
@@ -147,5 +148,23 @@ impl ManagedPoller for FakePoller {
             self.record(PollerCall::RefreshIfOlder(age));
             self.refresh_count.fetch_add(1, Ordering::SeqCst);
         })
+    }
+}
+
+/// An [`UpdateInstaller`] that cannot replace the running app and refuses
+/// every install: for tests that only need an update service to exist.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RefusingInstaller;
+
+impl UpdateInstaller for RefusingInstaller {
+    fn can_replace_running_app(&self) -> bool {
+        false
+    }
+
+    fn install(
+        &self,
+        _request: InstallRequest,
+    ) -> BoxFuture<'_, Result<InstallOutcome, InstallError>> {
+        Box::pin(async { Err(InstallError::NotWritable) })
     }
 }

@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
 use tokenmon_core::storage::{
-    AppPaths, FileBackedStringStore, NoopPermissions, PathsError, TextStore,
+    AppPaths, FileBackedStringStore, HostOs, NoopPermissions, PathsError, TextStore,
     home_directory_from_env, icacls_args, migrate_legacy_directory_if_needed, write_atomic,
 };
 
@@ -80,15 +80,51 @@ fn env_of(pairs: &'static [(&'static str, &'static str)]) -> impl Fn(&str) -> Op
     }
 }
 
-/// Production resolution prefers `LOCALAPPDATA`, then falls back.
+/// On Windows the base is `LOCALAPPDATA`, then the XDG/HOME fallbacks.
 #[test]
 fn test_from_env_prefers_local_app_data() {
-    let p = AppPaths::from_env(env_of(&[("LOCALAPPDATA", "/l"), ("HOME", "/h")])).unwrap();
+    let p = AppPaths::from_env_for(
+        HostOs::Windows,
+        env_of(&[("LOCALAPPDATA", "/l"), ("HOME", "/h")]),
+    )
+    .unwrap();
     assert_eq!(p.base_directory(), Path::new("/l"));
-    let p = AppPaths::from_env(env_of(&[("HOME", "/h")])).unwrap();
+    let p = AppPaths::from_env_for(HostOs::Windows, env_of(&[("HOME", "/h")])).unwrap();
     assert_eq!(p.base_directory(), PathBuf::from("/h/.local/share"));
-    let e = AppPaths::from_env(env_of(&[("LOCALAPPDATA", "")])).unwrap_err();
+    let e = AppPaths::from_env_for(HostOs::Windows, env_of(&[("LOCALAPPDATA", "")])).unwrap_err();
     assert_eq!(e, PathsError::NoBaseDirectory);
+}
+
+/// On Unix `LOCALAPPDATA` is ignored: `XDG_DATA_HOME`, else `~/.local/share`.
+#[test]
+fn test_from_env_on_unix_uses_xdg_data_home_then_home() {
+    let env = env_of(&[
+        ("LOCALAPPDATA", "/l"),
+        ("XDG_DATA_HOME", "/x"),
+        ("HOME", "/h"),
+    ]);
+    let p = AppPaths::from_env_for(HostOs::Unix, env).unwrap();
+    assert_eq!(p.base_directory(), Path::new("/x"));
+    let p = AppPaths::from_env_for(
+        HostOs::Unix,
+        env_of(&[("LOCALAPPDATA", "/l"), ("HOME", "/h")]),
+    )
+    .unwrap();
+    assert_eq!(p.base_directory(), PathBuf::from("/h/.local/share"));
+    let e = AppPaths::from_env_for(HostOs::Unix, env_of(&[("LOCALAPPDATA", "/l")])).unwrap_err();
+    assert_eq!(e, PathsError::NoBaseDirectory);
+}
+
+/// `from_env` resolves for the OS the binary runs on.
+#[test]
+fn test_from_env_uses_the_host_os_rules() {
+    let env = || env_of(&[("LOCALAPPDATA", "/l"), ("XDG_DATA_HOME", "/x")]);
+    let expected = if cfg!(windows) { "/l" } else { "/x" };
+    assert_eq!(
+        AppPaths::from_env(env()).unwrap().base_directory(),
+        Path::new(expected)
+    );
+    assert_eq!(HostOs::current() == HostOs::Windows, cfg!(windows));
 }
 
 /// The real home directory comes from `USERPROFILE` or `HOME`.

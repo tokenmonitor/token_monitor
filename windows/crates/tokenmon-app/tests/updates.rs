@@ -1,10 +1,11 @@
-//! The production update service wires up without touching the network.
+//! The update service wires up without touching the network.
 
 use std::sync::Arc;
 
+use tokenmon_app::testing::RefusingInstaller;
 use tokenmon_app::updates::UpdateService;
 use tokenmon_core::settings::{AppSettings, SettingsFile};
-use tokenmon_core::update::UrlOpener;
+use tokenmon_core::update::{ReleaseSource, UrlOpener};
 
 struct NoOpener;
 
@@ -15,13 +16,14 @@ impl UrlOpener for NoOpener {
 /// Building the service starts nothing: the checker has no release and is not
 /// checking until the loop runs.
 #[tokio::test]
-async fn test_production_update_service_starts_idle() {
+async fn test_update_service_starts_idle() {
     let settings = Arc::new(AppSettings::new(Arc::new(SettingsFile::in_memory())));
-    let service = UpdateService::production(
+    let service = UpdateService::with_http_feed(
+        ReleaseSource::new("windows-v", "tokenmon-windows-"),
         &settings,
         "1.0.0",
-        std::path::PathBuf::from("TokenMon.exe"),
         Arc::new(NoOpener),
+        Arc::new(RefusingInstaller),
     )
     .expect("builds");
     let state = service.checker.state();

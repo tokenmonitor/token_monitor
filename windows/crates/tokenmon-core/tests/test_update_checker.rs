@@ -89,7 +89,7 @@ fn make(
     let opener = Arc::new(Opener::default());
     let settings = Arc::new(Settings(AtomicBool::new(auto)));
     let c = UpdateChecker::new(
-        ReleaseSource::default(),
+        ReleaseSource::new("windows-v", "tokenmon-windows-"),
         current.and_then(AppVersion::parse),
         settings.clone(),
         feed.clone(),

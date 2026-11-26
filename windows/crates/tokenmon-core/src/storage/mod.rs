@@ -38,7 +38,7 @@ pub use daily::{DailyPayload, DailyQuotaDeltaStore, RETENTION_DAYS, decode_daily
 pub use delta::{NOISE_FLOOR, RESET_DROP_FLOOR, credited_delta};
 pub use hourly::{HourlyDeltaActivityStore, HourlyPayload, decode_hourly_payload};
 pub use paths::{
-    AppPaths, DIRECTORY_NAME, LEGACY_DIRECTORY_NAME, PathsError, home_directory_from_env,
+    AppPaths, DIRECTORY_NAME, HostOs, LEGACY_DIRECTORY_NAME, PathsError, home_directory_from_env,
     migrate_legacy_directory_if_needed,
 };
 pub use permissions::{

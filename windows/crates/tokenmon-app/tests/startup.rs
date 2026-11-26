@@ -61,6 +61,22 @@ fn test_failure_messages_name_the_cause_and_the_log() {
     assert!(pipe.contains("single-instance") && pipe.contains("denied"));
 }
 
+/// The log folder named in a failure message follows the OS family: the
+/// Windows text is unchanged, Unix names the XDG data directory.
+#[test]
+fn test_failure_messages_name_the_log_folder_of_the_os() {
+    use tokenmon_core::storage::HostOs;
+    let failure = StartupFailure::Assembly("boom".into());
+    let windows = failure.message_for(HostOs::Windows);
+    assert!(
+        windows.ends_with(r"The log is in %LOCALAPPDATA%\TokenMon\logs."),
+        "{windows}"
+    );
+    let unix = failure.message_for(HostOs::Unix);
+    assert!(unix.contains("$XDG_DATA_HOME/TokenMon/logs"), "{unix}");
+    assert_eq!(failure.message(), failure.message_for(HostOs::current()));
+}
+
 /// A show request before the UI is ready is kept and handed over exactly once.
 #[test]
 fn test_show_request_before_ready_is_delivered_once() {

@@ -63,6 +63,7 @@ use crate::tray::{
     context_menu, icon_size, menu_command, was_foreground,
 };
 use crate::updates::UpdateService;
+use tokenmon_platform::install::WindowsUpdateInstaller;
 
 mod display;
 mod panels;
@@ -729,12 +730,11 @@ fn run_primary(pipe: &str, show_panel: bool, version: &str) -> ExitCode {
         Err(e) => return fail(&StartupFailure::Assembly(e.to_string())),
     };
     let mut tasks = app.launch();
-    let updates = match UpdateService::production(
-        &app.settings,
-        version,
-        exe_path(),
-        Arc::new(ExplorerOpener),
-    ) {
+    let parts = WindowsUpdateInstaller::production_parts(exe_path(), version);
+    let updates = match parts.and_then(|(source, installer)| {
+        let opener = Arc::new(ExplorerOpener);
+        UpdateService::with_http_feed(source, &app.settings, version, opener, installer)
+    }) {
         Ok(u) => Arc::new(u),
         Err(e) => return fail(&StartupFailure::Assembly(e)),
     };

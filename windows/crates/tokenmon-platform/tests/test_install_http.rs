@@ -79,7 +79,7 @@ async fn test_download_final_host_must_be_trusted() {
         .mount(&server)
         .await;
     let d = HttpDownloader::new(
-        TrustPolicy::Repository(ReleaseSource::default()),
+        TrustPolicy::Repository(ReleaseSource::new("windows-v", "tokenmon-windows-")),
         "TokenMon/test",
     )
     .unwrap();
@@ -111,7 +111,7 @@ async fn test_download_does_not_follow_untrusted_redirect() {
         .mount(&server)
         .await;
     let d = HttpDownloader::new(
-        TrustPolicy::Repository(ReleaseSource::default()),
+        TrustPolicy::Repository(ReleaseSource::new("windows-v", "tokenmon-windows-")),
         "TokenMon/test",
     )
     .unwrap();
