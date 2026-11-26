@@ -1,0 +1,169 @@
+name: Windows coverage (nightly)
+
+# Scheduled coverage run on windows-latest, so the Windows-only code (the
+# cfg(windows) paths in tokenmon-platform, tokenmon-app and tokenmon-ui) is
+# measured. The per-push windows-ci.yml stays fast and measures coverage on
+# Ubuntu only (maintainer decision, commit 843f980f); this workflow is the
+# Windows counterpart, once a day.
+#
+# Toolchain: the stable toolchain pinned in windows/rust-toolchain.toml, with
+# llvm-tools, and no `--branch`. Branch coverage needs a nightly rustc, and
+# nightly `--branch` on Windows drops tokenmon-app and tokenmon-ui (the two
+# crates with a build.rs) from the report entirely (MentisDB token_monitor
+# #181, probe run 45905104674). So this run reports lines, regions and
+# functions only; branch coverage stays measured on Ubuntu by the coverage
+# job in windows-ci.yml.
+#
+# The same exclusions, floors and delta gate as windows-ci.yml apply, with its
+# own baseline artifact (windows-coverage-summary-windows-nightly).
+#
+# Run it by hand with `gh workflow run windows-coverage-nightly.yml`. A push
+# to master that edits this file runs it once.
+
+on:
+  schedule:
+    - cron: "0 7 * * *" # daily, 07:00 UTC
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/windows-coverage-nightly.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-coverage-nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+# Same pinned tool versions and action SHAs as windows-ci.yml.
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+  CARGO_NEXTEST_VERSION: "0.9.151"
+  CARGO_LLVM_COV_VERSION: "0.9.1"
+  COVERAGE_MAX_DROP: "2.0"
+
+jobs:
+  coverage:
+    name: Coverage (windows-latest, nightly schedule)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read # find and download the previous run's coverage summary
+    env:
+      PYTHON: python
+      SUMMARY_ARTIFACT: windows-coverage-summary-windows-nightly
+    defaults:
+      run:
+        shell: bash
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read the pinned toolchain
+        id: toolchain
+        run: |
+          channel=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)
+          test -n "$channel" || { echo "::error::no channel in windows/rust-toolchain.toml"; exit 1; }
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master (2026-10-16)
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          components: llvm-tools-preview
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: windows -> target
+          shared-key: coverage-windows-nightly
+
+      - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
+        with:
+          tool: cargo-llvm-cov@${{ env.CARGO_LLVM_COV_VERSION }},cargo-nextest@${{ env.CARGO_NEXTEST_VERSION }}
+
+      # `cargo llvm-cov report` reads every executable under the target dir;
+      # binaries of since-deleted test files would read as uncovered code (#80).
+      - name: Drop stale test binaries from the cached target dir
+        run: |
+          "$PYTHON" -I scripts/ci/prune_stale_test_binaries.py target/llvm-cov-target
+
+      # Coverage is measured whatever the outcome so the summary always has
+      # numbers; the last step fails the job when a test failed.
+      - name: Run tests with coverage instrumentation
+        id: instrumented
+        run: |
+          set -uo pipefail
+          # Test/bench/fuzz/example code plus .config/coverage-excludes.txt.
+          ignore=$("$PYTHON" -I scripts/ci/coverage_excludes.py regex) || exit 1
+          cfg=$(bash scripts/ci/nextest-config.sh . "$RUNNER_TEMP/nextest.toml")
+          if ! cargo llvm-cov nextest --locked --workspace --no-report --no-tests=warn \
+              --config-file "$cfg" --profile ws-ci; then
+            echo "tests_failed=true" >> "$GITHUB_OUTPUT"
+            echo "::warning title=coverage::some tests failed. Coverage is still reported; the job fails at the end."
+          fi
+          if ! cargo llvm-cov report --ignore-filename-regex "$ignore" \
+              --json --summary-only --output-path "$RUNNER_TEMP/cov.json"; then
+            {
+              echo "### Coverage (windows-latest, nightly schedule)"
+              echo
+              echo ":x: No coverage data: the tests did not build on this runner, so nothing ran."
+              echo "The compiler errors are in this job's log."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          cargo llvm-cov report --ignore-filename-regex "$ignore" \
+            --lcov --output-path "$RUNNER_TEMP/lcov.info"
+
+      - name: Fetch the master baseline
+        id: baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/ci/fetch_baseline.sh "$SUMMARY_ARTIFACT" "$RUNNER_TEMP/baseline" master
+
+      - name: Coverage summary and gates
+        env:
+          BASE_FOUND: ${{ steps.baseline.outputs.found }}
+          BASE_URL: ${{ steps.baseline.outputs.run_url }}
+          BASE_SHA: ${{ steps.baseline.outputs.sha }}
+          BASE_RUN: ${{ steps.baseline.outputs.run_id }}
+        run: |
+          set -uo pipefail
+          baseline=()
+          if [ "$BASE_FOUND" = true ]; then
+            baseline=(--baseline "$RUNNER_TEMP/baseline/coverage-summary.json"
+                      --baseline-cov "$RUNNER_TEMP/baseline/cov.json"
+                      --baseline-url "$BASE_URL" --baseline-label "run $BASE_RUN ($BASE_SHA)")
+          fi
+          mkdir -p "$RUNNER_TEMP/coverage-out"
+          status=0
+          "$PYTHON" -I scripts/ci/render_coverage.py --json "$RUNNER_TEMP/cov.json" --root . \
+            --floors .config/coverage-floors.toml --excludes .config/coverage-excludes.txt \
+            "${baseline[@]}" --max-drop "$COVERAGE_MAX_DROP" \
+            --write-summary "$RUNNER_TEMP/coverage-out/coverage-summary.json" \
+            --commit "$GITHUB_SHA" --source "run $GITHUB_RUN_ID (${GITHUB_SHA:0:7})" \
+            --title "Coverage (windows-latest, nightly schedule)" > "$RUNNER_TEMP/coverage.md" || status=$?
+          cat "$RUNNER_TEMP/coverage.md" >> "$GITHUB_STEP_SUMMARY"
+          cp "$RUNNER_TEMP/lcov.info" "$RUNNER_TEMP/cov.json" "$RUNNER_TEMP/coverage.md" "$RUNNER_TEMP/coverage-out/"
+          exit $status
+
+      # Every run that measured coverage becomes the next baseline, including
+      # one that failed the gates (see windows-ci.yml for why).
+      - name: Upload coverage summary (next run's baseline)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ env.SUMMARY_ARTIFACT }}
+          path: ${{ runner.temp }}/coverage-out/
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Fail when a test failed
+        if: always() && steps.instrumented.outputs.tests_failed == 'true'
+        run: |
+          echo "::error title=tests::at least one test failed; see the job log."
+          exit 1
