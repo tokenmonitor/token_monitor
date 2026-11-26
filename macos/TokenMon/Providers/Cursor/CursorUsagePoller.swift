@@ -85,14 +85,6 @@ final class CursorUsagePoller: ProviderUsagePoller {
     var headlineResetsAt: Date? { snapshot?.resetsAt }
     var alertAccount: String? { auth.accountEmail }
 
-    func start() {
-        pollingLoop.start()
-    }
-
-    func stop() {
-        pollingLoop.stop()
-    }
-
     func clearSnapshot() {
         snapshot = nil
         dayHourlyUsage = nil
@@ -110,13 +102,8 @@ final class CursorUsagePoller: ProviderUsagePoller {
         daily.clear()
     }
 
-    /// Fetches now when the provider is enabled and restarts the poll wait from here.
-    func refreshNow() async {
-        await pollingLoop.refreshNow()
-    }
-
     private func performRefresh() async -> PollOutcome {
-        guard settings.isProviderEnabled(.cursor), !isRefreshing else { return .skipped }
+        guard settings.isProviderEnabled(.cursor) else { return .skipped }
         isRefreshing = true
         defer { isRefreshing = false }
 

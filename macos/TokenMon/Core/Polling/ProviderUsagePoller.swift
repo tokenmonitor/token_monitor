@@ -21,10 +21,22 @@ protocol ProviderUsagePoller: AnyObject, Observable {
     var alertAccount: String? { get }
     /// The poller's timer; `wake()` it after an input to its interval changes.
     var pollingLoop: PollingLoop { get }
-    func start()
-    func stop()
-    /// Fetches now (when the provider is enabled) and restarts the poll wait.
-    func refreshNow() async
     /// Drops the displayed snapshot. Stored history is kept.
     func clearSnapshot()
+}
+
+extension ProviderUsagePoller {
+    /// Starts the poll loop: refreshes now when the provider needs polling.
+    func start() {
+        pollingLoop.start()
+    }
+
+    func stop() {
+        pollingLoop.stop()
+    }
+
+    /// Fetches now (when the provider is enabled) and restarts the poll wait.
+    func refreshNow() async {
+        await pollingLoop.refreshNow()
+    }
 }

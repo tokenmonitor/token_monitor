@@ -67,14 +67,6 @@ final class OpenCodeUsagePoller: ProviderUsagePoller {
     var headlineResetsAt: Date? { nil }
     var alertAccount: String? { auth.accountEmail }
 
-    func start() {
-        pollingLoop.start()
-    }
-
-    func stop() {
-        pollingLoop.stop()
-    }
-
     func clearSnapshot() {
         snapshot = nil
         dayHourlyUsage = nil
@@ -86,13 +78,8 @@ final class OpenCodeUsagePoller: ProviderUsagePoller {
         lastRefreshedAt = nil
     }
 
-    /// Fetches now when the provider is enabled and restarts the poll wait from here.
-    func refreshNow() async {
-        await pollingLoop.refreshNow()
-    }
-
     private func performRefresh() async -> PollOutcome {
-        guard settings.isProviderEnabled(.opencode), !isRefreshing else { return .skipped }
+        guard settings.isProviderEnabled(.opencode) else { return .skipped }
         isRefreshing = true
         defer { isRefreshing = false }
 
