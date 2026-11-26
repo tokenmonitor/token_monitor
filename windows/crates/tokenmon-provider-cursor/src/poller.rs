@@ -451,17 +451,7 @@ impl ProviderUsagePoller for CursorUsagePoller {
         self.session.state().account_email
     }
 
-    fn start(&self) {
-        self.polling.start();
-    }
-
-    fn stop(&self) {
-        self.polling.stop();
-    }
-
-    fn refresh_now(&self) -> BoxFuture<'_, ()> {
-        Box::pin(async move { self.polling.refresh_now().await })
-    }
+    tokenmon_core::delegate_polling_lifecycle!(polling);
 
     fn clear_snapshot(&self) {
         *lock(&self.state) = State::default();

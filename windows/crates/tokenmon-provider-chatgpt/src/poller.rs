@@ -17,8 +17,8 @@ use tokenmon_core::storage::{DailyQuotaDeltaStore, QuotaWindow};
 use tokenmon_core::usage::budget::SpentByDay;
 use tokenmon_core::usage::{Calendar, DailyBudget, DailyBudgetDay, WeekOffset};
 use tokenmon_core::{
-    AuthEvent, AuthEventListener, BoxFuture, Clock, ProviderAuthSession, ProviderError,
-    ProviderErrorContext, ProviderId, ProviderUsagePoller, SessionGeneration,
+    AuthEvent, AuthEventListener, Clock, ProviderAuthSession, ProviderError, ProviderErrorContext,
+    ProviderId, ProviderUsagePoller, SessionGeneration,
 };
 
 use crate::client::Fetch;
@@ -402,17 +402,7 @@ impl ProviderUsagePoller for ChatGptPoller {
         self.auth.state().account_email
     }
 
-    fn start(&self) {
-        self.polling.start();
-    }
-
-    fn stop(&self) {
-        self.polling.stop();
-    }
-
-    fn refresh_now(&self) -> BoxFuture<'_, ()> {
-        Box::pin(async move { self.polling.refresh_now().await })
-    }
+    tokenmon_core::delegate_polling_lifecycle!(polling);
 
     /// Sign-out / account reset: drops the token, snapshot and error.
     fn clear_snapshot(&self) {

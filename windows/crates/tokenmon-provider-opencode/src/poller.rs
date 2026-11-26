@@ -510,17 +510,7 @@ impl ProviderUsagePoller for OpenCodeUsagePoller {
         self.auth.state().account_email
     }
 
-    fn start(&self) {
-        self.polling.start();
-    }
-
-    fn stop(&self) {
-        self.polling.stop();
-    }
-
-    fn refresh_now(&self) -> BoxFuture<'_, ()> {
-        Box::pin(self.polling.refresh_now())
-    }
+    tokenmon_core::delegate_polling_lifecycle!(polling);
 
     fn clear_snapshot(&self) {
         Self::clear_snapshot(self);
