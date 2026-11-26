@@ -65,6 +65,7 @@
 		34D64337F564984D9AB83D8C /* OpenCodeConsoleClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEACE0C551D957D16FFE77A9 /* OpenCodeConsoleClientTests.swift */; };
 		36184DD589D91241A2D881FD /* ChatGPTUsageClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 035D5817CDF2B39ABB3D7C99 /* ChatGPTUsageClientTests.swift */; };
 		36924334AB06F286EA0EB9E2 /* CursorAuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 120B27BA3E0C7C34F8C8EAF0 /* CursorAuthSession.swift */; };
+		372288D3C915919883B438FB /* CursorPanelViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B678298B3DC136E16331DFEB /* CursorPanelViewTests.swift */; };
 		38FF2FE848C92E20E6902585 /* ProviderAuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4180D20B69224C21DF403BB /* ProviderAuthSession.swift */; };
 		39595560EBACEBC55F86B3F4 /* ClaudeModelHoverDetailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE993F50A438BDC9B7E9136A /* ClaudeModelHoverDetailTests.swift */; };
 		3A664AC59BE0C9AA0DA5C241 /* MenuBarPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 129FBF60B08DD9FB200AB5D2 /* MenuBarPanelView.swift */; };
@@ -471,6 +472,7 @@
 		B2566A8CA0B93F38DCDBB803 /* SavedResetsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedResetsTests.swift; sourceTree = "<group>"; };
 		B39FD607A2D97D994D5D713A /* MonthlyUsageChangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlyUsageChangeTests.swift; sourceTree = "<group>"; };
 		B449EDDB7717A5E25E7818E9 /* SegmentedUsageBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SegmentedUsageBar.swift; sourceTree = "<group>"; };
+		B678298B3DC136E16331DFEB /* CursorPanelViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorPanelViewTests.swift; sourceTree = "<group>"; };
 		B850B5AF074C93AC1E04E5F9 /* OpenRouterUsagePoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterUsagePoller.swift; sourceTree = "<group>"; };
 		BA25A1E043ADA9EDAC5FD62D /* ClaudeModelHoverLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModelHoverLabel.swift; sourceTree = "<group>"; };
 		BC8D8BCBDF7849DFD2927531 /* UpdateAvailableIndicatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateAvailableIndicatorTests.swift; sourceTree = "<group>"; };
@@ -978,6 +980,7 @@
 			children = (
 				528508A5C024A0F7ACF1ABEB /* CursorEventCacheTests.swift */,
 				A3362D7FC0A4E8B3BB5C867C /* CursorLiveTransportTests.swift */,
+				B678298B3DC136E16331DFEB /* CursorPanelViewTests.swift */,
 				EE5535C7C432F36BDC056DF5 /* CursorPollerRefreshTests.swift */,
 				3EB96EB4E8D176C9CC45340D /* CursorSummaryParsingTests.swift */,
 				18C58EB16225901A8C9B6350 /* CursorUsageClientTests.swift */,
@@ -1385,6 +1388,7 @@
 				AA34C2124A6B999BA034867D /* CredentialStoreTests.swift in Sources */,
 				20F4DDF2196462B740AF93DA /* CursorEventCacheTests.swift in Sources */,
 				72C37F041B4DD07E1EF3B66E /* CursorLiveTransportTests.swift in Sources */,
+				372288D3C915919883B438FB /* CursorPanelViewTests.swift in Sources */,
 				F111B61C502908F6047595C1 /* CursorPollerRefreshTests.swift in Sources */,
 				AE572E8842CE11A4D15474A4 /* CursorSummaryParsingTests.swift in Sources */,
 				B4436859CF0A1331C7634FF4 /* CursorUsageClientTests.swift in Sources */,
