@@ -78,14 +78,15 @@ impl AppSettings {
         self.tx.subscribe()
     }
 
-    /// Applies `f`, persists the keys whose encoded value changed (plus `force`),
-    /// and notifies subscribers if anything changed.
-    fn mutate(&self, force: &[SettingsKey], f: impl FnOnce(&Settings) -> Settings) {
+    /// Applies `f`, persists the keys whose encoded value changed, and notifies
+    /// subscribers if anything changed. A setter that leaves a value as it was,
+    /// after clamping, writes nothing.
+    fn mutate(&self, f: impl FnOnce(&Settings) -> Settings) {
         self.tx.send_if_modified(|current| {
             let next = f(current);
             let edits: Vec<(String, Option<Value>)> = SettingsKey::ALL
                 .iter()
-                .filter(|k| force.contains(k) || k.encode(&next) != k.encode(current))
+                .filter(|k| k.encode(&next) != k.encode(current))
                 .map(|k| (k.as_str().to_owned(), Some(k.encode(&next))))
                 .collect();
             if !edits.is_empty() {
@@ -99,7 +100,7 @@ impl AppSettings {
 
     /// Sets `showCategoriesInMenuBar`.
     pub fn set_show_categories_in_menu_bar(&self, on: bool) {
-        self.mutate(&[], |s| Settings {
+        self.mutate(|s| Settings {
             show_categories_in_menu_bar: on,
             ..s.clone()
         });
@@ -107,7 +108,7 @@ impl AppSettings {
 
     /// Sets `showSelectedProviderInMenuBar`.
     pub fn set_show_selected_provider_in_menu_bar(&self, on: bool) {
-        self.mutate(&[], |s| Settings {
+        self.mutate(|s| Settings {
             show_selected_provider_in_menu_bar: on,
             ..s.clone()
         });
@@ -115,7 +116,7 @@ impl AppSettings {
 
     /// Sets `checksForUpdates`.
     pub fn set_checks_for_updates(&self, on: bool) {
-        self.mutate(&[], |s| Settings {
+        self.mutate(|s| Settings {
             checks_for_updates: on,
             ..s.clone()
         });
@@ -123,49 +124,43 @@ impl AppSettings {
 
     /// Sets `appThemePreference`.
     pub fn set_theme_preference(&self, preference: ThemePreference) {
-        self.mutate(&[], |s| Settings {
+        self.mutate(|s| Settings {
             theme_preference: preference,
             ..s.clone()
         });
     }
 
-    /// Sets the active poll interval (clamped 15..=300) and always writes it.
+    /// Sets the active poll interval (clamped 15..=300).
     pub fn set_active_poll_seconds(&self, seconds: u32) {
-        self.mutate(&[SettingsKey::ActivePollSeconds], |s| {
-            s.clone().with_active_poll_seconds(seconds)
-        });
+        self.mutate(|s| s.clone().with_active_poll_seconds(seconds));
     }
 
-    /// Sets the idle poll interval (clamped 60..=3600) and always writes it.
+    /// Sets the idle poll interval (clamped 60..=3600).
     pub fn set_idle_poll_seconds(&self, seconds: u32) {
-        self.mutate(&[SettingsKey::IdlePollSeconds], |s| {
-            s.clone().with_idle_poll_seconds(seconds)
-        });
+        self.mutate(|s| s.clone().with_idle_poll_seconds(seconds));
     }
 
-    /// Turns the usage alert on or off (always written).
+    /// Turns the usage alert on or off.
     pub fn set_threshold_enabled(&self, on: bool) {
-        self.mutate(&[SettingsKey::ThresholdEnabled], |s| Settings {
+        self.mutate(|s| Settings {
             threshold_enabled: on,
             ..s.clone()
         });
     }
 
-    /// Sets the threshold (clamped 50..=99) and always writes it.
+    /// Sets the threshold (clamped 50..=99).
     pub fn set_threshold_percent(&self, percent: f64) {
-        self.mutate(&[SettingsKey::ThresholdPercent], |s| {
-            s.clone().with_threshold_percent(percent)
-        });
+        self.mutate(|s| s.clone().with_threshold_percent(percent));
     }
 
     /// Sets the providers the alert watches.
     pub fn set_alert_providers(&self, providers: &BTreeSet<ProviderId>) {
-        self.mutate(&[], |s| s.clone().with_alert_providers(providers));
+        self.mutate(|s| s.clone().with_alert_providers(providers));
     }
 
     /// Selects a dropdown tab.
     pub fn set_selected_provider(&self, p: ProviderId) {
-        self.mutate(&[], |s| s.clone().with_selected_provider(p));
+        self.mutate(|s| s.clone().with_selected_provider(p));
     }
 
     /// Sets the enabled providers. An empty or non-usage set is rejected and the
@@ -176,7 +171,7 @@ impl AppSettings {
     ) -> Result<(), InvalidEnabledProviders> {
         // Validation depends only on `enabled`, so checking against defaults is exact.
         Settings::default().with_enabled_providers(enabled)?;
-        self.mutate(&[], |s| {
+        self.mutate(|s| {
             s.clone()
                 .with_enabled_providers(enabled)
                 .unwrap_or_else(|_| s.clone())
@@ -186,28 +181,26 @@ impl AppSettings {
 
     /// Sets the provider order (normalized before it is stored).
     pub fn set_provider_order(&self, raw: &[ProviderId]) {
-        self.mutate(&[], |s| s.clone().with_provider_order(raw));
+        self.mutate(|s| s.clone().with_provider_order(raw));
     }
 
     /// Moves `moving` onto `target`'s slot.
     pub fn move_provider(&self, moving: ProviderId, target: ProviderId) {
-        self.mutate(&[], |s| s.clone().move_provider(moving, target));
+        self.mutate(|s| s.clone().move_provider(moving, target));
     }
 
     /// Pins or unpins a provider's menu-bar bar graph.
     pub fn set_menu_bar_graph(&self, p: ProviderId, shown: bool) {
-        self.mutate(&[], |s| s.clone().with_menu_bar_graph(p, shown));
+        self.mutate(|s| s.clone().with_menu_bar_graph(p, shown));
     }
 
     /// Expands or collapses a dropdown section.
     pub fn set_expanded(&self, expanded: bool, section: PanelSection) {
-        self.mutate(&[], |s| s.clone().with_expanded(section, expanded));
+        self.mutate(|s| s.clone().with_expanded(section, expanded));
     }
 
-    /// Sets the visible Grok products (always written; empty is allowed).
+    /// Sets the visible Grok products (empty is allowed).
     pub fn set_visible_products(&self, products: &BTreeSet<GrokProduct>) {
-        self.mutate(&[SettingsKey::VisibleProductIds], |s| {
-            s.clone().with_visible_products(products.clone())
-        });
+        self.mutate(|s| s.clone().with_visible_products(products.clone()));
     }
 }

@@ -1065,12 +1065,12 @@ observable. Arrays of providers are stored as raw-value string arrays.
 
 Write behaviour:
 
-* These properties persist only when the value actually changes:
-  `showCategories`, `menuBarGraphs`, `checksForUpdates`, `showSelected`,
-  `alertProviders`, `collapsedPanelSections`, `providerOrder`, `enabledProviderIDs`
-  and `selectedProvider`.
-* `activePoll`, `idlePoll`, `thresholdEnabled`, `thresholdPercent` and
-  `visibleProductIDs` write on every set.
+* Every property persists only when the value actually changes: `showCategories`,
+  `menuBarGraphs`, `checksForUpdates`, `showSelected`, `alertProviders`,
+  `collapsedPanelSections`, `providerOrder`, `enabledProviderIDs`,
+  `selectedProvider`, `activePoll`, `idlePoll`, `thresholdEnabled`,
+  `thresholdPercent` and `visibleProductIDs`. A clamped value is compared after
+  clamping, so a set that clamps back to the stored value writes nothing.
 
 **Migration of per-provider graph flags.** This runs when `menuBarGraphProviders`
 is absent. For each of these pairs:

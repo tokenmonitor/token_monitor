@@ -393,3 +393,37 @@ fn test_theme_preference_defaults_persists_and_ignores_unknown_values() {
     let junk = decode_settings(br#"{"appThemePreference": "purple"}"#);
     assert_eq!(junk.theme_preference, ThemePreference::System);
 }
+
+/// A setter that leaves a value as it was writes nothing; a poll interval is
+/// compared after clamping.
+#[test]
+fn test_assigning_the_current_value_writes_nothing() {
+    let (dir, s) = fresh();
+    s.set_active_poll_seconds(300);
+    s.set_idle_poll_seconds(60);
+    let path = dir.path().join("settings.json");
+    std::fs::remove_file(&path).expect("remove");
+
+    s.set_threshold_enabled(s.snapshot().threshold_enabled);
+    s.set_threshold_percent(s.snapshot().threshold_percent);
+    s.set_visible_products(&s.snapshot().visible_product_ids);
+    s.set_active_poll_seconds(300);
+    s.set_idle_poll_seconds(60);
+    s.set_active_poll_seconds(10_000); // clamps to the 300 it already holds
+    s.set_idle_poll_seconds(0); // clamps to the 60 it already holds
+
+    assert!(!path.exists(), "an unchanged value was written");
+}
+
+/// A changed value is written.
+#[test]
+fn test_changing_a_value_writes_its_key() {
+    let (dir, s) = fresh();
+    let path = dir.path().join("settings.json");
+    s.set_threshold_enabled(true);
+    let text = std::fs::read_to_string(&path).expect("file");
+    assert!(text.contains("thresholdEnabled"), "{text}");
+    s.set_active_poll_seconds(45);
+    let text = std::fs::read_to_string(&path).expect("file");
+    assert!(text.contains("activePollSeconds"), "{text}");
+}

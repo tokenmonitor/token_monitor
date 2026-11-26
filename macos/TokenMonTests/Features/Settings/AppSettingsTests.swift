@@ -2,6 +2,21 @@ import ServiceManagement
 @testable import TokenMon
 import XCTest
 
+/// UserDefaults that records the key of every write, to check which settings save. The typed
+/// setters (`set(_: Int, forKey:)` and the others) funnel into `set(_: Any?, forKey:)`.
+private final class WriteRecordingDefaults: UserDefaults {
+    private(set) var writtenKeys: [String] = []
+
+    func resetWrites() {
+        writtenKeys = []
+    }
+
+    override func set(_ value: Any?, forKey defaultName: String) {
+        writtenKeys.append(defaultName)
+        super.set(value, forKey: defaultName)
+    }
+}
+
 /// AppSettings clamps, persistence keys, and needs*Polling gating —
 /// all against an isolated UserDefaults suite.
 @MainActor
@@ -403,6 +418,45 @@ final class AppSettingsTests: XCTestCase {
 
     func testGraphSetDefaultsToGrokOnly() {
         XCTAssertEqual(makeSettings().menuBarGraphProviders, [.grok])
+    }
+
+    /// Assigning a value a setting already holds saves nothing; a poll interval is compared after clamping.
+    func testAssigningTheCurrentValueWritesNothing() throws {
+        let recording = try XCTUnwrap(WriteRecordingDefaults(suiteName: suiteName))
+        let settings = AppSettings(defaults: recording)
+        settings.activePollSeconds = 300
+        settings.idlePollSeconds = 60
+        settings.thresholdPercent = 75
+        recording.resetWrites()
+
+        settings.thresholdEnabled = settings.thresholdEnabled
+        settings.thresholdPercent = settings.thresholdPercent
+        settings.visibleProductIDs = settings.visibleProductIDs
+        settings.activePollSeconds = settings.activePollSeconds
+        settings.idlePollSeconds = settings.idlePollSeconds
+        settings.activePollSeconds = 10_000 // clamps to the 300 it already holds
+        settings.idlePollSeconds = 0 // clamps to the 60 it already holds
+
+        XCTAssertEqual(recording.writtenKeys, [])
+    }
+
+    /// A changed value saves its own key once.
+    func testChangingAValueWritesItsKeyOnce() throws {
+        let recording = try XCTUnwrap(WriteRecordingDefaults(suiteName: suiteName))
+        let settings = AppSettings(defaults: recording)
+        recording.resetWrites()
+
+        settings.thresholdEnabled.toggle()
+        XCTAssertEqual(recording.writtenKeys, ["thresholdEnabled"])
+        recording.resetWrites()
+        settings.activePollSeconds = settings.activePollSeconds == 45 ? 60 : 45
+        XCTAssertEqual(recording.writtenKeys, ["activePollSeconds"])
+        recording.resetWrites()
+        settings.idlePollSeconds = settings.idlePollSeconds == 120 ? 180 : 120
+        XCTAssertEqual(recording.writtenKeys, ["idlePollSeconds"])
+        recording.resetWrites()
+        settings.visibleProductIDs = ["build"]
+        XCTAssertEqual(recording.writtenKeys, ["visibleProductIDs"])
     }
 }
 
