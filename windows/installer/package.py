@@ -6,7 +6,7 @@ on any OS.
 
     package.py version [--windows-dir DIR]
         Print the release version: tokenmon-windows's version, which inherits
-        [workspace.package] version from windows/Cargo.toml.
+        [workspace.package] version from Cargo.toml.
     package.py check-tag TAG [--windows-dir DIR]
         Fail unless TAG is windows-v<version>.
     package.py asset-names VERSION
@@ -47,11 +47,12 @@ class PackagingError(Exception):
 
 
 def read_version(windows_dir: Path) -> str:
-    """tokenmon-windows's version, resolving `version.workspace = true`."""
+    """tokenmon-windows's version, resolving `version.workspace = true` against
+    the workspace manifest at the repository root (the parent of `windows_dir`)."""
     app = tomllib.loads((windows_dir / APP_CRATE).read_text(encoding="utf-8"))
     version = app.get("package", {}).get("version")
     if isinstance(version, dict) and version.get("workspace") is True:
-        workspace = tomllib.loads((windows_dir / "Cargo.toml").read_text(encoding="utf-8"))
+        workspace = tomllib.loads((windows_dir.parent / "Cargo.toml").read_text(encoding="utf-8"))
         version = workspace.get("workspace", {}).get("package", {}).get("version")
     if not isinstance(version, str) or not SEMVER.match(version):
         raise PackagingError(f"tokenmon-windows version {version!r} is not MAJOR.MINOR.PATCH")
@@ -68,7 +69,7 @@ def check_tag(tag: str, version: str) -> None:
     if tag != expected:
         raise PackagingError(
             f"Tag {tag} does not match the crate version {version}. "
-            f"Bump [workspace.package] version in windows/Cargo.toml, or tag {expected}."
+            f"Bump [workspace.package] version in Cargo.toml, or tag {expected}."
         )
 
 

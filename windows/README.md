@@ -2,6 +2,20 @@
 
 Rust system-tray app for Windows 10 and 11 (x64). Behavior is specified in `docs/spec/`; the plan, crate ownership and agent protocol are in `docs/IMPLEMENTATION_PLAN.md`.
 
+## Where the code lives
+
+One Cargo workspace at the repository root (`Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `.config/`, one `target/`):
+
+| Folder | Contents |
+|---|---|
+| `common/crates/` | Code shared by the desktop ports: `tokenmon-core`, the seven `tokenmon-provider-*` crates, `tokenmon-ui`, `tokenmon-platform` (traits, state machines, fakes and portable logic, no `unsafe`) and `tokenmon-app` (the composition root as a library) |
+| `common/fuzz/`, `common/scripts/` | The cargo-fuzz targets and corpus, and the CI and parity scripts |
+| `windows/crates/tokenmon-platform-windows` | The Win32/WinRT adapters (DPAPI, toasts, power events, registry and shell, appearance, WebView2) and the Windows update logic (relaunch, PE and Authenticode checks, the installer). The only crate allowed to use `unsafe` |
+| `windows/crates/tokenmon-windows` | The `TokenMon.exe` binary: Win32 shell, tray wiring and display glue |
+| `windows/installer/`, `windows/docs/`, `windows/Makefile` | The MSI and zip packaging, the specs and parity ledger, and the Windows entry point |
+
+`common/Makefile` builds and tests the shared code without any Windows packaging.
+
 ## Quick start on Windows
 
 1. Install the prerequisites once (from PowerShell or cmd), then open a new terminal so `PATH` picks them up:
@@ -44,24 +58,13 @@ Rust system-tray app for Windows 10 and 11 (x64). Behavior is specified in `docs
 
 The Makefile never runs `installer/smoke-test.ps1` (see below).
 
-**Runs standalone.** `TokenMon.exe` links the C runtime statically (`.cargo/config.toml`), so it needs no Visual C++ Redistributable; CI fails if it ever imports `vcruntime*`/`msvcp*` (`scripts/ci/pe_imports.py`). Don't set `RUSTFLAGS` when building releases: it replaces those flags. Only sign-in windows need the Microsoft Edge WebView2 Runtime, which ships with Windows 11 and current Windows 10.
-
-## Layout
-
-| Crate | Role | Builds on macOS/Linux |
-|---|---|---|
-| `tokenmon-core` | Domain, networking, polling, storage and the shared contracts (`ProviderId`, `UsageError`, `Clock`, `ProviderUsagePoller`, `CredentialStore`, `AuthConfig`) | yes |
-| `tokenmon-provider-*` (7) | One crate per provider | yes |
-| `tokenmon-platform` | OS services behind traits (DPAPI, toast, power, shell, WebView2, installer) with in-memory fakes. The only crate allowed to use `unsafe` | stubs and fakes yes, Windows code via cross-check |
-| `tokenmon-ui` | Slint components and view models | yes |
-| `tokenmon-app` | The tray binary | yes (stub), full app via cross-check |
+**Runs standalone.** `TokenMon.exe` links the C runtime statically (`.cargo/config.toml`), so it needs no Visual C++ Redistributable; CI fails if it ever imports `vcruntime*`/`msvcp*` (`common/scripts/ci/pe_imports.py`). Don't set `RUSTFLAGS` when building releases: it replaces those flags. Only sign-in windows need the Microsoft Edge WebView2 Runtime, which ships with Windows 11 and current Windows 10.
 
 ## Build and test on macOS or Linux
 
 The toolchain is pinned in `rust-toolchain.toml` (rustup installs it automatically). Everything except the `cfg(windows)` code builds and tests natively:
 
 ```sh
-cd windows
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
@@ -71,29 +74,28 @@ These three commands are the gate that must be green before every push.
 
 ## Cross-check the Windows code from macOS or Linux
 
-The `cfg(windows)` code in `tokenmon-platform` and `tokenmon-app` only type-checks for the Windows target. `cargo-xwin` downloads the MSVC CRT and Windows SDK on first use (a few hundred MB, cached under `~/.cache/cargo-xwin`), so no Windows machine is needed to check it:
+The `cfg(windows)` code in `tokenmon-platform-windows`, `tokenmon-windows` and `tokenmon-ui` only type-checks for the Windows target. `cargo-xwin` downloads the MSVC CRT and Windows SDK on first use (a few hundred MB, cached under `~/.cache/cargo-xwin`), so no Windows machine is needed to check it:
 
 ```sh
 rustup target add x86_64-pc-windows-msvc   # also listed in rust-toolchain.toml
 cargo install cargo-xwin --locked
-cd windows
-XWIN_ACCEPT_LICENSE=1 cargo xwin check --target x86_64-pc-windows-msvc -p tokenmon-platform -p tokenmon-app
+XWIN_ACCEPT_LICENSE=1 cargo xwin check --target x86_64-pc-windows-msvc -p tokenmon-platform-windows -p tokenmon-windows
 ```
 
 `XWIN_ACCEPT_LICENSE=1` accepts the Microsoft SDK license non-interactively. `check` does not link or run anything; running tests needs the Windows CI runner.
 
 ## Coverage
 
-CI measures line coverage on Ubuntu and Windows and fails when total line coverage drops more than 2.0 points below the latest `master` run, or when a floor in `.config/coverage-floors.toml` is not met. `make coverage` gives the same numbers locally (needs `cargo-llvm-cov`; HTML in `target/llvm-cov/html`).
+CI measures line coverage on Ubuntu and Windows and fails when total line coverage drops more than 2.0 points below the latest `master` run, or when a floor in `.config/coverage-floors.toml` is not met. `make coverage` gives the same numbers locally (needs `cargo-llvm-cov`; HTML in `../target/llvm-cov/html`).
 
-Test, bench, fuzz and example code is not measured, and neither is the Windows-only glue listed in **`.config/coverage-excludes.txt`**: thin `cfg(windows)` adapters that tests cannot drive (tray, panel windows, WebView2, toasts, message boxes, session end, power broadcasts, the registry). Real-Windows behaviour is covered by `TokenMon.exe --smoke` in CI and by manual testing. That file is the only list; CI and `make coverage` both build `--ignore-filename-regex` from it with `scripts/ci/coverage_excludes.py`. The rules:
+Test, bench, fuzz and example code is not measured, and neither is the Windows-only glue listed in **`.config/coverage-excludes.txt`**: thin `cfg(windows)` adapters that tests cannot drive (tray, panel windows, WebView2, toasts, message boxes, session end, power broadcasts, the registry). Real-Windows behaviour is covered by `TokenMon.exe --smoke` in CI and by manual testing. That file is the only list; CI and `make coverage` both build `--ignore-filename-regex` from it with `common/scripts/ci/coverage_excludes.py`. The rules:
 
 * Excluded files stay thin adapters: OS calls in, OS calls out. New logic (parsing, decisions, state machines, layout, formatting) goes in a portable module with tests, and the adapter calls it. For example, the registry adapter uses `shell::registry::{encode_reg_sz, decode_reg_sz}` and the WebView2 window uses `webauth::layout`.
 * Only files that are entirely `cfg(windows)` can be listed. A file that mixes portable and Windows code is split first, never excluded whole.
 * Each file has a line budget: 400, or a frozen `max-lines=N` for the two that were larger when the policy started. They may shrink, not grow.
 * Every entry needs a one-line reason.
 
-The lint job runs `python3 scripts/ci/coverage_excludes.py check`, which fails when an entry has no reason or matches no file, or when a listed file is not entirely `cfg(windows)` or is over its budget. Keeping adapters thin is up to review. When the list changes, the coverage job recomputes the baseline from the previous run's per-file data with the new list, so the delta compares like with like.
+The lint job runs `python3 common/scripts/ci/coverage_excludes.py check`, which fails when an entry has no reason or matches no file, or when a listed file is not entirely `cfg(windows)` or is over its budget. Keeping adapters thin is up to review. When the list changes, the coverage job recomputes the baseline from the previous run's per-file data with the new list, so the delta compares like with like.
 
 ## Other tools
 
@@ -125,7 +127,7 @@ The in-app updater only looks at `windows-v*` tags and only picks assets named `
 
 ### Cut a release
 
-1. Bump `version` under `[workspace.package]` in `windows/Cargo.toml` (every crate inherits it; the MSI and the tag check read it). Run `cargo check --workspace` so `Cargo.lock` follows, then commit to `windows-port`.
+1. Bump `version` under `[workspace.package]` in `Cargo.toml` (every crate inherits it; the MSI and the tag check read it). Run `cargo check --workspace` so `Cargo.lock` follows, then commit to `windows-port`.
 2. Wait for Windows CI on that commit to be green.
 3. Tag the commit and push the tag:
    ```sh
@@ -150,13 +152,13 @@ The same build and test, without a release, run:
 
 ```sh
 cd windows
-cargo build --locked --release -p tokenmon-app --target x86_64-pc-windows-msvc
+cargo build --locked --release -p tokenmon-windows --target x86_64-pc-windows-msvc
 cargo install --locked cargo-wix --version 0.3.9      # needs WiX Toolset 3.14.1 (candle/light)
-cargo wix -p tokenmon-app --no-build --nocapture --target x86_64-pc-windows-msvc \
+cargo wix -p tokenmon-windows --no-build --nocapture --target x86_64-pc-windows-msvc \
   --include "$PWD/installer/main.wxs" --bin-path "<WiX 3.14 bin folder>" \
-  --output target/wix/tokenmon-windows-$(python installer/package.py version)-x64.msi
-python installer/package.py zip --exe target/x86_64-pc-windows-msvc/release/TokenMon.exe \
-  --license ../LICENSE --readme installer/portable-README.txt --out target/wix/portable.zip
+  --output ../target/wix/tokenmon-windows-$(python installer/package.py version)-x64.msi
+python installer/package.py zip --exe ../target/x86_64-pc-windows-msvc/release/TokenMon.exe \
+  --license ../LICENSE --readme installer/portable-README.txt --out ../target/wix/portable.zip
 ```
 
 `installer/package.py` (version, tag check, asset names, zip, SHA256SUMS, summary) is tested on any OS with `python3 -I -m unittest discover -s windows/installer/tests`. Never run `installer/smoke-test.ps1` on your own machine: it installs and uninstalls TokenMon and deletes the app's registry entries.

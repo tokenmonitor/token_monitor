@@ -4,8 +4,8 @@ description: >-
   cargo-wix and WiX Toolset 3, both downloaded by version and checked against a
   SHA-256. Optionally also builds a higher-version MSI, used only by the
   install/upgrade smoke test. Signing is a separate step: see windows-sign.
-  Run `cargo build --release -p tokenmon-app --target <target>` first (and sign
-  the exe if it is to be signed): cargo-wix packages the exe from target/.
+  Run `cargo build --release -p tokenmon-windows --target <target>` first (and sign
+  the exe if it is to be signed): cargo-wix packages the exe from the workspace target/ directory.
 
 inputs:
   version:
@@ -104,9 +104,10 @@ runs:
         set -euo pipefail
         wxs=$(cygpath -w "$PWD/installer/main.wxs")
         wix() { # <install-version> <output>
-          cargo wix -p tokenmon-app --no-build --nocapture --target "$TARGET" \
+          # cargo-wix reads the workspace Cargo.toml from its working directory.
+          (cd .. && cargo wix -p tokenmon-windows --no-build --nocapture --target "$TARGET" \
             --bin-path "$WIX_BIN" --include "$wxs" \
-            --install-version "$1" --output "$(cygpath -w "$2")"
+            --install-version "$1" --output "$(cygpath -w "$2")")
         }
         mkdir -p "$(dirname "$OUTPUT")"
         wix "$VERSION" "$OUTPUT"

@@ -11,7 +11,7 @@ use tokenmon_platform_windows::install::verify::{is_pe_reader, zone_id_marks_int
 
 fn corpus() -> Vec<(String, Vec<u8>)> {
     let dir: PathBuf =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fuzz/corpus/update_verify_pe");
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../common/fuzz/corpus/update_verify_pe");
     std::fs::read_dir(dir)
         .unwrap()
         .flatten()

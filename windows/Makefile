@@ -1,4 +1,5 @@
-# Makefile — TokenMon for Windows (Rust cargo workspace in windows/)
+# Makefile — TokenMon for Windows (the Rust cargo workspace is at the repository
+# root: shared crates in common/, Windows-only crates in windows/crates/)
 #
 # GNU make 4.x. Run it from this directory:
 #
@@ -12,6 +13,9 @@
 # Any shell works (PowerShell, cmd, Git Bash): on Windows every recipe runs in
 # Git for Windows' bash, found from `where git` (or set GIT_BASH to its
 # bin\bash.exe), so the recipes are the same POSIX sh on every OS.
+#
+# Recipes run from windows/; cargo finds the workspace in the parent directory
+# (common/Makefile builds and tests the shared crates without the Windows glue).
 #
 # Never runs installer/smoke-test.ps1: that script is for throwaway CI
 # runners and deletes TokenMon's registry entries.
@@ -65,7 +69,12 @@ TARGET      := x86_64-pc-windows-msvc
 CARGO       ?= cargo
 LOCKED      := --locked
 TOOLS_DIR   := .tools
-DIST_DIR    := target/wix
+# The Cargo workspace root (Cargo.toml, target/, .config/) is the parent of windows/.
+ROOT          := ..
+TARGET_DIR    := $(ROOT)/target
+SCRIPTS       := $(ROOT)/common/scripts
+FUZZ_MANIFEST := $(ROOT)/common/fuzz/Cargo.toml
+DIST_DIR    := $(TARGET_DIR)/wix
 # QUIET=1: no msiexec UI. A flag, not "MSI_UI=/qn": Git Bash rewrites a
 # /switch on make's command line into a path, and msiexec then blocks on
 # its usage dialog.
@@ -89,10 +98,10 @@ CARGO_WIX := $(TOOLS_DIR)/cargo-wix/bin/cargo-wix$(EXE)
 # cargo-wix use); elsewhere `build` and `release` build the native stub.
 ifeq ($(IS_WINDOWS),1)
 TARGET_FLAG := --target $(TARGET)
-BIN_DIR     := target/$(TARGET)
+BIN_DIR     := $(TARGET_DIR)/$(TARGET)
 else
 TARGET_FLAG :=
-BIN_DIR     := target
+BIN_DIR     := $(TARGET_DIR)
 endif
 DEBUG_EXE   := $(BIN_DIR)/debug/$(APP_NAME)$(EXE)
 RELEASE_EXE := $(BIN_DIR)/release/$(APP_NAME)$(EXE)
@@ -211,19 +220,19 @@ test: ## cargo test --workspace
 # separate fuzz workspace, whose harnesses are test code too.
 clippy: ## cargo fmt, then clippy -D warnings on every target, fuzz harnesses included
 	$(CARGO) fmt --all
-	$(CARGO) fmt --manifest-path fuzz/Cargo.toml
+	$(CARGO) fmt --manifest-path $(FUZZ_MANIFEST)
 	$(CARGO) clippy $(LOCKED) --workspace --all-targets -- -D warnings
-	$(CARGO) clippy --manifest-path fuzz/Cargo.toml --all-targets -- -D warnings
+	$(CARGO) clippy --manifest-path $(FUZZ_MANIFEST) --all-targets -- -D warnings
 	$(call ok,clippy clean)
 
 lint: ## fmt check, clippy -D warnings (fuzz harnesses too), cargo deny (if installed)
 	$(CARGO) fmt --all -- --check
-	$(CARGO) fmt --manifest-path fuzz/Cargo.toml -- --check
+	$(CARGO) fmt --manifest-path $(FUZZ_MANIFEST) -- --check
 	$(CARGO) clippy $(LOCKED) --workspace --all-targets -- -D warnings
-	$(CARGO) clippy --manifest-path fuzz/Cargo.toml --all-targets -- -D warnings
+	$(CARGO) clippy --manifest-path $(FUZZ_MANIFEST) --all-targets -- -D warnings
 	@if $(CARGO) deny --version >/dev/null 2>&1; then \
-		echo "$(CARGO) deny --manifest-path Cargo.toml check advisories bans licenses sources"; \
-		$(CARGO) deny --manifest-path Cargo.toml check advisories bans licenses sources; \
+		echo "$(CARGO) deny --manifest-path $(ROOT)/Cargo.toml check advisories bans licenses sources"; \
+		$(CARGO) deny --manifest-path $(ROOT)/Cargo.toml check advisories bans licenses sources; \
 	else \
 		printf "$(YELL)cargo-deny not installed; skipped$(RESET) (cargo install cargo-deny --locked)\n"; \
 	fi
@@ -231,23 +240,23 @@ lint: ## fmt check, clippy -D warnings (fuzz harnesses too), cargo deny (if inst
 
 # Same numbers as CI's coverage job: test/bench/fuzz code and the Windows-only
 # glue in .config/coverage-excludes.txt are not measured (the regex comes from
-# scripts/ci/coverage_excludes.py, the one place that reads the list). Plain
-# cargo test runs the tests here; CI uses nextest.
-COV_DIR := target/llvm-cov
+# common/scripts/ci/coverage_excludes.py, the one place that reads the list).
+# Plain cargo test runs the tests here; CI uses nextest.
+COV_DIR := $(TARGET_DIR)/llvm-cov
 
 coverage: ## Line coverage per crate like CI, minus the glue in .config/coverage-excludes.txt
 	@$(CARGO) llvm-cov --version >/dev/null 2>&1 || { \
 		printf "cargo-llvm-cov is not installed: rustup component add llvm-tools-preview && cargo install cargo-llvm-cov --locked\n" >&2; exit 1; }
-	@$(PYTHON) -I scripts/ci/coverage_excludes.py check
-	@$(PYTHON) -I scripts/ci/prune_stale_test_binaries.py target/llvm-cov-target
+	@$(PYTHON) -I $(SCRIPTS)/ci/coverage_excludes.py check --root $(ROOT)
+	@$(PYTHON) -I $(SCRIPTS)/ci/prune_stale_test_binaries.py $(TARGET_DIR)/llvm-cov-target
 	CARGO_INCREMENTAL=0 $(CARGO) llvm-cov $(LOCKED) --workspace --no-report
 	@mkdir -p "$(COV_DIR)"
-	@ignore=$$($(PYTHON) -I scripts/ci/coverage_excludes.py regex | tr -d '\r') && \
+	@ignore=$$($(PYTHON) -I $(SCRIPTS)/ci/coverage_excludes.py regex --root $(ROOT) | tr -d '\r') && \
 	$(CARGO) llvm-cov report --ignore-filename-regex "$$ignore" --json --summary-only \
 		--output-path "$(COV_DIR)/cov.json" && \
 	$(CARGO) llvm-cov report --ignore-filename-regex "$$ignore" --html --output-dir "$(COV_DIR)"
-	$(PYTHON) -I scripts/ci/render_coverage.py --json "$(COV_DIR)/cov.json" --root . \
-		--floors .config/coverage-floors.toml --excludes .config/coverage-excludes.txt \
+	$(PYTHON) -I $(SCRIPTS)/ci/render_coverage.py --json "$(COV_DIR)/cov.json" --root $(ROOT) \
+		--floors $(ROOT)/.config/coverage-floors.toml --excludes $(ROOT)/.config/coverage-excludes.txt \
 		--title "Coverage (local)"
 	$(call ok,HTML report: $(COV_DIR)/html/index.html)
 
@@ -255,10 +264,10 @@ fmt: ## cargo fmt --all
 	$(CARGO) fmt --all
 
 fuzz-check: ## Type-check the fuzz crate on stable (cargo check fuzz --bins)
-	$(CARGO) check --manifest-path fuzz/Cargo.toml --bins
+	$(CARGO) check --manifest-path $(FUZZ_MANIFEST) --bins
 
 parity: ## Check the Swift-to-Rust test parity ledger (docs/PARITY.md)
-	$(PYTHON) -I scripts/parity/check_parity.py
+	$(PYTHON) -I $(SCRIPTS)/parity/check_parity.py
 
 xcheck: ## clippy for x86_64-pc-windows-msvc (cargo-xwin on macOS/Linux)
 ifeq ($(IS_WINDOWS),1)
@@ -311,10 +320,10 @@ installer: ## [W] Per-user MSI: target/wix/tokenmon-windows-<version>-x64.msi
 	@"$(MAKE)" --no-print-directory release tools
 	$(call say,Building $(MSI))
 	@mkdir -p "$(DIST_DIR)"
-	"$(CARGO_WIX)" wix -p tokenmon-windows --no-build --nocapture --target $(TARGET) \
-		--bin-path "$$(cygpath -w "$$PWD/$(WIX_DIR)")" \
-		--include "$$(cygpath -w "$$PWD/installer/main.wxs")" \
-		--output "$$(cygpath -w "$$PWD/$(MSI)")"
+	here="$$PWD" && cd $(ROOT) && "$$here/$(CARGO_WIX)" wix -p tokenmon-windows --no-build --nocapture --target $(TARGET) \
+		--bin-path "$$(cygpath -w "$$here/$(WIX_DIR)")" \
+		--include "$$(cygpath -w "$$here/installer/main.wxs")" \
+		--output "$$(cygpath -w "$$here/$(MSI)")"
 	@test -f "$(MSI)"
 	$(call ok,$(MSI))
 
@@ -329,7 +338,7 @@ zip: ## [W] Portable zip: target/wix/tokenmon-windows-<version>-x64.zip
 dist: ## [W] MSI + zip + SHA256SUMS in target/wix/ (unsigned release files)
 	$(call windows_only)
 	@"$(MAKE)" --no-print-directory installer zip
-	cd "$(DIST_DIR)" && $(PYTHON) -I ../../installer/package.py sums --out "$(notdir $(SUMS))" \
+	cd "$(DIST_DIR)" && $(PYTHON) -I "$(CURDIR)/installer/package.py" sums --out "$(notdir $(SUMS))" \
 		"$(notdir $(MSI))" "$(notdir $(ZIP))" && sha256sum -c "$(notdir $(SUMS))"
 	$(call ok,$(DIST_DIR)/: $(notdir $(MSI)) $(notdir $(ZIP)) $(notdir $(SUMS)))
 

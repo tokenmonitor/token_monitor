@@ -13,7 +13,7 @@ paths = [
     '''(^|/)DerivedData/''',
 ]
 # Fake credentials that the Windows secret-storage tests write on purpose, to
-# prove that no operation leaves them on disk (windows/crates/*/tests). They
+# prove that no operation leaves them on disk (common/crates/*/tests, windows/crates/*/tests). They
 # are matched by exact value, so a real credential in those files still trips
 # the scan.
 regexes = [

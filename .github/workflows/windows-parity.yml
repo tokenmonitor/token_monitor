@@ -1,6 +1,7 @@
 name: Windows parity
 
-# Zero drift between the macOS app and the Windows port (windows/).
+# Zero drift between the macOS app and the Rust desktop code (windows/ and the
+# shared crates in common/).
 #
 # - ledger: every Swift test has exactly one row in windows/docs/PARITY.md, and
 #   every row marked `ported` names a Rust test that exists. `todo` rows pass.
@@ -9,7 +10,7 @@ name: Windows parity
 #   macos/Makefile) needs its Windows
 #   parity in the same change: when the body of a `ported` Swift test changes,
 #   its PARITY.md row (or the Rust test it names) must change too; any other
-#   macOS change needs windows/crates/** or PARITY.md changes, or a
+#   macOS change needs windows/crates/**, common/crates/** or PARITY.md changes, or a
 #   `Windows-Parity: <reason>` trailer. An open `windows-parity` issue that the
 #   change references (or that names its commit) covers both.
 #
@@ -42,15 +43,15 @@ jobs:
           persist-credentials: false
 
       - name: Check windows/docs/PARITY.md against the Swift tests
-        run: python3 -I windows/scripts/parity/check_parity.py --summary "$GITHUB_STEP_SUMMARY"
+        run: python3 -I common/scripts/parity/check_parity.py --summary "$GITHUB_STEP_SUMMARY"
 
       - name: Windows and macOS ship the same version
         if: ${{ !cancelled() }}
-        run: python3 -I windows/scripts/parity/check_versions.py
+        run: python3 -I common/scripts/parity/check_versions.py
 
       - name: Unit tests for the parity scripts
         if: ${{ !cancelled() }}
-        run: python3 -I -m unittest discover -s windows/scripts/parity/tests -v
+        run: python3 -I -m unittest discover -s common/scripts/parity/tests -v
 
   drift-guard:
     name: Drift guard
@@ -123,7 +124,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          python3 -I windows/scripts/parity/drift_guard.py \
+          python3 -I common/scripts/parity/drift_guard.py \
             --changed-files "$RUNNER_TEMP/parity/changed.txt" \
             --text-file "$RUNNER_TEMP/parity/text.txt" \
             --shas-file "$RUNNER_TEMP/parity/shas.txt" \

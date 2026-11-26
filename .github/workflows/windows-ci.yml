@@ -1,6 +1,7 @@
 name: Windows CI
 
-# Gates for the Rust Windows port in windows/ (see
+# Gates for the Rust desktop code: the Windows port in windows/ and the shared
+# crates in common/, one Cargo workspace at the repository root (see
 # windows/docs/IMPLEMENTATION_PLAN.md). Every job writes its results to the
 # run page (job summary): test tables per crate with failing-test output,
 # coverage per crate and per file with the delta against the latest
@@ -9,7 +10,7 @@ name: Windows CI
 # the next run's coverage baseline and for crash inputs.
 #
 # Jobs that need the cargo workspace are skipped (and say so in the Summary
-# job) until windows/Cargo.toml exists, so the workflow is green while the
+# job) until Cargo.toml exists, so the workflow is green while the
 # workspace is being built up.
 
 on:
@@ -17,10 +18,26 @@ on:
     branches: [master]
     paths:
       - "windows/**"
+      - "common/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "deny.toml"
+      - "clippy.toml"
+      - ".config/**"
+      - ".cargo/**"
       - ".github/workflows/windows-ci.yml"
   pull_request:
     paths:
       - "windows/**"
+      - "common/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "deny.toml"
+      - "clippy.toml"
+      - ".config/**"
+      - ".cargo/**"
       - ".github/workflows/windows-ci.yml"
   workflow_dispatch:
   # windows-release.yml runs every gate on the tagged commit before packaging.
@@ -57,7 +74,7 @@ env:
   # Loosened from 0.5 to 2.0 for now (maintainer, 2026-11-13, #4); tighten
   # back to 0.5 once the port settles.
   # What is not measured (test/bench/fuzz/example code and the Windows-only
-  # glue in windows/.config/coverage-excludes.txt) is described at the
+  # glue in .config/coverage-excludes.txt) is described at the
   # coverage job.
   COVERAGE_MAX_DROP: "2.0"
 
@@ -83,9 +100,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Detect what exists under windows/
+      - name: Detect the workspace
         id: detect
-        run: bash windows/scripts/ci/detect.sh windows
+        run: bash common/scripts/ci/detect.sh .
 
       # The Makefile jobs rebuild the workspace and the installer, so they run
       # on master, on a manual run, and when a pull request touches what they
@@ -101,7 +118,7 @@ jobs:
           make=true
           if [ "$EVENT" = pull_request ]; then
             files="$(git diff --name-only "${PR_BASE}...${PR_HEAD}")"
-            if ! grep -Eq '^(windows/Makefile|windows/scripts/|windows/installer/|\.github/workflows/windows-ci\.yml)' <<<"$files"; then
+            if ! grep -Eq '^(windows/Makefile|common/Makefile|common/scripts/|windows/installer/|\.github/workflows/windows-ci\.yml)' <<<"$files"; then
               make=false
             fi
           fi
@@ -110,7 +127,7 @@ jobs:
 
       # The scripts below render every summary on this page; test them first.
       - name: Unit-test the CI report scripts
-        run: python3 -I -m unittest discover -s windows/scripts/ci/tests -v
+        run: python3 -I -m unittest discover -s common/scripts/ci/tests -v
 
   lint:
     name: Lint (fmt, clippy, cargo-deny)
@@ -123,7 +140,6 @@ jobs:
         # A job-level `defaults.run` replaces the workflow-level one, so the
         # shell is repeated here (Windows runners default to pwsh).
         shell: bash
-        working-directory: windows
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -136,11 +152,11 @@ jobs:
 
       - name: Install Linux build dependencies (Slint)
         if: runner.os == 'Linux'
-        run: bash scripts/ci/linux-deps.sh
+        run: bash common/scripts/ci/linux-deps.sh
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: windows -> target
+          workspaces: . -> target
           shared-key: lint
 
       - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
@@ -155,7 +171,7 @@ jobs:
           {
             cargo fmt --all -- --check
             # The fuzz crate is its own workspace; --all does not reach it.
-            cargo fmt --manifest-path fuzz/Cargo.toml -- --check
+            cargo fmt --manifest-path common/fuzz/Cargo.toml -- --check
           } 2>&1 | tee "$RUNNER_TEMP/fmt.log"
 
       - name: cargo clippy -D warnings
@@ -171,7 +187,7 @@ jobs:
             # The fuzz harnesses are test code in their own workspace, so
             # --workspace never reaches them; clippy also type-checks them on
             # stable (libfuzzer-sys builds for check) before the nightly smoke.
-            cargo clippy --manifest-path fuzz/Cargo.toml --all-targets --message-format short -- -D warnings
+            cargo clippy --manifest-path common/fuzz/Cargo.toml --all-targets --message-format short -- -D warnings
           } 2>&1 | tee "$RUNNER_TEMP/clippy.log"
 
       # Coverage leaves out the files in .config/coverage-excludes.txt. This
@@ -182,7 +198,7 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          python3 -I scripts/ci/coverage_excludes.py check 2>&1 | tee "$RUNNER_TEMP/excludes.log"
+          python3 -I common/scripts/ci/coverage_excludes.py check 2>&1 | tee "$RUNNER_TEMP/excludes.log"
 
       - name: cargo deny (advisories, bans, licenses, sources)
         id: deny
@@ -212,7 +228,7 @@ jobs:
               printf '````\n\n</details>\n'
             fi
           }
-          deny_note=$([ "$HAS_DENY" = true ] && mark "$DENY" || echo "skipped: windows/deny.toml does not exist yet")
+          deny_note=$([ "$HAS_DENY" = true ] && mark "$DENY" || echo "skipped: deny.toml does not exist yet")
           {
             echo "### Lint"
             echo
@@ -221,7 +237,7 @@ jobs:
             echo "| \`cargo fmt --check\` (workspace and fuzz harnesses) | $(mark "$FMT") |"
             echo "| \`cargo clippy --all-targets -- -D warnings\` (workspace and fuzz harnesses) | $(mark "$CLIPPY") |"
             echo "| \`cargo deny check\` (advisories, bans, licenses, sources) | $deny_note |"
-            echo "| coverage exclusions (\`scripts/ci/coverage_excludes.py check\`) | $(mark "$EXCLUDES") |"
+            echo "| coverage exclusions (\`common/scripts/ci/coverage_excludes.py check\`) | $(mark "$EXCLUDES") |"
             details "cargo fmt" "$RUNNER_TEMP/fmt.log" "$FMT"
             details "cargo clippy" "$RUNNER_TEMP/clippy.log" "$CLIPPY"
             details "cargo deny" "$RUNNER_TEMP/deny.log" "$DENY"
@@ -250,7 +266,6 @@ jobs:
         # A job-level `defaults.run` replaces the workflow-level one, so the
         # shell is repeated here (Windows runners default to pwsh).
         shell: bash
-        working-directory: windows
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -263,11 +278,11 @@ jobs:
 
       - name: Install Linux build dependencies (Slint)
         if: runner.os == 'Linux'
-        run: bash scripts/ci/linux-deps.sh
+        run: bash common/scripts/ci/linux-deps.sh
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: windows -> target
+          workspaces: . -> target
           shared-key: test
 
       - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
@@ -280,7 +295,7 @@ jobs:
           LOCKED: ${{ needs.detect.outputs.locked }}
         run: |
           set -euo pipefail
-          cfg=$(bash scripts/ci/nextest-config.sh . "$RUNNER_TEMP/nextest.toml")
+          cfg=$(bash common/scripts/ci/nextest-config.sh . "$RUNNER_TEMP/nextest.toml")
           # shellcheck disable=SC2086 # LOCKED is empty or one flag
           cargo nextest run $LOCKED --workspace --no-tests=warn --config-file "$cfg" --profile ws-ci
 
@@ -305,7 +320,7 @@ jobs:
           set -uo pipefail
           cargo nextest list --workspace --config-file "$RUNNER_TEMP/nextest.toml" --profile ws-ci \
             --message-format json > "$RUNNER_TEMP/nextest-list.json" 2>/dev/null || true
-          "$PYTHON" -I scripts/ci/render_junit.py --junit target/nextest/ws-ci/junit.xml \
+          "$PYTHON" -I common/scripts/ci/render_junit.py --junit target/nextest/ws-ci/junit.xml \
             --list "$RUNNER_TEMP/nextest-list.json" --title "Tests (${{ matrix.os }})" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Clippy summary
@@ -331,7 +346,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-junit-${{ matrix.os }}
-          path: windows/target/nextest/ws-ci/junit.xml
+          path: target/nextest/ws-ci/junit.xml
           if-no-files-found: ignore
           retention-days: 14
 
@@ -344,8 +359,8 @@ jobs:
   # What counts toward coverage (and the COVERAGE_MAX_DROP delta gate):
   #
   # * Not measured: test, bench, fuzz and example code, and the Windows-only
-  #   glue listed in windows/.config/coverage-excludes.txt (maintainer
-  #   decision (a) on #4). That file is the only list; scripts/ci/
+  #   glue listed in .config/coverage-excludes.txt (maintainer
+  #   decision (a) on #4). That file is the only list; common/scripts/ci/
   #   coverage_excludes.py turns it into --ignore-filename-regex here and in
   #   `make coverage`, and render_coverage.py applies it to the baseline too.
   # * Excluded files must stay thin cfg(windows) adapters (tray, windows,
@@ -385,7 +400,7 @@ jobs:
       SUMMARY_ARTIFACT: windows-coverage-summary-${{ matrix.os }}
       # Branch coverage (`--branch`) needs a nightly rustc. Pinned so a nightly
       # regression cannot move the numbers; RUSTUP_TOOLCHAIN overrides
-      # windows/rust-toolchain.toml for this job only (the other jobs keep it).
+      # rust-toolchain.toml for this job only (the other jobs keep it).
       COVERAGE_TOOLCHAIN: nightly-2026-11-03
       RUSTUP_TOOLCHAIN: nightly-2026-11-03
     defaults:
@@ -393,7 +408,6 @@ jobs:
         # A job-level `defaults.run` replaces the workflow-level one, so the
         # shell is repeated here (Windows runners default to pwsh).
         shell: bash
-        working-directory: windows
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -406,11 +420,11 @@ jobs:
 
       - name: Install Linux build dependencies (Slint)
         if: runner.os == 'Linux'
-        run: bash scripts/ci/linux-deps.sh
+        run: bash common/scripts/ci/linux-deps.sh
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: windows -> target
+          workspaces: . -> target
           shared-key: coverage
 
       - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
@@ -424,7 +438,7 @@ jobs:
       # binaries are measured; the dependency rlibs stay cached.
       - name: Drop stale test binaries from the cached target dir
         run: |
-          "$PYTHON" -I scripts/ci/prune_stale_test_binaries.py target/llvm-cov-target
+          "$PYTHON" -I common/scripts/ci/prune_stale_test_binaries.py target/llvm-cov-target
 
       # Coverage is measured whatever the outcome so the summary always has
       # numbers; the last step fails the job when a test failed.
@@ -435,8 +449,8 @@ jobs:
         run: |
           set -uo pipefail
           # Test/bench/fuzz/example code plus .config/coverage-excludes.txt.
-          ignore=$("$PYTHON" -I scripts/ci/coverage_excludes.py regex) || exit 1
-          cfg=$(bash scripts/ci/nextest-config.sh . "$RUNNER_TEMP/nextest.toml")
+          ignore=$("$PYTHON" -I common/scripts/ci/coverage_excludes.py regex) || exit 1
+          cfg=$(bash common/scripts/ci/nextest-config.sh . "$RUNNER_TEMP/nextest.toml")
           # shellcheck disable=SC2086 # LOCKED is empty or one flag
           if ! cargo llvm-cov nextest $LOCKED --workspace --branch --no-report --no-tests=warn \
               --config-file "$cfg" --profile ws-ci; then
@@ -461,7 +475,7 @@ jobs:
         id: baseline
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash scripts/ci/fetch_baseline.sh "$SUMMARY_ARTIFACT" "$RUNNER_TEMP/baseline" master
+        run: bash common/scripts/ci/fetch_baseline.sh "$SUMMARY_ARTIFACT" "$RUNNER_TEMP/baseline" master
 
       - name: Coverage summary and gates
         env:
@@ -483,7 +497,7 @@ jobs:
           # Actions runs bash with -e: capture the gate's status so the
           # summary is written before the step fails.
           status=0
-          "$PYTHON" -I scripts/ci/render_coverage.py --json "$RUNNER_TEMP/cov.json" --root . \
+          "$PYTHON" -I common/scripts/ci/render_coverage.py --json "$RUNNER_TEMP/cov.json" --root . \
             --floors .config/coverage-floors.toml --excludes .config/coverage-excludes.txt \
             "${baseline[@]}" --max-drop "$COVERAGE_MAX_DROP" \
             --write-summary "$RUNNER_TEMP/coverage-out/coverage-summary.json" \
@@ -500,7 +514,7 @@ jobs:
           junit="$(find target -path '*nextest/ws-ci/junit.xml' | head -n 1)"
           if [ -n "$junit" ]; then
             echo "JUNIT_PATH=$junit" >> "$GITHUB_ENV"
-            "$PYTHON" -I scripts/ci/render_junit.py --junit "$junit" --title "Tests (${{ matrix.os }})" >> "$GITHUB_STEP_SUMMARY"
+            "$PYTHON" -I common/scripts/ci/render_junit.py --junit "$junit" --title "Tests (${{ matrix.os }})" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload JUnit report
@@ -508,7 +522,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-junit-${{ matrix.os }}
-          path: windows/target/llvm-cov-target/nextest/ws-ci/junit.xml
+          path: target/llvm-cov-target/nextest/ws-ci/junit.xml
           if-no-files-found: ignore
           retention-days: 14
 
@@ -548,14 +562,13 @@ jobs:
     env:
       # Fuzzing needs nightly (sanitizers); pin a dated one and bump it on
       # purpose (same pin as windows-fuzz-nightly.yml). Setting it here
-      # overrides windows/rust-toolchain.toml for every cargo call in the job.
+      # overrides rust-toolchain.toml for every cargo call in the job.
       RUSTUP_TOOLCHAIN: nightly-2026-10-01
     defaults:
       run:
         # A job-level `defaults.run` replaces the workflow-level one, so the
         # shell is repeated here (Windows runners default to pwsh).
         shell: bash
-        working-directory: windows
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -566,7 +579,7 @@ jobs:
       - name: Look for the fuzz crate
         id: present
         run: |
-          if [ -f fuzz/Cargo.toml ]; then
+          if [ -f common/fuzz/Cargo.toml ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
@@ -589,11 +602,11 @@ jobs:
           if [ "$EVENT" = pull_request ]; then
             seconds=30
             git diff --name-only "${PR_BASE}...${PR_HEAD}" > "$RUNNER_TEMP/changed.txt"
-            python3 -I scripts/ci/fuzz_select.py --root . --changed-files "$RUNNER_TEMP/changed.txt" > "$RUNNER_TEMP/targets.txt"
+            python3 -I common/scripts/ci/fuzz_select.py --root . --changed-files "$RUNNER_TEMP/changed.txt" > "$RUNNER_TEMP/targets.txt"
             scope="the targets this pull request can reach"
           else
             seconds=60
-            python3 -I scripts/ci/fuzz_select.py --root . --all > "$RUNNER_TEMP/targets.txt"
+            python3 -I common/scripts/ci/fuzz_select.py --root . --all > "$RUNNER_TEMP/targets.txt"
             scope="every target"
           fi
           count=$(grep -c . "$RUNNER_TEMP/targets.txt" || true)
@@ -616,7 +629,7 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         if: steps.select.outputs.count != '0' && steps.present.outputs.present == 'true'
         with:
-          workspaces: windows/fuzz -> target
+          workspaces: common/fuzz -> target
           shared-key: fuzz
 
       - name: Install cargo-fuzz (pinned, checksummed)
@@ -638,10 +651,10 @@ jobs:
         run: |
           mapfile -t targets < "$RUNNER_TEMP/targets.txt"
           # All targets selected: let the script list and build them in one go.
-          if [ "${#targets[@]}" -eq "$(python3 -I scripts/ci/fuzz_targets.py --names fuzz/Cargo.toml | grep -c .)" ]; then
+          if [ "${#targets[@]}" -eq "$(python3 -I common/scripts/ci/fuzz_targets.py --names common/fuzz/Cargo.toml | grep -c .)" ]; then
             targets=()
           fi
-          bash scripts/ci/fuzz_run.sh --seconds "$SECONDS_PER_TARGET" --jobs "$(nproc)" --out "$RUNNER_TEMP/fuzz" "${targets[@]}"
+          bash common/scripts/ci/fuzz_run.sh --seconds "$SECONDS_PER_TARGET" --jobs "$(nproc)" --out "$RUNNER_TEMP/fuzz" "${targets[@]}"
 
       - name: Fuzz summary
         if: always() && steps.select.outputs.count != '0' && steps.present.outputs.present == 'true'
@@ -651,7 +664,7 @@ jobs:
           set -uo pipefail
           shopt -s nullglob
           rows=("$RUNNER_TEMP"/fuzz/rows/*.json)
-          python3 -I scripts/ci/fuzz_report.py table --build-failed-log "$RUNNER_TEMP/fuzz/build-failed.log" --title "Fuzz smoke ($SECONDS_PER_TARGET s per target, $RUSTUP_TOOLCHAIN)" \
+          python3 -I common/scripts/ci/fuzz_report.py table --build-failed-log "$RUNNER_TEMP/fuzz/build-failed.log" --title "Fuzz smoke ($SECONDS_PER_TARGET s per target, $RUSTUP_TOOLCHAIN)" \
             --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             "${rows[@]}" >> "$GITHUB_STEP_SUMMARY"
 
@@ -680,7 +693,6 @@ jobs:
         # A job-level `defaults.run` replaces the workflow-level one, so the
         # shell is repeated here (Windows runners default to pwsh).
         shell: bash
-        working-directory: windows
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -693,7 +705,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: windows -> target
+          workspaces: . -> target
           shared-key: release
 
       - name: cargo build --release
@@ -705,13 +717,13 @@ jobs:
           cargo build $LOCKED --release --workspace --target x86_64-pc-windows-msvc
 
       - name: TokenMon.exe needs no VC++ Redistributable
-        # The C runtime is linked statically (windows/.cargo/config.toml) so the
+        # The C runtime is linked statically (.cargo/config.toml) so the
         # exe runs on a clean Windows install; fail if it imports vcruntime/msvcp.
         run: |
           set -euo pipefail
           exe=target/x86_64-pc-windows-msvc/release/TokenMon.exe
-          python3 -I scripts/ci/pe_imports.py list "$exe"
-          python3 -I scripts/ci/pe_imports.py check "$exe"
+          python3 -I common/scripts/ci/pe_imports.py list "$exe"
+          python3 -I common/scripts/ci/pe_imports.py check "$exe"
 
       - name: TokenMon.exe --smoke
         # Starts the real binary headless against a temp data dir, runs one
@@ -736,7 +748,7 @@ jobs:
             echo "### Release build (x86_64-pc-windows-msvc)"
             echo
             if [ -z "$LOCKED" ]; then
-              echo "> windows/Cargo.lock is not committed yet, so this build is not \`--locked\`."
+              echo "> Cargo.lock is not committed yet, so this build is not \`--locked\`."
               echo
             fi
             if [ ${#bins[@]} -eq 0 ]; then
@@ -788,12 +800,12 @@ jobs:
 
       - name: Install Linux build dependencies (Slint)
         if: runner.os == 'Linux'
-        run: bash scripts/ci/linux-deps.sh
+        run: bash ../common/scripts/ci/linux-deps.sh
 
       # Reads the release (Windows) or test (Linux) job's cache; never writes.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: windows -> target
+          workspaces: . -> target
           shared-key: ${{ runner.os == 'Windows' && 'release' || 'test' }}
           save-if: false
 
@@ -830,7 +842,7 @@ jobs:
           make tools
           make tools # idempotent: nothing to do the second time
           make installer
-          msi="target/wix/tokenmon-windows-$(make -s version)-x64.msi"
+          msi="../target/wix/tokenmon-windows-$(make -s version)-x64.msi"
           test -f "$msi"
           ls -l "$msi"
 
@@ -847,7 +859,7 @@ jobs:
           test ! -e "$exe"
 
   secrets:
-    name: Secret scan of windows/ (gitleaks)
+    name: Secret scan of windows/ and common/ (gitleaks)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -871,16 +883,20 @@ jobs:
           test "$(gitleaks version)" = "$GITLEAKS_VERSION"
 
       # The repo's .gitleaks.toml (provider cookie and key rules) applies here too.
-      - name: Scan windows/ (working tree and history)
+      - name: Scan windows/ and common/ (working tree and history)
         id: scan
         continue-on-error: true
         run: |
           set -uo pipefail
           status=0
-          gitleaks dir windows --config .gitleaks.toml --no-banner --redact -v \
-            --report-format json --report-path /tmp/gitleaks-dir.json || status=1
+          for dir in windows common; do
+            gitleaks dir "$dir" --config .gitleaks.toml --no-banner --redact -v \
+              --report-format json --report-path "/tmp/gitleaks-dir-$dir.json" || status=1
+            [ -s "/tmp/gitleaks-dir-$dir.json" ] || echo '[]' > "/tmp/gitleaks-dir-$dir.json"
+          done
+          jq -s 'add' /tmp/gitleaks-dir-windows.json /tmp/gitleaks-dir-common.json > /tmp/gitleaks-dir.json
           gitleaks detect --config .gitleaks.toml --no-banner --redact -v \
-            --log-opts="--all -- windows .github/workflows/windows-ci.yml .github/workflows/windows-fuzz-nightly.yml" \
+            --log-opts="--all -- windows common .github/workflows/windows-ci.yml .github/workflows/windows-fuzz-nightly.yml" \
             --report-format json --report-path /tmp/gitleaks-git.json || status=1
           exit $status
 
@@ -898,8 +914,8 @@ jobs:
             echo
             echo "| scope | findings |"
             echo "|---|---:|"
-            echo "| working tree \`windows/\` | $dir_n |"
-            echo "| history of \`windows/\` and the windows workflows | $git_n |"
+            echo "| working tree \`windows/\` and \`common/\` | $dir_n |"
+            echo "| history of \`windows/\`, \`common/\` and the windows workflows | $git_n |"
             if [ "$dir_n" != 0 ] || [ "$git_n" != 0 ]; then
               echo
               echo "| rule | file | line | commit |"
@@ -926,7 +942,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          sparse-checkout: windows/scripts/ci
+          sparse-checkout: common/scripts/ci
 
       - name: Aggregate job results
         env:
@@ -941,10 +957,10 @@ jobs:
             > /tmp/jobs.json 2>/dev/null || : > /tmp/jobs.json
           note="Skipped jobs: the Makefile jobs run only on master, on a manual run, or when a pull request changes the Makefile, the scripts, the installer or this workflow."
           if [ "$WORKSPACE" != true ]; then
-            note="Skipped jobs: \`windows/Cargo.toml\` does not exist on this commit yet, so there is nothing to build, test, measure or fuzz."
+            note="Skipped jobs: \`Cargo.toml\` does not exist on this commit yet, so there is nothing to build, test, measure or fuzz."
           fi
           status=0 # bash -e: keep the exit code, write the summary, then fail
-          python3 -I windows/scripts/ci/render_ci_summary.py --jobs /tmp/jobs.json --run-url "$run_url" \
+          python3 -I common/scripts/ci/render_ci_summary.py --jobs /tmp/jobs.json --run-url "$run_url" \
             --self Summary --skip-note "$note" --supersedable coverage,fuzz-smoke,windows-build,make \
             --sha "$GITHUB_SHA" --ref "$GITHUB_REF_NAME" --event "$GITHUB_EVENT_NAME" \
             --server-url "$GITHUB_SERVER_URL" --repo "$GITHUB_REPOSITORY" > /tmp/summary.md || status=$?

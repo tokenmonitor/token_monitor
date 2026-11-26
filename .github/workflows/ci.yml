@@ -33,7 +33,8 @@ concurrency:
 # the image moves to a new point release.
 jobs:
   # Decides whether the macOS jobs run. They are the most expensive runners, so
-  # a change that only touches windows/ skips them. The jobs are gated with a
+  # a change that only touches the Rust desktop code (windows/, common/ and the
+  # root Cargo workspace files) skips them. The jobs are gated with a
   # job-level `if:`, so a skipped job reports success to branch protection
   # instead of staying missing. Everything runs on a tag push, on a
   # workflow_call (release.yml), on a manual dispatch, and whenever the diff
@@ -50,7 +51,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Decide whether anything outside windows/ changed
+      - name: Decide whether anything outside the Rust desktop code changed
         id: detect
         env:
           EVENT: ${{ github.event_name }}
@@ -74,10 +75,11 @@ jobs:
           if ! files="$(git diff --name-only "$range" 2>/dev/null)" || [ -z "$files" ]; then
             emit true "no usable diff for $range"; exit 0
           fi
-          if grep -qv '^windows/' <<<"$files"; then
-            emit true "paths outside windows/ changed"
+          rust='^(windows/|common/|Cargo\.toml$|Cargo\.lock$|rust-toolchain\.toml$|deny\.toml$|clippy\.toml$|\.config/|\.cargo/)'
+          if grep -qvE "$rust" <<<"$files"; then
+            emit true "paths outside the Rust desktop code changed"
           else
-            emit false "only windows/ changed"
+            emit false "only windows/ and common/ (Rust) changed"
           fi
 
   static-checks:

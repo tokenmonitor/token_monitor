@@ -25,12 +25,13 @@ _spec.loader.exec_module(package)
 
 
 def write_workspace(root: Path, workspace_version: str, app_version: str | None = None) -> None:
-    (root / "crates/tokenmon-windows").mkdir(parents=True)
+    """A repository root with the workspace manifest and `windows/crates/tokenmon-windows`."""
+    (root / "windows/crates/tokenmon-windows").mkdir(parents=True)
     (root / "Cargo.toml").write_text(
-        f'[workspace]\nmembers = ["crates/tokenmon-windows"]\n\n[workspace.package]\nversion = "{workspace_version}"\n'
+        f'[workspace]\nmembers = ["windows/crates/tokenmon-windows"]\n\n[workspace.package]\nversion = "{workspace_version}"\n'
     )
     version_line = 'version.workspace = true' if app_version is None else f'version = "{app_version}"'
-    (root / "crates/tokenmon-windows/Cargo.toml").write_text(
+    (root / "windows/crates/tokenmon-windows/Cargo.toml").write_text(
         f'[package]\nname = "tokenmon-windows"\n{version_line}\n'
     )
 
@@ -43,24 +44,24 @@ class VersionTests(unittest.TestCase):
     def test_inherits_workspace_version(self):
         with tempfile.TemporaryDirectory() as d:
             write_workspace(Path(d), "1.10.1")
-            self.assertEqual(package.read_version(Path(d)), "1.10.1")
+            self.assertEqual(package.read_version(Path(d) / "windows"), "1.10.1")
 
     def test_crate_version_overrides_workspace(self):
         with tempfile.TemporaryDirectory() as d:
             write_workspace(Path(d), "1.0.0", app_version="2.3.4")
-            self.assertEqual(package.read_version(Path(d)), "2.3.4")
+            self.assertEqual(package.read_version(Path(d) / "windows"), "2.3.4")
 
     def test_prerelease_and_bad_versions_are_refused(self):
         for bad in ("1.2", "1.2.3-beta.1", "1.2.3+4", "01.2.3", "256.0.0", "1.256.0", "1.0.65535"):
             with self.subTest(bad=bad), tempfile.TemporaryDirectory() as d:
                 write_workspace(Path(d), bad)
                 with self.assertRaises(package.PackagingError):
-                    package.read_version(Path(d))
+                    package.read_version(Path(d) / "windows")
 
     def test_msi_limits_are_inclusive(self):
         with tempfile.TemporaryDirectory() as d:
             write_workspace(Path(d), "255.255.65534")
-            self.assertEqual(package.read_version(Path(d)), "255.255.65534")
+            self.assertEqual(package.read_version(Path(d) / "windows"), "255.255.65534")
 
 
 class TagTests(unittest.TestCase):
@@ -78,10 +79,10 @@ class TagTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             write_workspace(Path(d), "0.4.0")
             ok = subprocess.run([sys.executable, "-I", str(SCRIPT), "check-tag", "windows-v0.4.0",
-                                 "--windows-dir", d], capture_output=True, text=True)
+                                 "--windows-dir", str(Path(d) / "windows")], capture_output=True, text=True)
             self.assertEqual(ok.returncode, 0, ok.stderr)
             bad = subprocess.run([sys.executable, "-I", str(SCRIPT), "check-tag", "windows-v0.4.1",
-                                  "--windows-dir", d], capture_output=True, text=True)
+                                  "--windows-dir", str(Path(d) / "windows")], capture_output=True, text=True)
             self.assertEqual(bad.returncode, 1)
             self.assertIn("does not match", bad.stderr)
 

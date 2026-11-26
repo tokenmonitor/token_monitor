@@ -1,6 +1,6 @@
 //! Win32 implementations: named mutex and named-pipe IPC, plus the HKCU
 //! registry in [`registry`] (a separate file so coverage can exclude it; see
-//! `windows/.config/coverage-excludes.txt`).
+//! `.config/coverage-excludes.txt`).
 //!
 //! Compiled only on Windows (`cfg(windows)` on the module declaration). All
 //! `unsafe` is confined to thin FFI calls with a `// SAFETY:` note.

@@ -4,7 +4,7 @@ name: Windows release
 # release.yml (spec 04 §6.4 and §6.6).
 #
 # Pushing a tag windows-vX.Y.Z (X.Y.Z = [workspace.package] version in
-# windows/Cargo.toml) checks the tag, runs every Windows CI gate
+# Cargo.toml at the repository root) checks the tag, runs every Windows CI gate
 # (windows-ci.yml) on the tagged commit, builds TokenMon.exe for
 # x86_64-pc-windows-msvc, packages
 #   tokenmon-windows-<version>-x64.msi          per-user MSI (cargo-wix, WiX 3)
@@ -125,7 +125,7 @@ jobs:
 
       - name: Detect the pinned toolchain
         id: detect
-        run: bash windows/scripts/ci/detect.sh windows
+        run: bash common/scripts/ci/detect.sh .
 
       - name: Version summary
         env:
@@ -190,9 +190,10 @@ jobs:
         run: |
           set -euo pipefail
           cargo build --locked --release -p tokenmon-windows --target "$TARGET"
-          exe="target/$TARGET/release/TokenMon.exe"
+          # The Cargo target directory is at the repository root, above windows/.
+          exe="$(cd .. && pwd)/target/$TARGET/release/TokenMon.exe"
           test -f "$exe"
-          echo "APP_EXE=$PWD/$exe" >> "$GITHUB_ENV"
+          echo "APP_EXE=$exe" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/dist" "$RUNNER_TEMP/probe"
 
       # Signing. TODO(signing): add the repository secrets below, then the

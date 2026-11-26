@@ -22,21 +22,23 @@ triggers:
 # TokenMon Rust desktop ports
 
 The macOS app (Swift, `macos/`) is the source of truth for behavior. The
-Windows port (`windows/`, Rust + Slint) mirrors it test for test, and the
-Linux port will share its backend through a `common/` folder (issue #71).
+Windows port (`windows/` plus the shared crates in `common/`, Rust + Slint)
+mirrors it test for test, and the Linux port will build on `common/` too
+(issue #71).
 This skill is the project layer on top of `rust-engineer`; where they
 disagree, this one wins for this repo.
 
 ## The gate (every push, no exceptions)
 
-From `windows/`:
+From `windows/` (or `common/`; the Cargo workspace is at the repo root and
+cargo finds it from either):
 
 1. `make clippy`: `cargo fmt`, then `cargo clippy --all-targets -- -D warnings`
-   for the workspace **and** the separate `fuzz/` workspace (its harnesses are
-   test code). Must exit 0.
+   for the workspace **and** the separate `common/fuzz/` workspace (its
+   harnesses are test code). Must exit 0.
 2. `cargo test --workspace` (scope with `-p` while iterating; the full
    workspace before pushing).
-3. From the repo root: `python3 -I windows/scripts/parity/check_parity.py`
+3. From the repo root: `python3 -I common/scripts/parity/check_parity.py`
    must print `Result: PASS`.
 
 Rules about the gate:
@@ -46,8 +48,11 @@ Rules about the gate:
 - Clippy on macOS/Linux never compiles `cfg(windows)` code. Windows-only
   warnings (an import used only by a `#[cfg(unix)]` test, say) surface only on
   the Windows CI runner. Scope platform-only imports inside the gated item.
-- `cargo check --target x86_64-pc-windows-msvc` cannot build from macOS
-  (aws-lc-sys needs the MSVC C toolchain). Windows-only code is verified by the
+- `cargo xwin clippy --workspace --all-targets --target x86_64-pc-windows-msvc
+  -- -D warnings` (`make xcheck` in `windows/`) type-checks and lints the
+  `cfg(windows)` code from macOS and Linux; use it before pushing Windows
+  glue. Linking and running still happen only on the Windows runner, which
+  verifies Windows-only code with the
   `Tests (windows-latest)` and `Release build` CI jobs, so push and watch them.
 
 ## Where logic lives
@@ -56,7 +61,7 @@ Rules about the gate:
   Placement math, theme mapping, message decoding, state machines, parsers:
   all portable. The glue that only calls Win32/WinRT/registry stays thin.
 - The only code coverage may skip is listed in
-  `windows/.config/coverage-excludes.txt`: whole files that are entirely
+  `.config/coverage-excludes.txt`: whole files that are entirely
   `cfg(windows)`, each with a reason and a line budget the lint job enforces.
   Do not add entries to reach a number. Move logic out of glue instead.
 - Strong types over strings: provider ids, limits, windows, sources are enums.
@@ -87,11 +92,11 @@ Rules about the gate:
 ## Coverage (target: 90% on all four dimensions, total and per crate)
 
 Lines, regions, functions **and branches**, per crate, on both CI runners.
-Branches need nightly. Locally, from `windows/`:
+Branches need nightly. Locally, from the repo root:
 
 ```sh
 export CARGO_LLVM_COV_TARGET_DIR=$PWD/target/cov-nightly CARGO_INCREMENTAL=0
-ignore=$(python3 -I scripts/ci/coverage_excludes.py regex | tr -d '\r')
+ignore=$(python3 -I common/scripts/ci/coverage_excludes.py regex | tr -d '\r')
 cargo +nightly llvm-cov --workspace --branch --no-report
 cargo +nightly llvm-cov report --branch --ignore-filename-regex "$ignore" --json --output-path cov.json
 ```
@@ -117,7 +122,7 @@ Honesty rules:
 - Windows-only code is measured only on the Windows runner; macOS numbers for
   `tokenmon-platform` and `tokenmon-app` overstate it. Read the
   `windows-coverage-summary-windows-latest` artifact before claiming a crate.
-- Floors (`windows/.config/coverage-floors.toml`) only go up: 1 to 2 points
+- Floors (`.config/coverage-floors.toml`) only go up: 1 to 2 points
   under the lower runner, committed with the tests that earned them.
 
 ## Parity with macOS
@@ -148,16 +153,23 @@ Honesty rules:
 
 ## Linux port (plan: issue #71)
 
-- One Cargo workspace at the repo root: shared crates in `common/crates`
-  (core, the providers, ui view models, platform traits and fakes, the app
-  as a library), `windows/crates` (`tokenmon-platform-windows`,
-  `tokenmon-windows` building `TokenMon.exe`) and the same pair under
-  `linux/crates`.
-- Phase 0 (extracting `common/`) is a pure move plus de-Windowsing core
-  (update tag/asset names become data, app paths become OS-aware). No
-  behavior change: tests, coverage, parity and CI must stay identical. Run it
-  only when no other agent has work in flight in `windows/crates`, as small
-  commits (`git mv` first, then fixes).
+- One Cargo workspace at the repo root. Shared code in `common/crates` (core,
+  the seven providers, `tokenmon-ui`, `tokenmon-platform` = traits, fakes and
+  portable logic with `unsafe` denied, `tokenmon-app` = the composition root
+  as a library), `common/fuzz`, `common/scripts`. Windows-only code in
+  `windows/crates`: `tokenmon-platform-windows` (Win32/WinRT adapters, PE and
+  MSI update logic, the only crate allowed `unsafe`) and `tokenmon-windows`
+  (the `TokenMon.exe` bin: shell, tray wiring, build.rs). `linux/crates` gets
+  the same pair later.
+- Phase 0 (extracting `common/`) is done: update tag/asset names are data
+  (`ReleaseSource::new`), `AppPaths::from_env_for(HostOs, ..)` is OS-aware, and
+  the Windows adapters sit behind the `tokenmon-platform` traits. Windows
+  behavior, tests, coverage and CI are unchanged. Windows code that the
+  portable crates need goes through a hook registered by the app at startup
+  (see `register_owner_only_file_creator`), never a dependency from common
+  to a per-OS crate.
+- Coverage-excludes entries, PARITY.md Rust test paths and the drift guard
+  use paths from the repo root (`common/crates/...`, `windows/crates/...`).
 - Linux platform implementations sit behind the same traits as Windows and
   need the same hermetic tests and coverage bar.
 - Known hard parts: Wayland cannot place the panel next to the tray;

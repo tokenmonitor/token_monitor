@@ -30,4 +30,11 @@ auth.json
 PLAN.md
 
 # fuzz seed corpora are committed even when they are zips
-!windows/fuzz/corpus/**/*.zip
+!common/fuzz/corpus/**/*.zip
+
+# Rust workspace (Cargo.toml at the repo root)
+target/
+*.profraw
+fuzz/target/
+fuzz/artifacts/
+__pycache__/

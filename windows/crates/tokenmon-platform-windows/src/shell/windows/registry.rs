@@ -1,6 +1,6 @@
 //! [`Registry`] over `HKEY_CURRENT_USER` (Win32 `Reg*` calls).
 //!
-//! A thin adapter excluded from coverage (`windows/.config/coverage-excludes.txt`):
+//! A thin adapter excluded from coverage (`.config/coverage-excludes.txt`):
 //! tests never touch the real registry. The `REG_SZ` byte format lives in the
 //! portable [`tokenmon_platform::shell::registry`] ([`encode_reg_sz`], [`decode_reg_sz`]),
 //! and the key layout and decisions in `autostart` and `context_menu`, all

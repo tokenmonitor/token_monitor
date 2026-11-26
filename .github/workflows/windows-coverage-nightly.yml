@@ -1,12 +1,12 @@
 name: Windows coverage (nightly)
 
 # Scheduled coverage run on windows-latest, so the Windows-only code (the
-# cfg(windows) paths in tokenmon-platform, tokenmon-app and tokenmon-ui) is
+# cfg(windows) paths in tokenmon-platform-windows, tokenmon-windows and tokenmon-ui) is
 # measured. The per-push windows-ci.yml stays fast and measures coverage on
 # Ubuntu only (maintainer decision, commit 843f980f); this workflow is the
 # Windows counterpart, once a day.
 #
-# Toolchain: the stable toolchain pinned in windows/rust-toolchain.toml, with
+# Toolchain: the stable toolchain pinned in rust-toolchain.toml, with
 # llvm-tools, and no `--branch`. Branch coverage needs a nightly rustc, and
 # nightly `--branch` on Windows drops tokenmon-app and tokenmon-ui (the two
 # crates with a build.rs) from the report entirely (MentisDB token_monitor
@@ -59,7 +59,6 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: windows
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,7 +68,7 @@ jobs:
         id: toolchain
         run: |
           channel=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)
-          test -n "$channel" || { echo "::error::no channel in windows/rust-toolchain.toml"; exit 1; }
+          test -n "$channel" || { echo "::error::no channel in rust-toolchain.toml"; exit 1; }
           echo "channel=$channel" >> "$GITHUB_OUTPUT"
 
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master (2026-10-16)
@@ -79,7 +78,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          workspaces: windows -> target
+          workspaces: . -> target
           shared-key: coverage-windows-nightly
 
       - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
@@ -90,7 +89,7 @@ jobs:
       # binaries of since-deleted test files would read as uncovered code (#80).
       - name: Drop stale test binaries from the cached target dir
         run: |
-          "$PYTHON" -I scripts/ci/prune_stale_test_binaries.py target/llvm-cov-target
+          "$PYTHON" -I common/scripts/ci/prune_stale_test_binaries.py target/llvm-cov-target
 
       # Coverage is measured whatever the outcome so the summary always has
       # numbers; the last step fails the job when a test failed.
@@ -99,8 +98,8 @@ jobs:
         run: |
           set -uo pipefail
           # Test/bench/fuzz/example code plus .config/coverage-excludes.txt.
-          ignore=$("$PYTHON" -I scripts/ci/coverage_excludes.py regex) || exit 1
-          cfg=$(bash scripts/ci/nextest-config.sh . "$RUNNER_TEMP/nextest.toml")
+          ignore=$("$PYTHON" -I common/scripts/ci/coverage_excludes.py regex) || exit 1
+          cfg=$(bash common/scripts/ci/nextest-config.sh . "$RUNNER_TEMP/nextest.toml")
           if ! cargo llvm-cov nextest --locked --workspace --no-report --no-tests=warn \
               --config-file "$cfg" --profile ws-ci; then
             echo "tests_failed=true" >> "$GITHUB_OUTPUT"
@@ -123,7 +122,7 @@ jobs:
         id: baseline
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash scripts/ci/fetch_baseline.sh "$SUMMARY_ARTIFACT" "$RUNNER_TEMP/baseline" master
+        run: bash common/scripts/ci/fetch_baseline.sh "$SUMMARY_ARTIFACT" "$RUNNER_TEMP/baseline" master
 
       - name: Coverage summary and gates
         env:
@@ -141,7 +140,7 @@ jobs:
           fi
           mkdir -p "$RUNNER_TEMP/coverage-out"
           status=0
-          "$PYTHON" -I scripts/ci/render_coverage.py --json "$RUNNER_TEMP/cov.json" --root . \
+          "$PYTHON" -I common/scripts/ci/render_coverage.py --json "$RUNNER_TEMP/cov.json" --root . \
             --floors .config/coverage-floors.toml --excludes .config/coverage-excludes.txt \
             "${baseline[@]}" --max-drop "$COVERAGE_MAX_DROP" \
             --write-summary "$RUNNER_TEMP/coverage-out/coverage-summary.json" \

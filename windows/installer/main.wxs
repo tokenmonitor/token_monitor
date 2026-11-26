@@ -43,7 +43,7 @@
     <?define AppExe = "$(var.CargoTargetBinDir)\TokenMon.exe" ?>
   <?endif?>
   <?define RepoRoot = "$(sys.SOURCEFILEDIR)..\.." ?>
-  <?define AppIcon = "$(sys.SOURCEFILEDIR)..\crates\tokenmon-app\assets\tokenmon.ico" ?>
+  <?define AppIcon = "$(sys.SOURCEFILEDIR)..\..\common\crates\tokenmon-app\assets\tokenmon.ico" ?>
   <?define InstallerKey = "Software\TokenMon\Installer" ?>
 
   <Product Id="*"
