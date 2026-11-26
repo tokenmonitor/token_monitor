@@ -189,4 +189,73 @@ final class ClaudeUsageClientTests: XCTestCase {
         {"eligible": true, "grants": [{"resets_left": 5000, "paused": false}]}
         """))
     }
+
+    // MARK: - Live request
+
+    func testFetchRequestsTheOrgUsageWithTheSessionCookie() async throws {
+        HTTPStub.reset(always: .json(#"{"five_hour":{"utilization":21},"seven_day":{"utilization":7}}"#))
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let client = ClaudeUsageClient(cookieHeader: "sessionKey=s; lastActiveOrg=org-42", session: HTTPStub.session())
+        let (response, fetchedAt) = try await client.fetchUsage(now: now)
+        XCTAssertEqual(response.fiveHour?.usedPercent ?? -1, 21, accuracy: 0.001)
+        XCTAssertEqual(fetchedAt, now)
+        let request = try XCTUnwrap(HTTPStub.requests.first).request
+        XCTAssertEqual(request.url?.path, "/api/organizations/org-42/usage")
+        XCTAssertEqual(request.url?.query, "cedar_ember=1")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Cookie"), "sessionKey=s; lastActiveOrg=org-42")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Referer"), "https://claude.ai/")
+    }
+
+    func testFetchWithoutAnOrgCookieAsksToSignInAndSendsNothing() async {
+        HTTPStub.reset(always: .json("{}"))
+        let client = ClaudeUsageClient(cookieHeader: "sessionKey=s", session: HTTPStub.session())
+        do {
+            _ = try await client.fetchUsage()
+            XCTFail("expected a sign-in error")
+        } catch {
+            XCTAssertEqual(error.localizedDescription, "Claude organization id not found in session. Sign in again.")
+            XCTAssertEqual((error as? ProviderError)?.usageError, .notSignedIn)
+        }
+        XCTAssertTrue(HTTPStub.requests.isEmpty)
+    }
+
+    // MARK: - Limit scopes and snapshot values
+
+    func testScopedWeeklyLimitFallsBackToTheModelID() throws {
+        let data = Data(#"{"limits":[{"group":"weekly","percent":40,"scope":{"model":{"id":"opus"}}}]}"#.utf8)
+        let response = try ClaudeUsageResponse.parse(data)
+        XCTAssertEqual(response.sevenDay?.scopeName, "opus")
+        XCTAssertEqual(response.sevenDay?.remainingPercent ?? -1, 60, accuracy: 0.001)
+    }
+
+    func testActiveLimitWinsAmongScopedOnes() throws {
+        let data = Data("""
+        {"limits":[
+          {"group":"session","percent":90,"scope":{"model":{"display_name":"A"}}},
+          {"group":"session","percent":10,"is_active":true,"scope":{"model":{"display_name":"B"}}}
+        ]}
+        """.utf8)
+        XCTAssertEqual(try ClaudeUsageResponse.parse(data).fiveHour?.scopeName, "B")
+    }
+
+    func testSnapshotLabelsHeadlineAndResetPrecedence() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        var snapshot = ClaudeSnapshot(
+            fetchedAt: now,
+            fiveHour: nil,
+            sevenDay: ClaudeUsageWindow(usedPercent: 30, resetsAt: now, scopeName: "Fable")
+        )
+        XCTAssertEqual(snapshot.id, now)
+        XCTAssertEqual(snapshot.weeklyLabel, "Weekly · Fable")
+        XCTAssertEqual(snapshot.headlineUsedPercent, 30, accuracy: 0.001)
+        XCTAssertEqual(snapshot.resetsAt, now)
+        XCTAssertEqual(snapshot.usagePool, .weekly)
+        snapshot.fiveHour = ClaudeUsageWindow(usedPercent: 5, resetsAt: nil)
+        snapshot.sevenDay = nil
+        XCTAssertEqual(snapshot.weeklyLabel, "Weekly")
+        XCTAssertEqual(snapshot.headlineUsedPercent, 5, accuracy: 0.001)
+        XCTAssertNil(snapshot.resetsAt)
+        snapshot.fiveHour = nil
+        XCTAssertEqual(snapshot.headlineUsedPercent, 0, accuracy: 0.001)
+    }
 }

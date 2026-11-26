@@ -71,23 +71,7 @@ final class ClaudeUsagePoller: ProviderUsagePoller {
             // Tests with a fake fetch stay hermetic: no reads of the real home.
             self.loadCodeUsage = { _ in nil }
         } else {
-            let ledger = ClaudeCodeUsageLedger()
-            self.loadCodeUsage = { now in
-                await Task.detached(priority: .utility) {
-                    let ledgerCalendar = ClaudeCodeUsageLedger.dayCalendar
-                    guard let scans = ClaudeCodeLocalStats.scanDailyTokens(calendars: [ledgerCalendar, .current]),
-                          scans.count == 2
-                    else { return nil }
-                    return ClaudeCodeUsageScan(
-                        summary: ClaudeCodeUsageSummary.make(
-                            days: ledger.merge(scans[0]),
-                            now: now,
-                            calendar: ledgerCalendar
-                        ),
-                        localDailyTokens: scans[1]
-                    )
-                }.value
-            }
+            self.loadCodeUsage = Self.codeUsageLoader()
         }
         // Signing out drops the snapshot. The persisted hourly and daily
         // history is wiped only when a different account signs in.
@@ -100,6 +84,35 @@ final class ClaudeUsagePoller: ProviderUsagePoller {
                 self?.clearAccountHistory()
             }
             .store(in: &cancellables)
+    }
+
+    /// Scans the Claude Code transcripts under `directories()` off the main
+    /// actor: the UTC-day counts merge into `ledger` (which keeps days whose
+    /// transcripts were deleted) for the month summary, and the local-day
+    /// counts label the daily bars. Nil when no transcript directory exists.
+    static func codeUsageLoader(
+        ledger: ClaudeCodeUsageLedger = ClaudeCodeUsageLedger(),
+        directories: @escaping @Sendable () -> [URL] = { ClaudeCodeLocalStats.projectsDirectories() },
+        localCalendar: Calendar = .current
+    ) -> (Date) async -> ClaudeCodeUsageScan? {
+        { now in
+            await Task.detached(priority: .utility) {
+                let ledgerCalendar = ClaudeCodeUsageLedger.dayCalendar
+                guard let scans = ClaudeCodeLocalStats.scanDailyTokens(
+                    directories: directories(),
+                    calendars: [ledgerCalendar, localCalendar]
+                ), scans.count == 2
+                else { return nil }
+                return ClaudeCodeUsageScan(
+                    summary: ClaudeCodeUsageSummary.make(
+                        days: ledger.merge(scans[0]),
+                        now: now,
+                        calendar: ledgerCalendar
+                    ),
+                    localDailyTokens: scans[1]
+                )
+            }.value
+        }
     }
 
     var headlineUsedPercent: Double? { snapshot?.headlineUsedPercent }

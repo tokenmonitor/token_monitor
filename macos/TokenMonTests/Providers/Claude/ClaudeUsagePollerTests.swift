@@ -268,6 +268,81 @@ final class ClaudeUsagePollerTests: XCTestCase {
         XCTAssertEqual(attached[0].spentUSD, 5)
     }
 
+    // MARK: - Lifecycle and gating
+
+    func testPollIntervalParksWhenDisabledAndShortensWhenTheMenuOpens() async throws {
+        let (store, dir) = makeStore()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let response = ClaudeUsageResponse(fiveHour: ClaudeUsageWindow(usedPercent: 1, resetsAt: nil), sevenDay: nil)
+        let poller = try makePoller(daily: store, dir: dir) { _ in (response, Date()) }
+        poller.start()
+        defer { poller.stop() }
+        await poller.refreshNow()
+        let idle = try XCTUnwrap(poller.pollingLoop.delayUntilDue())
+        poller.menuIsOpen = true
+        XCTAssertLessThan(try XCTUnwrap(poller.pollingLoop.delayUntilDue()), idle)
+        lastSettings.enabledProviderIDs = [.cursor]
+        XCTAssertNil(poller.pollingLoop.delayUntilDue(), "a disabled provider parks its loop")
+    }
+
+    func testHeadlineAlertAccountAndEarlierWeeks() async throws {
+        let (store, dir) = makeStore()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let resetsAt = Date().addingTimeInterval(2 * 86_400)
+        let response = ClaudeUsageResponse(
+            fiveHour: ClaudeUsageWindow(usedPercent: 12, resetsAt: Date().addingTimeInterval(3_600)),
+            sevenDay: ClaudeUsageWindow(usedPercent: 40, resetsAt: resetsAt)
+        )
+        let poller = try makePoller(daily: store, dir: dir) { _ in (response, Date()) }
+        lastAuth.saveAccountEmail("me@example.com")
+        await poller.refreshNow()
+        XCTAssertEqual(poller.headlineUsedPercent ?? -1, 12, accuracy: 0.001)
+        XCTAssertNotNil(poller.headlineResetsAt)
+        XCTAssertEqual(poller.alertAccount, "me@example.com")
+        XCTAssertEqual(poller.dailyBudgetDays(weekOffset: -1).count, 7)
+        XCTAssertEqual(poller.weeklyResetsAt(), resetsAt)
+    }
+
+    /// A different account signing in drops the snapshot and wipes the
+    /// previous account's hourly history.
+    func testAccountSwitchClearsHourlyHistory() async throws {
+        let (store, dir) = makeStore()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let response = ClaudeUsageResponse(fiveHour: ClaudeUsageWindow(usedPercent: 3, resetsAt: nil), sevenDay: nil)
+        let poller = try makePoller(daily: store, dir: dir) { _ in (response, Date()) }
+        await poller.refreshNow()
+        lastHourly.record(usedPercent: 9)
+        lastHourly.record(usedPercent: 15)
+        XCTAssertGreaterThan(lastHourly.hourWeights.reduce(0, +), 0)
+        lastAuth.accountReset.send()
+        XCTAssertEqual(lastHourly.hourWeights.reduce(0, +), 0)
+        XCTAssertNil(poller.snapshot)
+    }
+
+    // MARK: - Claude Code transcript loader
+
+    func testCodeUsageLoaderSummarisesTranscriptsAndKeepsLocalDays() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let project = root.appendingPathComponent("projects/p", isDirectory: true)
+        try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+        let line = #"{"type":"assistant","timestamp":"2026-10-05T12:00:00.000Z","requestId":"r1","#
+            + #""message":{"id":"m1","model":"claude-opus-4-1","usage":{"input_tokens":7,"output_tokens":3}}}"#
+        try Data(line.utf8).write(to: project.appendingPathComponent("s.jsonl"))
+        let ledger = ClaudeCodeUsageLedger(store: FileBackedStringStore(directory: root, filenamePrefix: "ledger_"))
+        let directories = [root.appendingPathComponent("projects", isDirectory: true)]
+        let load = ClaudeUsagePoller.codeUsageLoader(ledger: ledger, directories: { directories }, localCalendar: calendar)
+
+        let loaded = await load(date(2026, 10, 6))
+        let scan = try XCTUnwrap(loaded)
+
+        XCTAssertEqual(scan.localDailyTokens["2026-10-05"]?["claude-opus-4-1"]?.inputTokens, 7)
+        XCTAssertEqual(scan.summary.month.tokens, 10)
+        let missing = ClaudeUsagePoller.codeUsageLoader(ledger: ledger, directories: { [root.appendingPathComponent("nope")] })
+        let none = await missing(Date())
+        XCTAssertNil(none, "no transcript directory, no scan")
+    }
+
     private static let codeSummary = ClaudeCodeUsageSummary.make(
         days: [
             "2026-09-30": ["claude-opus-5-5": ClaudeModelTokens(inputTokens: 10)],
@@ -276,6 +351,11 @@ final class ClaudeUsagePollerTests: XCTestCase {
         now: Date(timeIntervalSince1970: 1_791_288_000), // 2026-10-06T12:00:00Z
         calendar: ClaudeCodeUsageLedger.dayCalendar
     )
+
+    /// Settings, session and hourly store of the poller built last.
+    private var lastSettings: AppSettings!
+    private var lastAuth: ClaudeAuthSession!
+    private var lastHourly: HourlyDeltaActivityStore!
 
     private func makePoller(
         daily: DailyQuotaDeltaStore,
@@ -289,7 +369,9 @@ final class ClaudeUsagePollerTests: XCTestCase {
         addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
         let settings = AppSettings(defaults: defaults)
         settings.selectedProvider = .claude
+        lastSettings = settings
         let auth = ClaudeAuthSession(directory: dir)
+        lastAuth = auth
         if signedIn {
             auth.save(cookieHeader: "sessionKey=test; lastActiveOrg=org")
         }
@@ -297,6 +379,7 @@ final class ClaudeUsagePollerTests: XCTestCase {
             store: FileBackedStringStore(directory: dir, filenamePrefix: "hourly_"),
             storageKey: "claude_hourly"
         )
+        lastHourly = hourly
         return ClaudeUsagePoller(
             settings: settings,
             auth: auth,
