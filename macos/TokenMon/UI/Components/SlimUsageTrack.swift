@@ -20,7 +20,7 @@ struct SlimUsageTrack: View {
                         .font(PanelTypography.bodyDigit)
                         .foregroundStyle(.primary)
                     Spacer()
-                    Text("\(Int(Percent.clamp(percent).rounded()))% Used")
+                    Text(Self.usedText(percent))
                         .font(PanelTypography.bodyDigit)
                         .foregroundStyle(.primary)
                 }
@@ -39,6 +39,11 @@ struct SlimUsageTrack: View {
 
             UsageLimitCaption(resetsAt: resetsAt, percent: percent, normalCaption: caption)
         }
+    }
+
+    /// The figure on the label row: "42% Used", clamped to 0…100.
+    static func usedText(_ percent: Double) -> String {
+        "\(Int(Percent.clamp(percent).rounded()))% Used"
     }
 }
 

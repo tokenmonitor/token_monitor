@@ -24,6 +24,12 @@ enum ViewHarness {
         return fitting
     }
 
+    /// The size `view` asks for with no width imposed, for comparing the
+    /// natural widths of compact views (pills, labels).
+    static func idealSize(_ view: some View) -> CGSize {
+        NSHostingView(rootView: view.fixedSize()).fittingSize
+    }
+
     /// Renders `view` in dark, then light appearance; returns the light size.
     @discardableResult
     static func renderBothAppearances(_ view: some View, width: CGFloat = 340) -> CGSize {
