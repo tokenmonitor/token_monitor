@@ -203,4 +203,29 @@ final class GrokPollerGatingTests: XCTestCase {
 
         XCTAssertNil(poller.savedResets)
     }
+
+    /// A different account signing in drops the snapshot and wipes the stored
+    /// hourly deltas of the previous account.
+    func testAccountSwitchClearsSnapshotAndHourlyHistory() async {
+        let settings = AppSettings(defaults: defaults)
+        settings.selectedProvider = .grok
+        let (poller, auth) = makePoller(settings: settings) { _, _ in WeeklyUsageSnapshot(usedPercent: 10) }
+        await poller.refreshNow()
+        let stored = HourlyDeltaActivityStore(
+            store: FileBackedStringStore(directory: dir, filenamePrefix: "hourly_"),
+            storageKey: "grok"
+        )
+        stored.record(usedPercent: 10)
+        stored.record(usedPercent: 25)
+        XCTAssertNotNil(poller.snapshot)
+
+        auth.accountReset.send()
+
+        XCTAssertNil(poller.snapshot)
+        let reloaded = HourlyDeltaActivityStore(
+            store: FileBackedStringStore(directory: dir, filenamePrefix: "hourly_"),
+            storageKey: "grok"
+        )
+        XCTAssertEqual(reloaded.hourWeights.reduce(0, +), 0)
+    }
 }

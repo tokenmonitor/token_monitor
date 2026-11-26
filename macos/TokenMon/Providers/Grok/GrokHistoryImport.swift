@@ -64,19 +64,6 @@ final class UsageSnapshotRecord {
         self.accountEmail = snapshot.accountEmail
     }
 
-    func apply(_ snapshot: WeeklyUsageSnapshot) {
-        fetchedAt = snapshot.fetchedAt
-        usedPercent = snapshot.usedPercent
-        remainingPercent = snapshot.remainingPercent
-        resetsAt = snapshot.resetsAt
-        if let data = try? Self.encoder.encode(snapshot.products) {
-            productsJSON = data
-        } else {
-            Self.logger.error("Failed to encode products on apply for \(snapshot.id)")
-        }
-        accountEmail = snapshot.accountEmail
-    }
-
     func toSnapshot() -> WeeklyUsageSnapshot {
         let products: [ProductUsage]
         if let decoded = try? Self.decoder.decode([ProductUsage].self, from: productsJSON) {
