@@ -75,14 +75,38 @@ jobs:
       locked: ${{ steps.detect.outputs.locked }}
       deny: ${{ steps.detect.outputs.deny }}
       toolchain: ${{ steps.detect.outputs.toolchain }}
+      make: ${{ steps.areas.outputs.make }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Full history: the areas step diffs a pull request against its base.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Detect what exists under windows/
         id: detect
         run: bash windows/scripts/ci/detect.sh windows
+
+      # The Makefile jobs rebuild the workspace and the installer, so they run
+      # on master, on a manual run, and when a pull request touches what they
+      # exercise: the Makefile, the scripts, the installer or this workflow.
+      - name: Detect which areas the change touches
+        id: areas
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          make=true
+          if [ "$EVENT" = pull_request ]; then
+            files="$(git diff --name-only "${PR_BASE}...${PR_HEAD}")"
+            if ! grep -Eq '^(windows/Makefile|windows/scripts/|windows/installer/|\.github/workflows/windows-ci\.yml)' <<<"$files"; then
+              make=false
+            fi
+          fi
+          echo "make=$make" >> "$GITHUB_OUTPUT"
+          echo "Makefile jobs: $make ($EVENT)"
 
       # The scripts below render every summary on this page; test them first.
       - name: Unit-test the CI report scripts
@@ -207,6 +231,8 @@ jobs:
             [ "$outcome" != failure ] || exit 1
           done
 
+  # Every test runs on both operating systems without running twice on one:
+  # Windows runs the suite here, Linux runs it inside the coverage job below.
   test:
     name: Tests (${{ matrix.os }})
     needs: detect
@@ -214,7 +240,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
@@ -293,6 +319,11 @@ jobs:
   #   cov.json with the current list, so adding or removing an exclusion
   #   never shows up as a jump in the delta. A baseline without per-file data
   #   and a different list skips the delta once, with a note.
+  #
+  # This job is also the Linux test run: it runs the whole suite under
+  # instrumentation, so a failing test fails this job (after the summary is
+  # written) and there is no separate Linux tests job. Windows runs its tests
+  # in the `test` job.
   coverage:
     name: Coverage (${{ matrix.os }})
     needs: detect
@@ -300,7 +331,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     concurrency:
@@ -355,9 +386,10 @@ jobs:
         run: |
           "$PYTHON" -I scripts/ci/prune_stale_test_binaries.py target/llvm-cov-target
 
-      # Test failures are the test job's to report; coverage is measured
-      # whatever the outcome so the summary always has numbers.
+      # Coverage is measured whatever the outcome so the summary always has
+      # numbers; the last step fails the job when a test failed.
       - name: Run tests with coverage instrumentation
+        id: instrumented
         env:
           LOCKED: ${{ needs.detect.outputs.locked }}
         run: |
@@ -368,7 +400,8 @@ jobs:
           # shellcheck disable=SC2086 # LOCKED is empty or one flag
           if ! cargo llvm-cov nextest $LOCKED --workspace --branch --no-report --no-tests=warn \
               --config-file "$cfg" --profile ws-ci; then
-            echo "::warning title=coverage::some tests failed; see the Tests job. Coverage is still reported."
+            echo "tests_failed=true" >> "$GITHUB_OUTPUT"
+            echo "::warning title=coverage::some tests failed. Coverage is still reported; the job fails at the end."
           fi
           if ! cargo llvm-cov report --branch --ignore-filename-regex "$ignore" \
               --json --summary-only --output-path "$RUNNER_TEMP/cov.json"; then
@@ -377,7 +410,7 @@ jobs:
               echo "### Coverage (${{ matrix.os }})"
               echo
               echo ":x: No coverage data: the tests did not build on this runner, so nothing ran."
-              echo "The compiler errors are in the Tests (${{ matrix.os }}) job and in this job's log."
+              echo "The compiler errors are in this job's log."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
@@ -420,6 +453,25 @@ jobs:
           cp "$RUNNER_TEMP/lcov.info" "$RUNNER_TEMP/cov.json" "$RUNNER_TEMP/coverage.md" "$RUNNER_TEMP/coverage-out/"
           exit $status
 
+      - name: Test summary
+        if: always() && steps.instrumented.outcome != 'skipped'
+        run: |
+          set -uo pipefail
+          junit="$(find target -path '*nextest/ws-ci/junit.xml' | head -n 1)"
+          if [ -n "$junit" ]; then
+            echo "JUNIT_PATH=$junit" >> "$GITHUB_ENV"
+            "$PYTHON" -I scripts/ci/render_junit.py --junit "$junit" --title "Tests (${{ matrix.os }})" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload JUnit report
+        if: always() && steps.instrumented.outcome != 'skipped'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-junit-${{ matrix.os }}
+          path: windows/target/llvm-cov-target/nextest/ws-ci/junit.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
       # Every run that measured coverage becomes the next baseline, including
       # one that failed the gates: if only passing runs were uploaded, a drop
       # would leave the baseline pinned to an old high value and every later
@@ -435,14 +487,21 @@ jobs:
           if-no-files-found: ignore
           retention-days: 90
 
+      - name: Fail when a test failed
+        if: always() && steps.instrumented.outputs.tests_failed == 'true'
+        run: |
+          echo "::error title=tests::at least one test failed; see the Test summary step."
+          exit 1
+
+  # A pull request fuzzes only the targets its change can reach, 30 s each;
+  # a push to master (or a manual run) fuzzes every target, 60 s each. Targets
+  # run in parallel, one per core. windows-fuzz-nightly.yml does the long runs.
   fuzz-smoke:
-    name: Fuzz smoke (60 s per target)
+    name: Fuzz smoke
     needs: detect
     if: needs.detect.outputs.workspace == 'true'
     runs-on: ubuntu-latest
-    # 51 targets x ~62 s plus the build is already ~55 min; leave headroom
-    # for new targets so the job is not cancelled mid-run.
-    timeout-minutes: 90
+    timeout-minutes: 45
     concurrency:
       group: windows-ci-fuzz-smoke-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
       cancel-in-progress: true
@@ -460,6 +519,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Full history: the selection diffs a pull request against its base.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Look for the fuzz crate
@@ -476,19 +537,50 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master (2026-10-16)
+      - name: Select the targets to fuzz
+        id: select
         if: steps.present.outputs.present == 'true'
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = pull_request ]; then
+            seconds=30
+            git diff --name-only "${PR_BASE}...${PR_HEAD}" > "$RUNNER_TEMP/changed.txt"
+            python3 -I scripts/ci/fuzz_select.py --root . --changed-files "$RUNNER_TEMP/changed.txt" > "$RUNNER_TEMP/targets.txt"
+            scope="the targets this pull request can reach"
+          else
+            seconds=60
+            python3 -I scripts/ci/fuzz_select.py --root . --all > "$RUNNER_TEMP/targets.txt"
+            scope="every target"
+          fi
+          count=$(grep -c . "$RUNNER_TEMP/targets.txt" || true)
+          echo "seconds=$seconds" >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "Fuzzing $count target(s), $seconds s each ($scope), $(nproc) at a time."
+          if [ "$count" = 0 ]; then
+            {
+              echo "### Fuzz smoke"
+              echo
+              echo "No fuzz target imports a crate this change touches, so nothing was fuzzed."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master (2026-10-16)
+        if: steps.select.outputs.count != '0' && steps.present.outputs.present == 'true'
         with:
           toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-        if: steps.present.outputs.present == 'true'
+        if: steps.select.outputs.count != '0' && steps.present.outputs.present == 'true'
         with:
           workspaces: windows/fuzz -> target
           shared-key: fuzz
 
       - name: Install cargo-fuzz (pinned, checksummed)
-        if: steps.present.outputs.present == 'true'
+        if: steps.select.outputs.count != '0' && steps.present.outputs.present == 'true'
         run: |
           set -euo pipefail
           url="https://github.com/rust-fuzz/cargo-fuzz/releases/download/${CARGO_FUZZ_VERSION}/cargo-fuzz-${CARGO_FUZZ_VERSION}-x86_64-unknown-linux-musl.tar.gz"
@@ -500,21 +592,31 @@ jobs:
           cargo fuzz --version | grep -F "$CARGO_FUZZ_VERSION"
 
       - name: Fuzz every target from its committed corpus
-        if: steps.present.outputs.present == 'true'
-        run: bash scripts/ci/fuzz_run.sh --seconds 60 --out "$RUNNER_TEMP/fuzz"
+        if: steps.select.outputs.count != '0' && steps.present.outputs.present == 'true'
+        env:
+          SECONDS_PER_TARGET: ${{ steps.select.outputs.seconds }}
+        run: |
+          mapfile -t targets < "$RUNNER_TEMP/targets.txt"
+          # All targets selected: let the script list and build them in one go.
+          if [ "${#targets[@]}" -eq "$(python3 -I scripts/ci/fuzz_targets.py --names fuzz/Cargo.toml | grep -c .)" ]; then
+            targets=()
+          fi
+          bash scripts/ci/fuzz_run.sh --seconds "$SECONDS_PER_TARGET" --jobs "$(nproc)" --out "$RUNNER_TEMP/fuzz" "${targets[@]}"
 
       - name: Fuzz summary
-        if: always() && steps.present.outputs.present == 'true'
+        if: always() && steps.select.outputs.count != '0' && steps.present.outputs.present == 'true'
+        env:
+          SECONDS_PER_TARGET: ${{ steps.select.outputs.seconds }}
         run: |
           set -uo pipefail
           shopt -s nullglob
           rows=("$RUNNER_TEMP"/fuzz/rows/*.json)
-          python3 -I scripts/ci/fuzz_report.py table --build-failed-log "$RUNNER_TEMP/fuzz/build-failed.log" --title "Fuzz smoke (60 s per target, $RUSTUP_TOOLCHAIN)" \
+          python3 -I scripts/ci/fuzz_report.py table --build-failed-log "$RUNNER_TEMP/fuzz/build-failed.log" --title "Fuzz smoke ($SECONDS_PER_TARGET s per target, $RUSTUP_TOOLCHAIN)" \
             --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             "${rows[@]}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload crash inputs
-        if: failure() && steps.present.outputs.present == 'true'
+        if: failure() && steps.select.outputs.count != '0' && steps.present.outputs.present == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-fuzz-crashes
@@ -617,7 +719,7 @@ jobs:
   make:
     name: Makefile (${{ matrix.os }})
     needs: detect
-    if: needs.detect.outputs.workspace == 'true'
+    if: needs.detect.outputs.workspace == 'true' && needs.detect.outputs.make == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -797,7 +899,7 @@ jobs:
           run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs?per_page=100" \
             > /tmp/jobs.json 2>/dev/null || : > /tmp/jobs.json
-          note=""
+          note="Skipped jobs: the Makefile jobs run only on master, on a manual run, or when a pull request changes the Makefile, the scripts, the installer or this workflow."
           if [ "$WORKSPACE" != true ]; then
             note="Skipped jobs: \`windows/Cargo.toml\` does not exist on this commit yet, so there is nothing to build, test, measure or fuzz."
           fi
