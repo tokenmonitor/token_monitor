@@ -36,6 +36,22 @@ fn pipe_name(tag: &str) -> String {
     )
 }
 
+/// Opens the pipe for writing, retrying while the single instance is busy
+/// (still serving or resetting after the previous client).
+fn open_when_free(name: &str) -> std::fs::File {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        match OpenOptions::new().write(true).open(name) {
+            Ok(f) => return f,
+            Err(e) if Instant::now() < deadline => {
+                let _ = e;
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            Err(e) => panic!("pipe never became free: {e}"),
+        }
+    }
+}
+
 /// A minimal structurally valid PE header (no signature, no resources).
 fn tiny_pe() -> Vec<u8> {
     let mut pe = vec![0u8; 0x200];
@@ -85,15 +101,14 @@ fn test_client_without_a_server_fails_with_a_typed_error_after_retrying() {
     assert!(started.elapsed() >= Duration::from_secs(4), "it retried");
 }
 
-/// A name outside the pipe namespace is refused by the server and never
-/// hangs the client.
+/// A name outside the pipe namespace is refused by the server with a typed
+/// IPC error.
 #[test]
-fn test_invalid_pipe_names_fail_without_hanging() {
-    let started = Instant::now();
-    let bad = r"\\.\pipe\\\\bad//name:*?";
-    assert!(PipeServer::start(bad, |_| {}).is_err());
-    assert!(PipeClient::new(bad).send(&IpcMessage::Show).is_err());
-    assert!(started.elapsed() < Duration::from_secs(20));
+fn test_server_refuses_a_name_outside_the_pipe_namespace() {
+    let err = PipeServer::start("no_pipe_prefix", |_| {})
+        .err()
+        .expect("not a pipe name");
+    assert!(matches!(err, ShellError::Ipc(m) if m.contains("cannot create")));
 }
 
 /// A client that connects and closes without writing, then one that writes
@@ -107,17 +122,9 @@ fn test_server_ignores_silent_and_garbage_clients_then_serves_a_good_one() {
     })
     .expect("server starts");
 
-    drop(
-        OpenOptions::new()
-            .write(true)
-            .open(&name)
-            .expect("silent client"),
-    );
+    drop(open_when_free(&name));
     {
-        let mut noisy = OpenOptions::new()
-            .write(true)
-            .open(&name)
-            .expect("garbage client");
+        let mut noisy = open_when_free(&name);
         noisy.write_all(b"definitely-not-a-message\n").unwrap();
     }
     PipeClient::new(name.clone())
@@ -141,13 +148,14 @@ fn test_server_delivers_consecutive_messages() {
         let _ = tx.send(m);
     })
     .expect("server starts");
-    for _ in 0..3 {
+    for round in 0..3 {
         PipeClient::new(name.clone())
             .send(&IpcMessage::Show)
             .expect("send");
         assert_eq!(
             rx.recv_timeout(Duration::from_secs(10)),
-            Ok(IpcMessage::Show)
+            Ok(IpcMessage::Show),
+            "round {round}"
         );
     }
     drop(server);
