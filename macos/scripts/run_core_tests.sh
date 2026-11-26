@@ -28,7 +28,7 @@ done < <(find "$ROOT/TokenMon/Core" -name '*.swift' | sort)
 for source in "${PROVIDER_SOURCES[@]}"; do
   if [[ ! -f "$ROOT/$source" ]]; then
     echo "run_core_tests.sh: listed source is missing: $source" >&2
-    echo "Update PROVIDER_SOURCES in Scripts/run_core_tests.sh." >&2
+    echo "Update PROVIDER_SOURCES in scripts/run_core_tests.sh." >&2
     exit 1
   fi
   SOURCES+=("$ROOT/$source")

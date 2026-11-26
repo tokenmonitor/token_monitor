@@ -1,6 +1,6 @@
 name: Release
 
-# Pushing a tag vX.Y.Z (matching MARKETING_VERSION in project.yml) runs every
+# Pushing a tag vX.Y.Z (matching MARKETING_VERSION in macos/project.yml) runs every
 # CI gate (lint, format, project drift, secret scan, core and unit tests, and
 # the Release build) against the tagged commit, then builds the app zip, pkg,
 # and dSYM zip and attaches them to that GitHub Release. The in-app updater
@@ -42,11 +42,11 @@ jobs:
         run: |
           set -euo pipefail
           tag="${GITHUB_REF_NAME#v}"
-          version=$(sed -n 's/.*MARKETING_VERSION: *"\([^"]*\)".*/\1/p' project.yml | head -1)
+          version=$(sed -n 's/.*MARKETING_VERSION: *"\([^"]*\)".*/\1/p' macos/project.yml | head -1)
           test -n "$version"
           if [ "$tag" != "$version" ]; then
             echo "Tag v${tag} does not match MARKETING_VERSION ${version}."
-            echo "Bump project.yml, or tag v${version}."
+            echo "Bump macos/project.yml, or tag v${version}."
             exit 1
           fi
 

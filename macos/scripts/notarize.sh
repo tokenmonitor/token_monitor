@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: ./Scripts/notarize.sh <TokenMon.app | TokenMon.pkg> [keychain-profile]
+# Usage: ./scripts/notarize.sh <TokenMon.app | TokenMon.pkg> [keychain-profile]
 #
 # Submits the app (zipped in a temporary folder) or the signed pkg to the
 # notary service, waits for the verdict, then staples and validates the ticket.

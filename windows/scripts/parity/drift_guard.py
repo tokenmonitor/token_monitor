@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Zero-drift guard: a macOS change must come with Windows parity or a tracking issue.
 
-The macOS app is ``TokenMon/**`` (sources, ``Resources/``, Info.plist and
-entitlements), ``TokenMonTests/**``, ``Tests/**``, and the files that decide how
-it is built and released: ``project.yml``, ``Makefile``, ``Scripts/**`` and
-``TokenMon.xcodeproj/**``. Docs, README and CI-only files do not count.
+The macOS app is ``macos/TokenMon/**`` (sources, ``Resources/``, Info.plist and
+entitlements), ``macos/TokenMonTests/**``, ``macos/Tests/**``, and the files that
+decide how it is built and released: ``macos/project.yml``, ``macos/Makefile``,
+``macos/scripts/**`` and ``macos/TokenMon.xcodeproj/**``. Docs, README and CI-only files do not count.
 
 A change (pull request or push) is checked with two rules:
 
@@ -58,8 +58,11 @@ import check_parity  # noqa: E402
 import extract_swift_tests  # noqa: E402
 
 # Directories (trailing /) and top-level files that make up the macOS app.
-MAC_PREFIXES = ("TokenMon/", "TokenMonTests/", "Tests/", "Scripts/", "TokenMon.xcodeproj/")
-MAC_FILES = ("project.yml", "Makefile")
+MACOS_ROOT = extract_swift_tests.MACOS_ROOT
+MAC_PREFIXES = tuple(
+    f"{MACOS_ROOT}/{name}/" for name in ("TokenMon", "TokenMonTests", "Tests", "scripts", "TokenMon.xcodeproj")
+)
+MAC_FILES = tuple(f"{MACOS_ROOT}/{name}" for name in ("project.yml", "Makefile"))
 WINDOWS_PREFIX = "windows/"
 LEDGER = "windows/docs/PARITY.md"
 # A windows/ change that can carry a port: code and tests, or the ledger.
@@ -121,9 +124,16 @@ def is_mac_path(path: str) -> bool:
     return path.startswith(MAC_PREFIXES) or path in MAC_FILES
 
 
+def ledger_path(path: str) -> str:
+    """The path as test IDs and ledger rows spell it: relative to ``macos/``."""
+    return path.removeprefix(MACOS_ROOT + "/")
+
+
 def is_swift_test_file(path: str) -> bool:
-    return (path.startswith(extract_swift_tests.XCTEST_ROOT + "/") and path.endswith(".swift")) or (
-        path == extract_swift_tests.CORE_MAIN
+    rel = ledger_path(path)
+    return path != rel and (
+        (rel.startswith(extract_swift_tests.XCTEST_ROOT + "/") and rel.endswith(".swift"))
+        or rel == extract_swift_tests.CORE_MAIN
     )
 
 
@@ -227,8 +237,9 @@ def analyze_mac_changes(mac: list[str], changed: set[str], base: str, head: str,
             result.other_mac_paths.append(path)  # deleted: the ledger job lists the stale rows
             continue
         try:
-            old_bodies, old_rest = extract_swift_tests.body_digests(path, old) if old is not None else ({}, None)
-            new_bodies, new_rest = extract_swift_tests.body_digests(path, new)
+            rel = ledger_path(path)
+            old_bodies, old_rest = extract_swift_tests.body_digests(rel, old) if old is not None else ({}, None)
+            new_bodies, new_rest = extract_swift_tests.body_digests(rel, new)
         except ValueError as err:
             result.notes.append(f"`{path}` could not be scanned ({err}); treated as a non-test change")
             result.other_mac_paths.append(path)
@@ -306,8 +317,8 @@ def render_summary(result: Result, event: str, base: str, head: str, repo: str) 
     out = ["## Windows parity drift guard", ""]
     if not result.mac_paths:
         verdict, reason = "PASS", (
-            "No macOS app files (`TokenMon/`, `TokenMonTests/`, `Tests/`, `Scripts/`, "
-            "`TokenMon.xcodeproj/`, `project.yml`, `Makefile`) changed."
+            "No macOS app files (`macos/TokenMon/`, `macos/TokenMonTests/`, `macos/Tests/`, `macos/scripts/`, "
+            "`macos/TokenMon.xcodeproj/`, `macos/project.yml`, `macos/Makefile`) changed."
         )
     elif not result.needs_parity:
         verdict, reason = "PASS", "macOS files changed, and the change carries its Windows parity (details below)."

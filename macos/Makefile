@@ -39,7 +39,7 @@ DEVELOPER_ID_INSTALLER ?= $(shell security find-identity -v 2>/dev/null | sed -n
 # Team ID is the (XXXXXXXXXX) suffix on the identity string, when present.
 DEVELOPMENT_TEAM ?= $(shell printf '%s' '$(DEVELOPER_ID_APP)' | sed -n 's/.*(\([A-Z0-9]\{10\}\))$$/\1/p')
 
-# Notarytool keychain profile (see Docs/NOTARIZATION.md)
+# Notarytool keychain profile (see docs/NOTARIZATION.md)
 NOTARY_PROFILE ?= AC_PASSWORD
 
 # Colors
@@ -296,7 +296,7 @@ export: ## Export a Developer ID .app from the archive into build/export
 	@xcodebuild -exportArchive \
 		-archivePath "$(ARCHIVE_PATH)" \
 		-exportPath "$(EXPORT_DIR)" \
-		-exportOptionsPlist Scripts/ExportOptions.plist
+		-exportOptionsPlist scripts/ExportOptions.plist
 	$(call ok,Exported → $(EXPORT_DIR))
 
 notarize: ## Notarize + staple the dist app, then rebuild, notarize + staple the zip and pkg
@@ -307,13 +307,13 @@ notarize: ## Notarize + staple the dist app, then rebuild, notarize + staple the
 		printf "$(RED)🚨 Notarization needs a Developer ID Application identity; this build is ad-hoc signed.$(RESET)\n"; exit 1; \
 	fi
 	$(call say,Notarizing app via profile '$(NOTARY_PROFILE)'…)
-	@./Scripts/notarize.sh "$(DIST_APP)" "$(NOTARY_PROFILE)"
+	@./scripts/notarize.sh "$(DIST_APP)" "$(NOTARY_PROFILE)"
 	@# Rebuild the zip and pkg from the stapled app so both carry the ticket.
 	@$(MAKE) --no-print-directory _zip
 	@$(MAKE) --no-print-directory pkg
 	@if [ -n "$(DEVELOPER_ID_INSTALLER)" ]; then \
 		printf "$(CYAN)→$(RESET) Notarizing pkg…\n"; \
-		./Scripts/notarize.sh "$(DIST_PKG)" "$(NOTARY_PROFILE)"; \
+		./scripts/notarize.sh "$(DIST_PKG)" "$(NOTARY_PROFILE)"; \
 	else \
 		printf "$(YELL)⚠️  Pkg not notarized: it needs a Developer ID Installer signature$(RESET)\n"; \
 	fi
@@ -332,7 +332,7 @@ test: ## Run full Xcode unit test suite (with code coverage)
 
 test-core: ## Run CLT-only core parser tests (no app host)
 	$(call say,Running core tests…)
-	@./Scripts/run_core_tests.sh
+	@./scripts/run_core_tests.sh
 	$(call ok,Core tests passed)
 
 # Lint gate
@@ -363,8 +363,8 @@ format-fix: ## Auto-format all Swift sources
 secrets: ## Secret scan gate — working tree and full git history
 	$(call say,Running gitleaks (secret scan)…)
 	@command -v gitleaks >/dev/null || { printf "$(RED)🚨 gitleaks not installed. brew install gitleaks$(RESET)\n"; exit 1; }
-	@gitleaks dir . --no-banner
-	@gitleaks detect --no-banner --log-opts="--all"
+	@gitleaks dir .. --no-banner
+	@gitleaks detect --source .. --no-banner --log-opts="--all"
 	$(call ok,No secrets found)
 
 # Project maintenance
@@ -377,7 +377,7 @@ project: ## Regenerate Xcode project with xcodegen
 
 icon: ## Regenerate AppIcon asset catalog
 	$(call say,Generating app icon…)
-	@swift Scripts/generate_icon.swift TokenMon/Resources/Assets.xcassets/AppIcon.appiconset
+	@swift scripts/generate_icon.swift TokenMon/Resources/Assets.xcassets/AppIcon.appiconset
 	$(call ok,Icon set updated)
 
 check: ## Verify Xcode CLI is pointed at Xcode.app

@@ -1,6 +1,6 @@
 name: macOS pkg
 description: >-
-  Builds the installer package dist/TokenMon-<version>.pkg from dist/TokenMon.app
+  Builds the installer package macos/dist/TokenMon-<version>.pkg from macos/dist/TokenMon.app
   (building it first when missing). It is signed when a Developer ID Installer
   identity is in the keychain (see macos-import-signing), otherwise unsigned.
 
@@ -17,8 +17,8 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        make pkg
-        pkg=$(ls dist/TokenMon-*.pkg)
+        make -C macos pkg
+        pkg=$(ls macos/dist/TokenMon-*.pkg)
         test -f "$pkg"
         echo "pkg-path=$pkg" >> "$GITHUB_OUTPUT"
         pkgutil --check-signature "$pkg" || echo "The package is unsigned."

@@ -1,10 +1,10 @@
 # Spec 01: Core, App, Platform and Features (Settings, Update, Overview)
 
 Source: TokenMon macOS (Swift), branch `windows-port`. This document covers
-`TokenMon/App/`, `TokenMon/Core/` (Networking, Polling, Storage, Usage, Utilities),
-`TokenMon/Platform/` (Auth, `SystemWakeGate`, `ThresholdNotifier`),
-`TokenMon/Features/` (Settings, Update, Overview) and their tests under
-`TokenMonTests/`. Provider-specific clients, pollers and UI panels live in other
+`macos/TokenMon/App/`, `macos/TokenMon/Core/` (Networking, Polling, Storage, Usage, Utilities),
+`macos/TokenMon/Platform/` (Auth, `SystemWakeGate`, `ThresholdNotifier`),
+`macos/TokenMon/Features/` (Settings, Update, Overview) and their tests under
+`macos/TokenMonTests/`. Provider-specific clients, pollers and UI panels live in other
 spec slices; this one names them only where the shared code calls into them.
 
 The Rust port should reproduce everything below exactly unless a row in section 8

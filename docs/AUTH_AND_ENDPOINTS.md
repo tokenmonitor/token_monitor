@@ -193,7 +193,7 @@ weekly caption and the Daily Budget bars.
 `current_period_start` jumping forward to a date before the previous
 `next_reset_timestamp_utc`, together with a used-% drop of at least
 `Percent.resetDropFloor`. Detection uses only those two fields; see `QuotaWindowTransition` and the data-flow notes in
-`ARCHITECTURE.md`. A payload whose reset instant stays put while the period
+[macos/docs/ARCHITECTURE.md](../macos/docs/ARCHITECTURE.md). A payload whose reset instant stays put while the period
 start moves still anchors the bars to the new start, over 7 bars.
 
 ## Cursor
@@ -268,4 +268,4 @@ Not a provider, but the app's only other network traffic (Settings → Check for
 | GET | `https://api.github.com/repos/<owner>/<repo>/releases/latest` | Unauthenticated |
 | GET | `https://github.com/<owner>/<repo>/releases/download/…` | Release zip / pkg; redirects are allowed only to `objects.githubusercontent.com` and `release-assets.githubusercontent.com` |
 
-See `NOTARIZATION.md` for how a download is verified before it is installed.
+See [macos/docs/NOTARIZATION.md](../macos/docs/NOTARIZATION.md) for how a download is verified before it is installed.

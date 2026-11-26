@@ -46,7 +46,7 @@ The source tree is layered. `Core` builds without any UI framework (a SwiftLint 
 | `Features/Settings/` | `AppSettings` (UserDefaults-backed, including each provider's poll interval) and the Settings window |
 | `Features/Update/` | GitHub release check, verified in-place install (`UpdateChecker`, `ReleaseFeed`, `AppInstaller`) |
 
-Tests in `TokenMonTests/` mirror these folders.
+Tests in `macos/TokenMonTests/` mirror these folders.
 
 ## Data flow
 
@@ -80,7 +80,7 @@ Provider requests use `ProviderURLSession.shared`, an ephemeral session with no 
 
 ## Build source of truth
 
-`project.yml` (XcodeGen) is the only project definition. Run `make project` after adding or moving files and commit the regenerated project; CI fails on drift. Build through `TokenMon.xcodeproj`. The bundle identifier is `com.modelmonitor.app`.
+`macos/project.yml` (XcodeGen) is the only project definition. Run `make -C macos project` after adding or moving files and commit the regenerated project; CI fails on drift. Build through `macos/TokenMon.xcodeproj`. The bundle identifier is `com.modelmonitor.app`.
 
 ## Shared provider patterns
 

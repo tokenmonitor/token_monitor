@@ -5,46 +5,46 @@ Thanks for helping improve TokenMon. This project is a native macOS menu bar app
 ## Development setup
 
 1. Install [Xcode 16+](https://developer.apple.com/xcode/) on macOS 14+.
-2. Clone the repo and open `TokenMon.xcodeproj`.
+2. Clone the repo and open `macos/TokenMon.xcodeproj`.
 3. Select the **TokenMon** scheme → **My Mac** → Run.
 
 ```bash
 git clone https://github.com/tokenmonitor/token_monitor.git
 cd token_monitor
-open TokenMon.xcodeproj
+open macos/TokenMon.xcodeproj
 ```
 
 After adding or removing source files, regenerate the Xcode project:
 
 ```bash
-xcodegen generate
+make -C macos project
 ```
 
 To regenerate the TokenMon app icon:
 
 ```bash
-swift Scripts/generate_icon.swift TokenMon/Resources/Assets.xcassets/AppIcon.appiconset
+make -C macos icon
 ```
 
 ## Before you open a PR
 
 - Keep changes focused on one concern.
 - Prefer clear commit messages that explain *why*.
-- Run the checks CI runs: `make lint`, `make format`, `make secrets`, and the
+- Run the checks CI runs: `make -C macos lint`, `make -C macos format`, `make -C macos secrets`, and the
   full test suite. The test suite builds the app host and covers Cursor usage,
   auth sessions, pollers, and UI behavior:
 
 ```bash
-make test
+make -C macos test
 ```
 
-- `make test-core` is an optional, fast CLT-only smoke. It compiles the Grok
+- `make -C macos test-core` is an optional, fast CLT-only smoke. It compiles the Grok
   parsers, CSV/JSON export, and the Daily Budget preview/Thursday-week assert, and does **not**
   cover Cursor daily quota, auth sessions, pollers, or UI. A green core run is
   not sufficient for billing or auth changes:
 
 ```bash
-make test-core
+make -C macos test-core
 ```
 
 ## Windows parity (zero drift)
@@ -54,9 +54,9 @@ not drift apart: every behavior change on macOS needs the same change on
 Windows, or an issue that tracks it. CI enforces this on every push and pull
 request, `master` included (`.github/workflows/windows-parity.yml`):
 
-- **Drift guard.** A change that touches the macOS app (`TokenMon/`,
-  `TokenMonTests/`, `Tests/`, `Scripts/`, `TokenMon.xcodeproj/`, `project.yml`
-  or `Makefile`) must carry its Windows parity:
+- **Drift guard.** A change that touches the macOS app (`macos/TokenMon/`,
+  `macos/TokenMonTests/`, `macos/Tests/`, `macos/scripts/`,
+  `macos/TokenMon.xcodeproj/`, `macos/project.yml` or `macos/Makefile`) must carry its Windows parity:
   - When you change the body of a Swift test whose `PARITY.md` row is
     `ported` (a new expected value, say), update that row or the Rust test it
     names in the same change, after checking the Rust test still matches.
@@ -73,7 +73,7 @@ request, `master` included (`.github/workflows/windows-parity.yml`):
   Otherwise the check fails, and its job summary lists the exact tests and
   paths.
 - **Parity ledger.** `windows/docs/PARITY.md` has one row per Swift test (every
-  XCTest method and every `make test-core` check) giving its status (`todo`,
+  XCTest method and every `make -C macos test-core` check) giving its status (`todo`,
   `ported` or `n/a` with a reason) and the Rust test that covers it. Adding,
   renaming or deleting a Swift test without updating the ledger fails CI.
 
@@ -94,7 +94,7 @@ commit SHA, then re-run the failed job; an open `windows-parity` issue that
 mentions the commit satisfies the guard.
 
 The two apps also ship **one version number**: `MARKETING_VERSION` in
-`project.yml` and `[workspace.package] version` in `windows/Cargo.toml` (which
+`macos/project.yml` and `[workspace.package] version` in `windows/Cargo.toml` (which
 every crate and the MSI inherit) must be equal. Bump both together and refresh
 `windows/Cargo.lock` and `windows/fuzz/Cargo.lock`. CI fails on drift.
 
@@ -116,7 +116,7 @@ python3 -m unittest discover -s windows/scripts/parity/tests
 ## Scope notes
 
 - TokenMon is an **unofficial** client. It uses authenticated provider web surfaces (grok.com, cursor.com, opencode.ai, claude.ai, chatgpt.com) that can change without notice.
-- Avoid scraping that violates a provider's terms; prefer the existing auth + endpoint approach documented in `Docs/AUTH_AND_ENDPOINTS.md`.
+- Avoid scraping that violates a provider's terms; prefer the existing auth + endpoint approach documented in `docs/AUTH_AND_ENDPOINTS.md`.
 - Do not add telemetry or third-party analytics without discussion.
 
 ## Code of conduct

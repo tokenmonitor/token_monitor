@@ -1,12 +1,12 @@
 name: macOS notarize
 description: >-
   Submits a Developer ID signed .app or .pkg to the Apple notary service
-  and staples the ticket (Scripts/notarize.sh). Does nothing when the Apple
+  and staples the ticket (macos/scripts/notarize.sh). Does nothing when the Apple
   credentials are empty, so it can stay in the pipeline before an account exists.
 
 inputs:
   path:
-    description: The .app or .pkg to notarize.
+    description: The .app or .pkg to notarize, relative to the workspace.
     required: true
   apple-id:
     description: Apple ID e-mail. Empty skips notarization.
@@ -40,4 +40,4 @@ runs:
         profile=tokenmon-ci-notary
         xcrun notarytool store-credentials "$profile" \
           --apple-id "$APPLE_ID" --team-id "$TEAM_ID" --password "$APP_PASSWORD" >/dev/null
-        ./Scripts/notarize.sh "$TARGET" "$profile"
+        ./macos/scripts/notarize.sh "$TARGET" "$profile"

@@ -94,17 +94,17 @@ enum OrderStatus: String, Codable, CaseIterable, Hashable, Sendable {
 
 ## Testing Standards
 
-**Project convention: tests live in `TokenMonTests/`, never in `TokenMon/` source.**
+**Project convention: tests live in `macos/TokenMonTests/`, never in `macos/TokenMon/` source.**
 
-- One `XCTestCase` file per unit under test, in the folder that mirrors its source: `TokenMonTests/Core/Polling/`, `TokenMonTests/Providers/Grok/`, `TokenMonTests/Features/Settings/`.
+- One `XCTestCase` file per unit under test, in the folder that mirrors its source: `macos/TokenMonTests/Core/Polling/`, `macos/TokenMonTests/Providers/Grok/`, `macos/TokenMonTests/Features/Settings/`.
 - Import with `@testable import TokenMon`. Keep internals `internal` — `@testable` reaches them from the test bundle, so you do NOT need to widen visibility to `public` for tests.
 - NEVER add `#if DEBUG` test-only code or inline test modules to source files; production modules stay free of test-only imports and behavior.
 - Use descriptive test names: `testWorkspaceIDFromURL`, `testExportCSVNeutralizesFormulaInjection`, `testOrderStatusRejectsInvalidInput` — not `test1`.
 - Test happy paths and error cases; test edge cases and boundary conditions.
 - For enums: always test `rawValue` roundtripping and invalid-input rejection (`XCTAssertNil(OrderStatus(rawValue: "nonexistent"))`).
 - Use `XCTAssertEqual(_:_:accuracy:)` for floating point — never exact equality.
-- Pure parsers/builders that need no app host go in `Tests/Manual/CoreTestsMain.swift` and run via `Scripts/run_core_tests.sh` (`make test-core`).
-- Keep tests hermetic: use fixture JSON/text/hex (see the gRPC hex fixture in `Tests/Manual/CoreTestsMain.swift`), never live endpoints. If a test must touch a live surface, gate it behind an environment flag and skip by default so the suite stays hermetic.
+- Pure parsers/builders that need no app host go in `macos/Tests/Manual/CoreTestsMain.swift` and run via `macos/scripts/run_core_tests.sh` (`make -C macos test-core`).
+- Keep tests hermetic: use fixture JSON/text/hex (see the gRPC hex fixture in `macos/Tests/Manual/CoreTestsMain.swift`), never live endpoints. If a test must touch a live surface, gate it behind an environment flag and skip by default so the suite stays hermetic.
 - Never touch real user state: inject a temporary directory instead of `~/Library/Application Support/TokenMon` or `~/Library/Caches`, a throwaway `UserDefaults(suiteName:)` instead of `.standard`, `InMemoryCredentialStore` / a fake `KeychainBackend` instead of the Keychain, and a stubbed transport instead of the network.
 
 ## Performance & Micro-Optimizations
@@ -376,7 +376,7 @@ Techniques:
 - `-Osize` when binary size/I-cache matters more than a few percent.
 - PGO: Xcode "Profile Guided Optimization" (generate `.profdata` from a representative run, then enable Use Optimization Profile).
 - Linker: `-dead_strip`, and `SWIFT_DEFAULT_ACTOR_ISOLATION`/concurrency checks are correctness, not speed.
-- Remember **`make project` after any file add/move** — un-compiled files aren't "slow", they're absent (repo quality gate).
+- Remember **`make -C macos project` after any file add/move** — un-compiled files aren't "slow", they're absent (repo quality gate).
 
 ### Lens 6 — Code size (I-cache / compile time)
 
@@ -540,8 +540,8 @@ Push back on "optimize everything" — prioritize the critical 3%.
 ## Project Notes (token_monitor)
 
 - **macOS 14+ / Swift 5.10 / SwiftUI + AppKit.** App is `LSUIElement` (agent app, no Dock icon). The menu bar is a custom `NSStatusItem` owned by `MenuBarController`; its label is one AppKit-rendered bitmap (`MenuBarStatusRenderer`) and its dropdown is a borderless `MenuBarPanel` (`NSPanel`), **not** `MenuBarExtra`/`NSPopover`. The status item keeps `variableLength` and sizes to the bitmap.
-- **`project.yml` (XcodeGen) is the only project definition.** After adding or moving source files, run `make project` (xcodegen generate); new files are NOT compiled otherwise.
-- Build/test/run: `make build` (Debug), `make run`, `make release` (dist/), `make test` (full Xcode suite), `make test-core` (CLT-only parsers).
+- **`macos/project.yml` (XcodeGen) is the only project definition.** After adding or moving source files, run `make -C macos project` (xcodegen generate); new files are NOT compiled otherwise.
+- Build/test/run: `make -C macos build` (Debug), `make -C macos run`, `make -C macos release` (dist/), `make -C macos test` (full Xcode suite), `make -C macos test-core` (CLT-only parsers).
 - **Menu bar content is drawn as an AppKit bitmap**, not SwiftUI (see `MenuBarStatusRenderer`): one `NSImage` composite of per-provider segments plus the hit regions for the same layout, so a status-item click maps back to its provider (`MenuBarController`).
 - Menu bar labels are bitmaps: text must use system label colors resolved from the menu bar's *live* `effectiveAppearance`, and the image cache must be keyed by appearance and invalidated on `AppleInterfaceThemeChangedNotification`.
 - App-wide services live on `AppModel` (`@MainActor` `ObservableObject`); child services forward `objectWillChange` into it so the status-item label refreshes (see `AppModel.forwardChanges`).
@@ -551,7 +551,7 @@ Push back on "optimize everything" — prioritize the critical 3%.
   - Each refresh returns a `PollOutcome`. Failures back off exponentially (`BackoffTimer`, 30 s → 10 min), a 429 `Retry-After` is honoured, and every wait carries ±10% jitter.
   - `SystemWakeGate` calls `pause()` on sleep and `resume()` once the network is back.
   - `AppModel` forwards child `objectWillChange` through one throttled publisher, so a poll that sets many fields triggers one re-render.
-- Auth: `ProviderAuthSession` subclasses with per-provider `WebKitCookieCapture` policies (isolated non-persistent WebKit store, essential-cookie allowlist, three-strike invalidation). Secrets (session cookie headers, the OpenRouter key) live in the login Keychain via `SecretRoutingCredentialStore` / `KeychainCredentialStore`; email, account identity, and workspace id are mode-`0600` files under Application Support. Tests use `InMemoryCredentialStore` or a fake `KeychainBackend`. See `Docs/AUTH_AND_ENDPOINTS.md`.
+- Auth: `ProviderAuthSession` subclasses with per-provider `WebKitCookieCapture` policies (isolated non-persistent WebKit store, essential-cookie allowlist, three-strike invalidation). Secrets (session cookie headers, the OpenRouter key) live in the login Keychain via `SecretRoutingCredentialStore` / `KeychainCredentialStore`; email, account identity, and workspace id are mode-`0600` files under Application Support. Tests use `InMemoryCredentialStore` or a fake `KeychainBackend`. See `docs/AUTH_AND_ENDPOINTS.md`.
 - Percent semantics: menu bar shows used %; dropdown shows used + remaining; the Grok daily chart shows the 7 days of the active billing period (plus the reset day before its reset instant), deriving day-over-day deltas from local history.
 
 ## Workflow
@@ -560,15 +560,15 @@ Push back on "optimize everything" — prioritize the critical 3%.
 2. Design types first — define enums, structs, and protocols before writing logic.
 3. Implement with value semantics and composability — small functions/views, no unnecessary mutation.
 4. Document everything — `///` comments with `- Parameters:`, `- Returns:`, `- Throws:` on public items.
-5. Write tests — `TokenMonTests/<Layer>/<Area>/<Type>Tests.swift` (mirroring the source folder) plus `Tests/Manual/CoreTestsMain.swift` for CLT-friendly parsers, covering happy paths, errors, and edge cases. Never add test-only modules to source.
+5. Write tests — `macos/TokenMonTests/<Layer>/<Area>/<Type>Tests.swift` (mirroring the source folder) plus `macos/Tests/Manual/CoreTestsMain.swift` for CLT-friendly parsers, covering happy paths, errors, and edge cases. Never add test-only modules to source.
 6. Review for hot paths — once correct, optimize allocation patterns, COW/copy behavior, main-actor usage, and caching (see Performance & Micro-Optimizations, and Deep Audits for review hunts).
 7. Self-review — before presenting code, verify: Are all types documented? Are there tests and are they hermetic? Is mutation minimized? Are strings eliminated in favor of enums? Are errors properly typed? Any hot-path smells (formatter-per-call, per-row full-JSON, `[UInt8]` copies, eager log strings)?
 8. **Quality gate (MANDATORY before claiming done or asking to commit/deploy)** — the same checks CI runs. From the repo root:
-   1. `make project` when files were added, moved, or removed, and commit the regenerated `TokenMon.xcodeproj` — CI fails when `make project` leaves `git diff` non-empty (project drift check). The core test script compiles every file under `TokenMon/Core`; a provider file it needs goes in `PROVIDER_SOURCES` in `Scripts/run_core_tests.sh`. Code under `TokenMon/Core` imports no UI framework (`core_imports_no_ui` in `.swiftlint.yml`).
-   2. `make lint` — SwiftLint strict; every warning is an error.
-   3. `make format` — SwiftFormat lint; no drift.
-   4. `make secrets` — gitleaks over the working tree and history.
-   5. `make build`, then `make test` and `make test-core`.
+   1. `make -C macos project` when files were added, moved, or removed, and commit the regenerated `macos/TokenMon.xcodeproj` — CI fails when `make -C macos project` leaves `git diff` non-empty (project drift check). The core test script compiles every file under `macos/TokenMon/Core`; a provider file it needs goes in `PROVIDER_SOURCES` in `macos/scripts/run_core_tests.sh`. Code under `macos/TokenMon/Core` imports no UI framework (`core_imports_no_ui` in `.swiftlint.yml`).
+   2. `make -C macos lint` — SwiftLint strict; every warning is an error.
+   3. `make -C macos format` — SwiftFormat lint; no drift.
+   4. `make -C macos secrets` — gitleaks over the working tree and history.
+   5. `make -C macos build`, then `make -C macos test` and `make -C macos test-core`.
 
    Every step MUST pass. Do not hand off code that fails this gate.
 
@@ -600,7 +600,7 @@ Repo rules. These override generic best practices when they conflict.
 3. **A cache key must encode every input that changes the output.** If it affects the pixels (appearance) or the text (time zone, locale), it is part of the key, or the cache is cleared when it changes.
 4. **Credentials go in the Keychain through `SecretRoutingCredentialStore`, never in a file.** Only identifiers that cannot authenticate (email, account identity, workspace id) stay in `0600` files. A refused Keychain write throws `CredentialStoreError.secureStoreRefused` and the sign-in fails; there is no file fallback. A secret found in a legacy `.dat` file moves into the Keychain after a verified write, and the file is deleted either way (a refused move signs the provider out).
 5. **Provider requests use `ProviderURLSession.shared`.** It has no cookie jar and no cache; send the stored credential in an explicit header.
-6. **`project.yml` is the only source of truth.** A Swift file added without `make project` never compiles, and CI rejects an uncommitted project diff.
+6. **`macos/project.yml` is the only source of truth.** A Swift file added without `make -C macos project` never compiles, and CI rejects an uncommitted project diff.
 7. **Menu bar labels only observe `AppModel`.** Forward each child's `objectWillChange` into `AppModel` (see `AppModel.forwardChanges`) or labels go stale.
 8. **Parse failures degrade, never crash; one rejection is not an expiry.** Decode errors are logged and surfaced as bad responses. A 401/403 counts toward `ProviderAuthSession.authFailureThreshold` (three in a row) before the session is invalidated, and a bot-protection challenge never counts.
 9. **Day keys and dates.** Bucket by `calendar.startOfDay(for:)` with the injected `Calendar`, never `Calendar.current` inside a function that takes one; month arithmetic counts each cycle from its anchor, not from the previous result.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fail unless the Windows app version equals the macOS app version.
 
-The macOS version is MARKETING_VERSION in project.yml. The Windows version is
+The macOS version is MARKETING_VERSION in macos/project.yml. The Windows version is
 [workspace.package] version in windows/Cargo.toml, which every crate and the
 MSI inherit. The two apps ship the same version number, so a macOS bump needs
 the same bump under windows/ (and the reverse).
@@ -19,6 +19,9 @@ import sys
 import tomllib
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from extract_swift_tests import MACOS_ROOT  # noqa: E402
+
 MARKETING = re.compile(r'^\s*MARKETING_VERSION:\s*"([^"]+)"', re.MULTILINE)
 
 
@@ -27,14 +30,15 @@ class VersionError(Exception):
 
 
 def mac_version(root: Path) -> str:
-    """MARKETING_VERSION from project.yml."""
+    """MARKETING_VERSION from macos/project.yml."""
+    path = root / MACOS_ROOT / "project.yml"
     try:
-        text = (root / "project.yml").read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8")
     except OSError as e:
-        raise VersionError(f"cannot read project.yml: {e}") from e
+        raise VersionError(f"cannot read {MACOS_ROOT}/project.yml: {e}") from e
     match = MARKETING.search(text)
     if not match:
-        raise VersionError("project.yml has no MARKETING_VERSION")
+        raise VersionError(f"{MACOS_ROOT}/project.yml has no MARKETING_VERSION")
     return match.group(1)
 
 
@@ -56,7 +60,7 @@ def check(root: Path) -> str | None:
     if mac == win:
         return None
     return (
-        f"Version drift: macOS is {mac} (MARKETING_VERSION in project.yml) but Windows is {win} "
+        f"Version drift: macOS is {mac} (MARKETING_VERSION in {MACOS_ROOT}/project.yml) but Windows is {win} "
         f"([workspace.package] version in windows/Cargo.toml). Set both to the same number "
         f"and refresh windows/Cargo.lock (`cargo update --workspace` in windows/)."
     )

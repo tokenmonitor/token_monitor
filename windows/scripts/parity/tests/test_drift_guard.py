@@ -35,16 +35,17 @@ def fetcher(issues: list[dict]):
 class ClassifyAndReferenceTests(unittest.TestCase):
     def test_classify(self) -> None:
         mac, win = dg.classify(
-            ["TokenMon/App/A.swift", "TokenMonTests/X.swift", "Tests/Manual/CoreTestsMain.swift",
-             "windows/docs/PARITY.md", "README.md", "TokenMon.xcodeproj/project.pbxproj", "",
-             "TokenMon/Resources/Info.plist", "project.yml", "Makefile", "Scripts/notarize.sh",
-             "windows/Makefile", "Docs/x.md", "docs/Makefile", ".github/workflows/ci.yml"]
+            ["macos/TokenMon/App/A.swift", "macos/TokenMonTests/X.swift", "macos/Tests/Manual/CoreTestsMain.swift",
+             "windows/docs/PARITY.md", "README.md", "macos/TokenMon.xcodeproj/project.pbxproj", "",
+             "macos/TokenMon/Resources/Info.plist", "macos/project.yml", "macos/Makefile", "macos/scripts/notarize.sh",
+             "windows/Makefile", "docs/x.md", "macos/docs/NOTARIZATION.md", "TokenMon/App/Old.swift", "project.yml",
+             "Makefile", ".github/workflows/ci.yml"]
         )
         self.assertEqual(
             mac,
-            ["TokenMon/App/A.swift", "TokenMonTests/X.swift", "Tests/Manual/CoreTestsMain.swift",
-             "TokenMon.xcodeproj/project.pbxproj", "TokenMon/Resources/Info.plist", "project.yml", "Makefile",
-             "Scripts/notarize.sh"],
+            ["macos/TokenMon/App/A.swift", "macos/TokenMonTests/X.swift", "macos/Tests/Manual/CoreTestsMain.swift",
+             "macos/TokenMon.xcodeproj/project.pbxproj", "macos/TokenMon/Resources/Info.plist", "macos/project.yml",
+             "macos/Makefile", "macos/scripts/notarize.sh"],
         )
         self.assertEqual(win, ["windows/docs/PARITY.md", "windows/Makefile"])
 
@@ -72,43 +73,44 @@ class EvaluateTests(unittest.TestCase):
 
     def test_macos_with_windows_change_passes_without_api(self) -> None:
         fetch = fetcher([])
-        result = dg.evaluate(["TokenMon/A.swift", "windows/crates/a.rs"], "", [], REPO, fetch)
+        result = dg.evaluate(["macos/TokenMon/A.swift", "windows/crates/a.rs"], "", [], REPO, fetch)
         self.assertTrue(result.ok)
         self.assertEqual(fetch.calls, [])
 
     def test_macos_only_without_issue_fails(self) -> None:
-        result = dg.evaluate(["TokenMon/A.swift"], "fix: thing", [SHA], REPO, fetcher([]))
+        result = dg.evaluate(["macos/TokenMon/A.swift"], "fix: thing", [SHA], REPO, fetcher([]))
         self.assertTrue(result.needs_parity)
         self.assertFalse(result.ok)
 
     def test_reference_to_open_labeled_issue_passes(self) -> None:
-        result = dg.evaluate(["TokenMonTests/A.swift"], "Refs #42", [SHA], REPO, fetcher([PARITY_ISSUE]))
+        result = dg.evaluate(["macos/TokenMonTests/A.swift"], "Refs #42", [SHA], REPO, fetcher([PARITY_ISSUE]))
         self.assertTrue(result.ok)
         self.assertEqual([i["number"] for i in result.matched_by_reference], [42])
 
     def test_reference_to_other_issue_fails(self) -> None:
         # #41 is closed, unlabeled, or a pull request: the listing of open windows-parity issues omits it.
-        result = dg.evaluate(["Tests/Manual/C.swift"], "Refs #41", [SHA], REPO, fetcher([PARITY_ISSUE]))
+        result = dg.evaluate(["macos/Tests/Manual/C.swift"], "Refs #41", [SHA], REPO, fetcher([PARITY_ISSUE]))
         self.assertFalse(result.ok)
 
     def test_issue_mentioning_the_commit_passes(self) -> None:
         issue = dict(PARITY_ISSUE, body=f"Upstream merge {SHA[:10]} needs porting")
-        result = dg.evaluate(["TokenMon/A.swift"], "Merge pull request #49 from upstream", [SHA], REPO, fetcher([issue]))
+        result = dg.evaluate(["macos/TokenMon/A.swift"], "Merge pull request #49 from upstream", [SHA], REPO, fetcher([issue]))
         self.assertTrue(result.ok)
         self.assertEqual(result.matched_by_sha[0][1], SHA)
 
     def test_missing_token_or_api_error_fails_closed(self) -> None:
-        self.assertFalse(dg.evaluate(["TokenMon/A.swift"], "Refs #42", [], REPO, None).ok)
+        self.assertFalse(dg.evaluate(["macos/TokenMon/A.swift"], "Refs #42", [], REPO, None).ok)
 
         def broken(repo: str) -> list[dict]:
             raise urllib.error.URLError("boom")
 
-        result = dg.evaluate(["TokenMon/A.swift"], "Refs #42", [], REPO, broken)
+        result = dg.evaluate(["macos/TokenMon/A.swift"], "Refs #42", [], REPO, broken)
         self.assertFalse(result.ok)
         self.assertIn("boom", result.error)
 
 
 TEST_FILE = "TokenMonTests/Core/PaceTests.swift"
+TEST_PATH = f"{dg.MACOS_ROOT}/{TEST_FILE}"
 PACE_ID = f"{TEST_FILE}::PaceTests::testPace"
 OTHER_ID = f"{TEST_FILE}::PaceTests::testOther"
 RUST = "crates/tokenmon-core/tests/test_pace.rs"
@@ -145,11 +147,11 @@ class ParityRulesTests(unittest.TestCase):
         self, new_swift: str | None, changed_extra: list[str] = (), text: str = "", head_ledger: str | None = None,
         issues: list[dict] | None = None, base_ledger: str | None = None,
     ) -> dg.Result:
-        base = {TEST_FILE: SWIFT_OLD, dg.LEDGER: base_ledger or ledger()}
+        base = {TEST_PATH: SWIFT_OLD, dg.LEDGER: base_ledger or ledger()}
         head = {dg.LEDGER: head_ledger or base_ledger or ledger()}
         if new_swift is not None:
-            head[TEST_FILE] = new_swift
-        changed = [TEST_FILE, *changed_extra]
+            head[TEST_PATH] = new_swift
+        changed = [TEST_PATH, *changed_extra]
         if head_ledger is not None:
             changed.append(dg.LEDGER)
         return dg.evaluate(
@@ -211,7 +213,7 @@ class ParityRulesTests(unittest.TestCase):
     def test_helper_change_is_rule_b(self) -> None:
         result = self.run_guard(SWIFT_OLD.replace("{ 1 }", "{ 2 }"))
         self.assertEqual(result.test_changes, [])
-        self.assertEqual(result.other_mac_paths, [TEST_FILE])
+        self.assertEqual(result.other_mac_paths, [TEST_PATH])
         self.assertFalse(result.ok)
 
     def test_issue_reference_covers_rule_a(self) -> None:
@@ -225,27 +227,28 @@ class ParityRulesTests(unittest.TestCase):
 
     def test_core_check_condition_change(self) -> None:
         core = "Tests/Manual/CoreTestsMain.swift"
+        core_path = f"{dg.MACOS_ROOT}/{core}"
         core_id = f"{core}::CoreTestsMain::used_percent"
         old = 'func assertTrue(_ c: Bool, _ m: String) {}\nlet x = 1\ntry assertTrue(x == 64, "used percent")\n'
         base_ledger = (
             "| Swift test | Behavior | Workstream | Status | Rust test | Notes |\n|---|---|---|---|---|---|\n"
             f"| `{core_id}` | 64 | ws-grok | ported | `{RUST}::t` | |\n"
         )
-        read = reader({core: old, dg.LEDGER: base_ledger}, {core: old.replace("64", "65"), dg.LEDGER: base_ledger})
-        result = dg.evaluate([core], "", [], REPO, fetcher([]), base="BASE", head="HEAD", read=read)
+        read = reader({core_path: old, dg.LEDGER: base_ledger}, {core_path: old.replace("64", "65"), dg.LEDGER: base_ledger})
+        result = dg.evaluate([core_path], "", [], REPO, fetcher([]), base="BASE", head="HEAD", read=read)
         self.assertEqual([t.id for t in result.unconfirmed_tests], [core_id])
         self.assertEqual(result.other_mac_paths, [])
         # A change outside the checks (the setup) is rule B.
-        read = reader({core: old, dg.LEDGER: base_ledger}, {core: old.replace("x = 1", "x = 2"), dg.LEDGER: base_ledger})
-        result = dg.evaluate([core], "", [], REPO, fetcher([]), base="BASE", head="HEAD", read=read)
-        self.assertEqual((result.test_changes, result.other_mac_paths), ([], [core]))
+        read = reader({core_path: old, dg.LEDGER: base_ledger}, {core_path: old.replace("x = 1", "x = 2"), dg.LEDGER: base_ledger})
+        result = dg.evaluate([core_path], "", [], REPO, fetcher([]), base="BASE", head="HEAD", read=read)
+        self.assertEqual((result.test_changes, result.other_mac_paths), ([], [core_path]))
 
 
 class OtherMacChangesTests(unittest.TestCase):
     def test_windows_docs_do_not_count(self) -> None:
         # The issue's PR 1: a new pace rule plus a README typo fix.
         result = dg.evaluate(
-            ["TokenMon/Core/Usage/DailyBudgetPace.swift", "windows/README.md", "windows/docs/spec/01.md"],
+            ["macos/TokenMon/Core/Usage/DailyBudgetPace.swift", "windows/README.md", "windows/docs/spec/01.md"],
             "", [SHA], REPO, fetcher([]),
         )
         self.assertTrue(result.other_changes_unported)
@@ -253,12 +256,12 @@ class OtherMacChangesTests(unittest.TestCase):
 
     def test_windows_code_or_ledger_counts(self) -> None:
         for path in ("windows/crates/tokenmon-core/src/pace.rs", "windows/docs/PARITY.md"):
-            result = dg.evaluate(["TokenMon/Core/Usage/DailyBudgetPace.swift", path], "", [SHA], REPO, fetcher([]))
+            result = dg.evaluate(["macos/TokenMon/Core/Usage/DailyBudgetPace.swift", path], "", [SHA], REPO, fetcher([]))
             self.assertTrue(result.ok, path)
 
     def test_trailer_counts(self) -> None:
         text = "fix(menubar): spacing\n\nWindows-Parity: macOS-only NSStatusItem padding\n"
-        result = dg.evaluate(["TokenMon/UI/MenuBar/X.swift"], text, [SHA], REPO, fetcher([]))
+        result = dg.evaluate(["macos/TokenMon/UI/MenuBar/X.swift"], text, [SHA], REPO, fetcher([]))
         self.assertEqual(result.trailer, "macOS-only NSStatusItem padding")
         self.assertTrue(result.ok)
         self.assertEqual(dg.find_trailer("Windows-Parity:   \n"), "")
@@ -277,9 +280,9 @@ class GitIntegrationTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name)
         self.git("init", "-q")
-        (self.root / "TokenMonTests/Core").mkdir(parents=True)
+        (self.root / dg.MACOS_ROOT / "TokenMonTests/Core").mkdir(parents=True)
         (self.root / "windows/docs").mkdir(parents=True)
-        (self.root / TEST_FILE).write_text(SWIFT_OLD)
+        (self.root / TEST_PATH).write_text(SWIFT_OLD)
         (self.root / dg.LEDGER).write_text(ledger())
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "base")
@@ -289,13 +292,13 @@ class GitIntegrationTests(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_reads_revisions_from_git(self) -> None:
-        (self.root / TEST_FILE).write_text(SWIFT_OLD.replace("0.5", "0.6"))
+        (self.root / TEST_PATH).write_text(SWIFT_OLD.replace("0.5", "0.6"))
         self.git("commit", "-q", "-am", "change")
         head = self.git("rev-parse", "HEAD")
         changed = self.git("diff", "--name-only", self.base, head).splitlines()
         read = dg.git_reader(self.root)
         self.assertIsNone(read(self.base, "nope.swift"))
-        self.assertIsNone(read("", TEST_FILE))
+        self.assertIsNone(read("", TEST_PATH))
         result = dg.evaluate(changed, "", [head], REPO, fetcher([]), base=self.base, head=head, read=read)
         self.assertEqual([t.id for t in result.unconfirmed_tests], [PACE_ID])
 
@@ -338,24 +341,24 @@ class MainTests(unittest.TestCase):
         return code, out.getvalue(), summary.read_text()
 
     def test_failure_summary_explains_the_fix(self) -> None:
-        code, out, summary = self.run_main("TokenMon/App/A.swift\n", "fix: x", [])
+        code, out, summary = self.run_main("macos/TokenMon/App/A.swift\n", "fix: x", [])
         self.assertEqual(code, 1)
         self.assertIn("Result: FAIL", summary)
         self.assertIn("Windows parity needed", summary)
         self.assertIn("Rule B", summary)
         self.assertIn("How to fix", summary)
         self.assertIn(SHA[:12], summary)
-        self.assertIn("`TokenMon/App/A.swift`", summary)
+        self.assertIn("`macos/TokenMon/App/A.swift`", summary)
         self.assertIn("::error title=Windows parity needed::", out)
 
     def test_pass_summary(self) -> None:
-        code, _, summary = self.run_main("TokenMon/App/A.swift\n", "Refs #42", [PARITY_ISSUE])
+        code, _, summary = self.run_main("macos/TokenMon/App/A.swift\n", "Refs #42", [PARITY_ISSUE])
         self.assertEqual(code, 0)
         self.assertIn("Result: PASS", summary)
         self.assertIn("[#42]", summary)
 
     def test_no_token_fails_when_api_is_needed(self) -> None:
-        code, _, summary = self.run_main("TokenMon/App/A.swift\n", "Refs #42", None)
+        code, _, summary = self.run_main("macos/TokenMon/App/A.swift\n", "Refs #42", None)
         self.assertEqual(code, 1)
         self.assertIn("no GitHub token", summary)
 
