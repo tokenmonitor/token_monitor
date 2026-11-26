@@ -16,7 +16,7 @@ struct ClaudeUsageMonth: Hashable, Sendable {
 
     /// The month before this one.
     var previous: Self {
-        let dayBefore = calendar.date(byAdding: .day, value: -1, to: start) ?? start
+        let dayBefore = calendar.addingDays(-1, to: start)
         return Self(containing: dayBefore, calendar: calendar)
     }
 

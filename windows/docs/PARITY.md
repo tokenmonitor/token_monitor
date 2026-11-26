@@ -355,6 +355,7 @@ specs do not list the test.
 | `TokenMonTests/Core/Usage/UsageSourceTests.swift::UsageSourceTests::testRawValuesRoundTripAndRejectUnknownInput` | Usage source raw values round-trip; unknown input is rejected (#85) | ws-core-usage | ported | `crates/tokenmon-core/tests/test_usage_source.rs::test_raw_values_round_trip_and_reject_unknown_input` | |
 | `TokenMonTests/Core/Usage/UsageSourceTests.swift::UsageSourceTests::testLocalFiguresSayThisMac` | Figures read on this computer are labelled as local (#85) | ws-core-usage | ported | `crates/tokenmon-core/tests/test_usage_source.rs::test_local_figures_say_this_pc` | |
 | `TokenMonTests/Core/Usage/UsageSourceTests.swift::UsageSourceTests::testAccountFiguresAreNotLabelled` | Account-wide figures carry no local label (#85) | ws-core-usage | ported | `crates/tokenmon-core/tests/test_usage_source.rs::test_account_figures_are_not_labelled` | |
+| `TokenMonTests/Core/Utilities/CalendarDaysTests.swift::CalendarDaysTests::testAddingDaysKeepsMidnightAcrossADaylightSavingChange` | Adding calendar days keeps local midnight across a DST change | ws-core-usage | todo |  |  |
 
 ### ws-settings (#10)
 

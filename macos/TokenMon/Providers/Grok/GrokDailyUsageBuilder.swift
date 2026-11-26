@@ -284,17 +284,17 @@ enum GrokDailyUsageBuilder {
             let today = cal.startOfDay(for: now)
             var guardIter = 0
             while guardIter < 520 {
-                let windowEnd = cal.date(byAdding: .day, value: 6, to: baseStart) ?? baseStart
+                let windowEnd = cal.addingDays(6, to: baseStart)
                 if today <= windowEnd { break }
                 guard let advanced = cal.date(byAdding: .day, value: 7, to: baseStart) else { break }
                 baseStart = advanced
                 guardIter += 1
             }
         } else {
-            baseStart = cal.date(byAdding: .day, value: -7, to: resetDay) ?? resetDay
+            baseStart = cal.addingDays(-7, to: resetDay)
         }
-        let shiftedStart = cal.date(byAdding: .day, value: weekOffset * 7, to: baseStart) ?? baseStart
-        let shiftedEnd = cal.date(byAdding: .day, value: 6, to: shiftedStart) ?? shiftedStart
+        let shiftedStart = cal.addingDays(weekOffset * 7, to: baseStart)
+        let shiftedEnd = cal.addingDays(6, to: shiftedStart)
         if weekOffset == 0, now < resetsAt, cal.isDate(now, inSameDayAs: resetDay) {
             return (shiftedStart, resetDay)
         }

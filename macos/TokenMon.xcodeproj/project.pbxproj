@@ -76,6 +76,7 @@
 		383B2E34062A19F3CA630204 /* OpenCodeModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32B4F504AB5DDB200D0E0F6 /* OpenCodeModelsTests.swift */; };
 		38FF2FE848C92E20E6902585 /* ProviderAuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4180D20B69224C21DF403BB /* ProviderAuthSession.swift */; };
 		39595560EBACEBC55F86B3F4 /* ClaudeModelHoverDetailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE993F50A438BDC9B7E9136A /* ClaudeModelHoverDetailTests.swift */; };
+		39E2012C50102B6BCF0D55C1 /* CalendarDays.swift in Sources */ = {isa = PBXBuildFile; fileRef = 025416A78B4CA21584701597 /* CalendarDays.swift */; };
 		3A664AC59BE0C9AA0DA5C241 /* MenuBarPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 129FBF60B08DD9FB200AB5D2 /* MenuBarPanelView.swift */; };
 		3AF5EFE5AD41508CCC5D59AD /* HourlyDeltaActivityStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62EFCABB89EE23C3DF5F81FC /* HourlyDeltaActivityStoreTests.swift */; };
 		3F9D8F5026A82C9340BC3FFE /* StaticURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E20014D89BBC62385482F80 /* StaticURL.swift */; };
@@ -267,6 +268,7 @@
 		ECC86A89EDAED2A82C46525C /* Percent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72E61C3E4D69105F655DCB85 /* Percent.swift */; };
 		ECF4D935AA82598C077C7045 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0D256F75FC792D8E73069426 /* PrivacyInfo.xcprivacy */; };
 		EFD7EAF3204F95C041943281 /* DailyBudgetHoverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C99FBA1A90AF70D29D9E8CEA /* DailyBudgetHoverTests.swift */; };
+		F0558FF27594E56BC58D7D79 /* CalendarDaysTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF62D30745C0D3C58925880E /* CalendarDaysTests.swift */; };
 		F111B61C502908F6047595C1 /* CursorPollerRefreshTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE5535C7C432F36BDC056DF5 /* CursorPollerRefreshTests.swift */; };
 		F2186CCA3A8B314321E937F1 /* DailyBudgetResetBoundaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55564038BBB5A4CFF17E17CA /* DailyBudgetResetBoundaryTests.swift */; };
 		F28B368A038A2F13D333EBA0 /* ModelCompanyLogoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65AAD68A7FBDDBADA99EFACF /* ModelCompanyLogoTests.swift */; };
@@ -302,6 +304,7 @@
 		011D7C69E8A62D76210C608F /* OverviewPanelFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewPanelFixture.swift; sourceTree = "<group>"; };
 		01A5AB2EBC90E6E9694A86AB /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		024B269E7E1E8C4D2654E1FA /* Format.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Format.swift; sourceTree = "<group>"; };
+		025416A78B4CA21584701597 /* CalendarDays.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarDays.swift; sourceTree = "<group>"; };
 		029654B77047E3B766095470 /* AppModelPollingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelPollingTests.swift; sourceTree = "<group>"; };
 		0298514421CD199D587E721F /* AppVersionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersionTests.swift; sourceTree = "<group>"; };
 		035D5817CDF2B39ABB3D7C99 /* ChatGPTUsageClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTUsageClientTests.swift; sourceTree = "<group>"; };
@@ -564,6 +567,7 @@
 		EC60B0D0A8A377C8F0FA3CD3 /* ClaudeAuthSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAuthSession.swift; sourceTree = "<group>"; };
 		ED51EA8ED28DE1DDA20CF97D /* AppInstallerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInstallerTests.swift; sourceTree = "<group>"; };
 		EE5535C7C432F36BDC056DF5 /* CursorPollerRefreshTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorPollerRefreshTests.swift; sourceTree = "<group>"; };
+		EF62D30745C0D3C58925880E /* CalendarDaysTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarDaysTests.swift; sourceTree = "<group>"; };
 		EFB9BCE5D4DC3AB36D9A3177 /* GrokPollerGatingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokPollerGatingTests.swift; sourceTree = "<group>"; };
 		F0688525C0C56E615E584676 /* ProviderSignInButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSignInButton.swift; sourceTree = "<group>"; };
 		F15F1BAFDB80749040B69252 /* SignInBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInBrowserView.swift; sourceTree = "<group>"; };
@@ -868,6 +872,7 @@
 			isa = PBXGroup;
 			children = (
 				46C194D27624BF19AF988189 /* AppLog.swift */,
+				025416A78B4CA21584701597 /* CalendarDays.swift */,
 				024B269E7E1E8C4D2654E1FA /* Format.swift */,
 				A536607A4C132B9B95FD2E68 /* ISO8601.swift */,
 				70517261CA02FC002C729296 /* JSON.swift */,
@@ -960,6 +965,7 @@
 		6A3D9075660D26825912BF74 /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				EF62D30745C0D3C58925880E /* CalendarDaysTests.swift */,
 				CB2FA0A7BC2A66A14A883280 /* FormatTests.swift */,
 				A431C434EB3E0B6FAD49FC5B /* JSONTests.swift */,
 				B1A920451DAC4B9DB75153AA /* ObservationLoopTests.swift */,
@@ -1433,6 +1439,7 @@
 				79245FADBD6A716A6295D5A4 /* AuthenticatedRequestTests.swift in Sources */,
 				D481B87589069A78A657FE90 /* BackoffTimerTests.swift in Sources */,
 				8C77765336CA361A4E18C3D8 /* BillingPeriodWindowTests.swift in Sources */,
+				F0558FF27594E56BC58D7D79 /* CalendarDaysTests.swift in Sources */,
 				18E25EA4F0173604E6813A3A /* ChatGPTAccessTokenCacheTests.swift in Sources */,
 				F76094E54431E2DC183ABD50 /* ChatGPTLiveTransportTests.swift in Sources */,
 				489284C744B890A815638D75 /* ChatGPTModelsTests.swift in Sources */,
@@ -1571,6 +1578,7 @@
 				5303514EA7C8E65C522F60E6 /* AppVersion.swift in Sources */,
 				AB7399210A55D804ABFA9641 /* AuthenticatedRequest.swift in Sources */,
 				65615E3B052FA630C9B1E16B /* BackoffTimer.swift in Sources */,
+				39E2012C50102B6BCF0D55C1 /* CalendarDays.swift in Sources */,
 				0A36C66775D03F67F873E630 /* ChatGPTAuthSession.swift in Sources */,
 				19A6456CEFB0C64A620E77B4 /* ChatGPTModels.swift in Sources */,
 				27708FE67616DF783006606C /* ChatGPTPanelView.swift in Sources */,

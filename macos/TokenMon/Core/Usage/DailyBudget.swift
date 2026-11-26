@@ -92,7 +92,7 @@ enum DailyBudget {
             now >= start && now < periodEnd && calendar.isDate(calendar.startOfDay(for: now), inSameDayAs: endDay)
         } ?? false
         let exclusiveEnd = includeEndDay
-            ? calendar.date(byAdding: .day, value: 1, to: endDay) ?? endDay
+            ? calendar.addingDays(1, to: endDay)
             : endDay
         let totalDays = daysInBillingCycle(start: start, end: exclusiveEnd, calendar: calendar)
         let periodDays = daysInBillingCycle(start: start, end: endDay, calendar: calendar)
@@ -148,9 +148,9 @@ enum DailyBudget {
             calendar: calendar
         )
         if weekOffset != 0 {
-            let shifted = calendar.date(byAdding: .day, value: weekOffset * count, to: weekStart) ?? weekStart
+            let shifted = calendar.addingDays(weekOffset * count, to: weekStart)
             return (0..<count).map { offset in
-                let day = calendar.date(byAdding: .day, value: offset, to: shifted) ?? shifted
+                let day = calendar.addingDays(offset, to: shifted)
                 let key = calendar.startOfDay(for: day)
                 return DailyBudgetDay(date: key, spentUSD: spentByDay[key] ?? 0, budgetUSD: perDay)
             }
@@ -164,11 +164,11 @@ enum DailyBudget {
         }
         var days: [DailyBudgetDay] = []
         if anchoredToWindowStart, let interruptedWindowStart {
-            let earliest = calendar.date(byAdding: .day, value: -(count - 1), to: weekStart) ?? weekStart
+            let earliest = calendar.addingDays(-(count - 1), to: weekStart)
             let first = max(calendar.startOfDay(for: interruptedWindowStart), earliest)
             let priorCount = calendar.dateComponents([.day], from: first, to: weekStart).day ?? 0
             for offset in 0..<max(0, priorCount) {
-                let key = calendar.startOfDay(for: calendar.date(byAdding: .day, value: offset, to: first) ?? first)
+                let key = calendar.startOfDay(for: calendar.addingDays(offset, to: first))
                 days.append(DailyBudgetDay(
                     date: key,
                     spentUSD: spentByDay[key] ?? 0,
@@ -181,7 +181,7 @@ enum DailyBudget {
             ? daysBeforeReset(from: weekStart, resetsAt: resetsAt, upTo: count, now: now, calendar: calendar)
             : count
         for offset in 0..<windowDays {
-            let day = calendar.date(byAdding: .day, value: offset, to: weekStart) ?? weekStart
+            let day = calendar.addingDays(offset, to: weekStart)
             let key = calendar.startOfDay(for: day)
             days.append(DailyBudgetDay(date: key, spentUSD: spentByDay[key] ?? 0, budgetUSD: perDay))
         }
@@ -219,14 +219,14 @@ enum DailyBudget {
             let today = calendar.startOfDay(for: now)
             var guardIter = 0
             while guardIter < 520 {
-                let windowEnd = calendar.date(byAdding: .day, value: count - 1, to: baseStart) ?? baseStart
+                let windowEnd = calendar.addingDays(count - 1, to: baseStart)
                 if calendar.startOfDay(for: windowEnd) >= today { break }
                 guard let advanced = calendar.date(byAdding: .day, value: count, to: baseStart) else { break }
                 baseStart = advanced
                 guardIter += 1
             }
         } else {
-            baseStart = calendar.date(byAdding: .day, value: -count, to: resetDay) ?? resetDay
+            baseStart = calendar.addingDays(-count, to: resetDay)
         }
         return calendar.startOfDay(for: baseStart)
     }
@@ -237,7 +237,7 @@ enum DailyBudget {
         let today = calendar.startOfDay(for: now)
         let weekday = calendar.component(.weekday, from: today)
         let daysFromMonday = (weekday + 5) % 7
-        return calendar.date(byAdding: .day, value: -daysFromMonday, to: today) ?? today
+        return calendar.addingDays(-daysFromMonday, to: today)
     }
 
     /// Monday–Sunday bars for a subscription month. Days before the billing
@@ -279,10 +279,10 @@ enum DailyBudget {
             uniquingKeysWith: { _, last in last }
         )
         let baseWeek = mondayOfWeek(containing: now, calendar: calendar)
-        let weekStart = calendar.date(byAdding: .day, value: weekOffset * 7, to: baseWeek) ?? baseWeek
+        let weekStart = calendar.addingDays(weekOffset * 7, to: baseWeek)
         let periodStartDay = calendar.startOfDay(for: periodStart)
         return (0..<7).map { offset in
-            let day = calendar.date(byAdding: .day, value: offset, to: weekStart) ?? weekStart
+            let day = calendar.addingDays(offset, to: weekStart)
             let key = calendar.startOfDay(for: day)
             // Past weeks are the subject of the chart, so pre-period days draw at
             // full strength from preserved history.

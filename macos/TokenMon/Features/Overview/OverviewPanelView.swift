@@ -344,7 +344,7 @@ struct OverviewDailyUsageCard: View {
 
     private var day: Date {
         let today = calendar.startOfDay(for: now)
-        return calendar.date(byAdding: .day, value: dayOffset, to: today) ?? today
+        return calendar.addingDays(dayOffset, to: today)
     }
 
     private var series: OverviewDaySeries? {

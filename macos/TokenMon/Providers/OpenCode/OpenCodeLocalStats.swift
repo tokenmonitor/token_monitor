@@ -53,8 +53,8 @@ enum OpenCodeLocalStats {
         // Convert to Monday-based offset: Mon=0 … Sun=6
         let offset = (day + 5) % 7
         let startOfDay = calendar.startOfDay(for: utcNow)
-        let start = calendar.date(byAdding: .day, value: -offset, to: startOfDay) ?? startOfDay
-        let end = calendar.date(byAdding: .day, value: 7, to: start) ?? start
+        let start = calendar.addingDays(-offset, to: startOfDay)
+        let end = calendar.addingDays(7, to: start)
         return (start, end)
     }
 
@@ -260,7 +260,7 @@ enum OpenCodeLocalStats {
     ) -> OpenCodeDayHourlyUsage {
         let calendar = Calendar.current
         let dayStart = calendar.startOfDay(for: now)
-        let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
+        let dayEnd = calendar.addingDays(1, to: dayStart)
 
         let dayRows = rows.filter { inWindow($0, start: dayStart, end: dayEnd) }
 

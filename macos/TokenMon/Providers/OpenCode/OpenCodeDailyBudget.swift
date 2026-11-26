@@ -223,7 +223,7 @@ extension OpenCodeLocalStats {
         calendar: Calendar
     ) -> (period: [Date: Double], history: [Date: Double]) {
         let startDay = calendar.startOfDay(for: periodStart)
-        let lookback = calendar.date(byAdding: .day, value: -priorWeekHistoryDays, to: startDay) ?? startDay
+        let lookback = calendar.addingDays(-priorWeekHistoryDays, to: startDay)
         guard let scan = try? loadScan(dbURL: dbURL, since: lookback) else { return ([:], [:]) }
         let goRows = scan.rows.filter { goEligibleProvider($0.providerID) }
         let period = dailySpendsByDay(
