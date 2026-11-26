@@ -228,12 +228,23 @@ struct ViewTree {
     /// location wraps the original binding. A `Binding(get:set:)` (the kind
     /// app code writes) ends in a get/set pair, rebuilt here; a key-path
     /// binding such as `$settings.flag` has none and yields nil.
+    ///
+    /// SwiftUI builds that location differently by release. Where it wraps the
+    /// original `Bool` binding (macOS 27) the pair is typed over `Bool`. Where
+    /// it is a single `FunctionalLocation<ToggleState>` (macOS 26) the pair is
+    /// typed over SwiftUI's private `ToggleState`, a one-byte enum that reads
+    /// `on` as 0 and `off` as 1; `toggleStateBinding` reinterprets those two
+    /// closures over a byte, and only for exactly that closure shape.
     private static func boolBinding(of value: Any, depth: Int = 10) -> Binding<Bool>? {
         guard depth > 0 else { return nil }
         let children = Array(Mirror(reflecting: value).children)
-        if let get = children.first(where: { $0.label == "getValue" })?.value as? () -> Bool,
-           let set = children.first(where: { $0.label == "setValue" })?.value as? (Bool, Transaction) -> Void {
+        let get = children.first(where: { $0.label == "getValue" })?.value
+        let set = children.first(where: { $0.label == "setValue" })?.value
+        if let get = get as? () -> Bool, let set = set as? (Bool, Transaction) -> Void {
             return Binding(get: get, set: { set($0, Transaction()) })
+        }
+        if let get, let set, let binding = toggleStateBinding(get: get, set: set) {
+            return binding
         }
         for child in children {
             if let binding = child.value as? Binding<Bool> {
@@ -244,6 +255,27 @@ struct ViewTree {
             }
         }
         return nil
+    }
+
+    /// The `Bool` binding behind a get/set pair over SwiftUI's `ToggleState`,
+    /// or nil when the closures are not exactly `() -> ToggleState` and
+    /// `(ToggleState, Transaction) -> ()`.
+    private static func toggleStateBinding(get: Any, set: Any) -> Binding<Bool>? {
+        guard String(describing: type(of: get)) == "() -> ToggleState",
+              String(describing: type(of: set)) == "(ToggleState, Transaction) -> ()"
+        else { return nil }
+        let read = closure(get, as: (() -> UInt8).self)
+        let write = closure(set, as: ((UInt8, Transaction) -> Void).self)
+        let on: UInt8 = 0
+        let off: UInt8 = 1
+        return Binding(get: { read() == on }, set: { write($0 ? on : off, Transaction()) })
+    }
+
+    /// The function stored in `value`, read as `type`. A function occupies
+    /// the first two words of an `Any`'s inline buffer.
+    private static func closure<T>(_ value: Any, as _: T.Type) -> T {
+        var copy = value
+        return withUnsafeBytes(of: &copy) { $0.load(as: T.self) }
     }
 
     private static func body<V: View>(of view: V) -> Any? {
