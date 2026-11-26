@@ -65,9 +65,6 @@ struct ClaudePanelView: View {
                 Text(poller.isRefreshing ? "Refreshing…" : (poller.lastError ?? "No usage data yet."))
                     .font(PanelTypography.body)
                     .foregroundStyle(.secondary)
-                if auth.needsSignIn {
-                    ProviderSignInButton(provider: .claude, action: openSignIn)
-                }
                 codeUsageSection
             }
             .frame(maxWidth: .infinity, alignment: .leading)

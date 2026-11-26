@@ -73,9 +73,6 @@ struct ChatGPTPanelView: View {
                 Text(poller.isRefreshing ? "Refreshing…" : (poller.lastError ?? "No usage data yet."))
                     .font(PanelTypography.body)
                     .foregroundStyle(.secondary)
-                if auth.needsSignIn {
-                    ProviderSignInButton(provider: .chatgpt, action: openSignIn)
-                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
