@@ -90,294 +90,165 @@ struct OverviewPanelView: View {
     }
 
     private var grokUsageCard: some View {
-        let percent = grokPoller.snapshot?.usedPercent ?? 0
-        let resetsAt = grokPoller.snapshot?.resetsAt
-        return PanelCard {
-            HStack(alignment: .center, spacing: 8) {
-                Image(nsImage: ProviderLogo.image(for: .grok))
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(width: 14, height: 14)
-                Text("Grok")
-                    .font(PanelTypography.title)
-                    .foregroundStyle(.primary)
-                Text("— Weekly").panelMetaLabel(uppercased: true)
-                Spacer()
-                Text("\(Int(percent.rounded()))% Used")
-                    .font(PanelTypography.bodyDigit)
-                    .foregroundStyle(.primary)
-            }
-            GeometryReader { geo in
-                let fillWidth = max(0, geo.size.width * CGFloat(Percent.clamp(percent) / 100))
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.primary.opacity(0.12))
-                    Capsule().fill(MonitorProvider.grok.accentColor).frame(width: fillWidth)
-                }
-            }
-            .frame(height: 8)
-            if grokPoller.snapshot != nil {
-                UsageLimitCaption(resetsAt: resetsAt, percent: percent)
-            } else {
-                Text("No Grok data yet")
-                    .font(PanelTypography.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            if !grokAuth.isSignedIn || grokAuth.needsSignIn {
-                ProviderSignInButton(provider: .grok, action: { openSignIn(.grok) })
-            }
-            if grokAuth.isSignedIn && !grokAuth.needsSignIn {
-                ProviderSignOutButton(provider: .grok) {
-                    grokAuth.signOut()
-                }
-            }
+        let snapshot = grokPoller.snapshot
+        let percent = snapshot?.usedPercent ?? 0
+        let signedIn = grokAuth.isSignedIn && !grokAuth.needsSignIn
+        return usageCard(.grok, period: "Weekly", percent: percent) {
+            limitCaption(.grok, hasData: snapshot != nil, resetsAt: snapshot?.resetsAt, percent: percent)
+            sessionControls(
+                .grok,
+                signIn: signedIn ? nil : { openSignIn(.grok) },
+                signOut: signedIn ? { grokAuth.signOut() } : nil
+            )
         }
     }
 
     private var openCodeUsageCard: some View {
-        let monthly = openCodePoller.snapshot?.windows.first { $0.kind == .monthly }
-        let percent = monthly?.usedPercent ?? openCodePoller.snapshot?.monthlyUsedPercent ?? 0
-        let resetsAt = monthly?.resetsAt
-        return PanelCard {
-            HStack(alignment: .center, spacing: 8) {
-                Image(nsImage: ProviderLogo.image(for: .opencode))
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(width: 14, height: 14)
-                Text("OpenCode")
-                    .font(PanelTypography.title)
-                    .foregroundStyle(.primary)
-                Text("— Monthly").panelMetaLabel(uppercased: true)
-                Spacer()
-                Text("\(Int(percent.rounded()))% Used")
-                    .font(PanelTypography.bodyDigit)
-                    .foregroundStyle(.primary)
-            }
-            GeometryReader { geo in
-                let fillWidth = max(0, geo.size.width * CGFloat(Percent.clamp(percent) / 100))
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.primary.opacity(0.12))
-                    Capsule().fill(ModelPalette.purple.color).frame(width: fillWidth)
-                }
-            }
-            .frame(height: 8)
-            if openCodePoller.snapshot != nil {
-                UsageLimitCaption(resetsAt: resetsAt, percent: percent)
-            } else {
-                Text("No OpenCode data yet")
-                    .font(PanelTypography.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            if openCodeAuth.needsSignIn && openCodePoller.snapshot == nil {
-                ProviderSignInButton(provider: .opencode, action: { openSignIn(.opencode) })
-            }
-            if !openCodeAuth.needsSignIn {
-                ProviderSignOutButton(provider: .opencode) {
-                    openCodeAuth.signOut()
-                }
-            }
+        let snapshot = openCodePoller.snapshot
+        let monthly = snapshot?.windows.first { $0.kind == .monthly }
+        let percent = monthly?.usedPercent ?? snapshot?.monthlyUsedPercent ?? 0
+        return usageCard(.opencode, period: "Monthly", percent: percent, barColor: ModelPalette.purple.color) {
+            limitCaption(.opencode, hasData: snapshot != nil, resetsAt: monthly?.resetsAt, percent: percent)
+            sessionControls(
+                .opencode,
+                needsSignIn: openCodeAuth.needsSignIn,
+                hasData: snapshot != nil,
+                signIn: { openSignIn(.opencode) },
+                signOut: { openCodeAuth.signOut() }
+            )
         }
     }
 
     private var cursorUsageCard: some View {
-        let percent = cursorPoller.snapshot?.usedPercent ?? 0
-        let resetsAt = cursorPoller.snapshot?.resetsAt
-        return PanelCard {
-            HStack(alignment: .center, spacing: 8) {
-                Image(nsImage: ProviderLogo.image(for: .cursor))
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(width: 14, height: 14)
-                Text("Cursor")
-                    .font(PanelTypography.title)
-                    .foregroundStyle(.primary)
-                Text("— Monthly").panelMetaLabel(uppercased: true)
-                Spacer()
-                Text("\(Int(percent.rounded()))% Used")
-                    .font(PanelTypography.bodyDigit)
-                    .foregroundStyle(.primary)
-            }
-            GeometryReader { geo in
-                let fillWidth = max(0, geo.size.width * CGFloat(Percent.clamp(percent) / 100))
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.primary.opacity(0.12))
-                    Capsule().fill(MonitorProvider.cursor.accentColor).frame(width: fillWidth)
-                }
-            }
-            .frame(height: 8)
-            if cursorPoller.snapshot != nil {
-                UsageLimitCaption(resetsAt: resetsAt, percent: percent)
-            } else {
-                Text("No Cursor data yet")
-                    .font(PanelTypography.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            if cursorAuth.needsSignIn && cursorPoller.snapshot == nil {
-                ProviderSignInButton(provider: .cursor, action: { openSignIn(.cursor) })
-            }
-            if !cursorAuth.needsSignIn {
-                ProviderSignOutButton(provider: .cursor) {
-                    cursorAuth.signOut()
-                }
-            }
+        let snapshot = cursorPoller.snapshot
+        let percent = snapshot?.usedPercent ?? 0
+        return usageCard(.cursor, period: "Monthly", percent: percent) {
+            limitCaption(.cursor, hasData: snapshot != nil, resetsAt: snapshot?.resetsAt, percent: percent)
+            sessionControls(
+                .cursor,
+                needsSignIn: cursorAuth.needsSignIn,
+                hasData: snapshot != nil,
+                signIn: { openSignIn(.cursor) },
+                signOut: { cursorAuth.signOut() }
+            )
         }
     }
 
     private var claudeUsageCard: some View {
-        let percent = claudePoller.snapshot?.sevenDay?.usedPercent ?? 0
-        let resetsAt = claudePoller.snapshot?.sevenDay?.resetsAt
-        return PanelCard {
-            HStack(alignment: .center, spacing: 8) {
-                Image(nsImage: ProviderLogo.image(for: .claude))
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(width: 14, height: 14)
-                Text("Claude")
-                    .font(PanelTypography.title)
-                    .foregroundStyle(.primary)
-                Text("— Weekly").panelMetaLabel(uppercased: true)
-                Spacer()
-                Text("\(Int(percent.rounded()))% Used")
-                    .font(PanelTypography.bodyDigit)
-                    .foregroundStyle(.primary)
-            }
-            GeometryReader { geo in
-                let fillWidth = max(0, geo.size.width * CGFloat(Percent.clamp(percent) / 100))
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.primary.opacity(0.12))
-                    Capsule().fill(MonitorProvider.claude.accentColor).frame(width: fillWidth)
-                }
-            }
-            .frame(height: 8)
-            if claudePoller.snapshot != nil {
-                UsageLimitCaption(resetsAt: resetsAt, percent: percent)
-            } else {
-                Text("No Claude data yet")
-                    .font(PanelTypography.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            if claudeAuth.needsSignIn && claudePoller.snapshot == nil {
-                ProviderSignInButton(provider: .claude, action: { openSignIn(.claude) })
-            }
-            if !claudeAuth.needsSignIn {
-                ProviderSignOutButton(provider: .claude) {
-                    claudeAuth.signOut()
-                }
-            }
+        let snapshot = claudePoller.snapshot
+        let percent = snapshot?.sevenDay?.usedPercent ?? 0
+        return usageCard(.claude, period: "Weekly", percent: percent) {
+            limitCaption(.claude, hasData: snapshot != nil, resetsAt: snapshot?.sevenDay?.resetsAt, percent: percent)
+            sessionControls(
+                .claude,
+                needsSignIn: claudeAuth.needsSignIn,
+                hasData: snapshot != nil,
+                signIn: { openSignIn(.claude) },
+                signOut: { claudeAuth.signOut() }
+            )
         }
     }
 
     private var chatGPTUsageCard: some View {
-        let percent = chatGPTPoller.snapshot?.headlineUsedPercent ?? 0
-        let resetsAt = chatGPTPoller.snapshot?.resetsAt
-        return PanelCard {
-            HStack(alignment: .center, spacing: 8) {
-                Image(nsImage: ProviderLogo.image(for: .chatgpt))
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(width: 14, height: 14)
-                Text("ChatGPT")
-                    .font(PanelTypography.title)
-                    .foregroundStyle(.primary)
-                Text("— Codex").panelMetaLabel(uppercased: true)
-                Spacer()
-                Text("\(Int(percent.rounded()))% Used")
-                    .font(PanelTypography.bodyDigit)
-                    .foregroundStyle(.primary)
-            }
-            GeometryReader { geo in
-                let fillWidth = max(0, geo.size.width * CGFloat(Percent.clamp(percent) / 100))
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.primary.opacity(0.12))
-                    Capsule().fill(MonitorProvider.chatgpt.accentColor).frame(width: fillWidth)
-                }
-            }
-            .frame(height: 8)
-            if chatGPTPoller.snapshot != nil {
-                UsageLimitCaption(resetsAt: resetsAt, percent: percent)
-            } else {
-                Text("No ChatGPT data yet")
-                    .font(PanelTypography.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            if chatGPTAuth.needsSignIn && chatGPTPoller.snapshot == nil {
-                ProviderSignInButton(provider: .chatgpt, action: { openSignIn(.chatgpt) })
-            }
-            if !chatGPTAuth.needsSignIn {
-                ProviderSignOutButton(provider: .chatgpt) {
-                    chatGPTAuth.signOut()
-                }
-            }
+        let snapshot = chatGPTPoller.snapshot
+        let percent = snapshot?.headlineUsedPercent ?? 0
+        return usageCard(.chatgpt, period: "Codex", percent: percent) {
+            limitCaption(.chatgpt, hasData: snapshot != nil, resetsAt: snapshot?.resetsAt, percent: percent)
+            sessionControls(
+                .chatgpt,
+                needsSignIn: chatGPTAuth.needsSignIn,
+                hasData: snapshot != nil,
+                signIn: { openSignIn(.chatgpt) },
+                signOut: { chatGPTAuth.signOut() }
+            )
         }
     }
 
     private var grokbotUsageCard: some View {
-        let percent = grokbotPoller.snapshot?.usedPercent ?? 0
-        let resetsAt = grokbotPoller.snapshot?.resetsAt
-        return PanelCard {
-            HStack(alignment: .center, spacing: 8) {
-                Image(nsImage: ProviderLogo.image(for: .grokbot))
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(width: 14, height: 14)
-                Text("Grokbot")
-                    .font(PanelTypography.title)
-                    .foregroundStyle(.primary)
-                Text("— Weekly").panelMetaLabel(uppercased: true)
-                Spacer()
-                Text("\(Int(percent.rounded()))% Used")
-                    .font(PanelTypography.bodyDigit)
-                    .foregroundStyle(.primary)
-            }
-            GeometryReader { geo in
-                let fillWidth = max(0, geo.size.width * CGFloat(Percent.clamp(percent) / 100))
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Color.primary.opacity(0.12))
-                    Capsule().fill(MonitorProvider.grokbot.accentColor).frame(width: fillWidth)
-                }
-            }
-            .frame(height: 8)
-            if grokbotPoller.snapshot != nil {
-                UsageLimitCaption(resetsAt: resetsAt, percent: percent)
-            } else {
-                Text("No Grokbot data yet")
-                    .font(PanelTypography.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            // Grokbot bills through Cursor, so its session lives on the Cursor card.
-            if cursorAuth.needsSignIn && grokbotPoller.snapshot == nil {
-                ProviderSignInButton(
-                    provider: .grokbot,
-                    title: "Sign In to Cursor…",
-                    action: { openSignIn(.cursor) }
-                )
-            }
+        let snapshot = grokbotPoller.snapshot
+        let percent = snapshot?.usedPercent ?? 0
+        // Grokbot bills through Cursor, so its session lives on the Cursor card.
+        let showsSignIn = cursorAuth.needsSignIn && snapshot == nil
+        return usageCard(.grokbot, period: "Weekly", percent: percent) {
+            limitCaption(.grokbot, hasData: snapshot != nil, resetsAt: snapshot?.resetsAt, percent: percent)
+            sessionControls(
+                .grokbot,
+                signIn: showsSignIn ? { openSignIn(.cursor) } : nil,
+                signOut: nil,
+                signInTitle: "Sign In to Cursor…"
+            )
         }
     }
 
     private var openRouterUsageCard: some View {
-        let percent = openRouterPoller.snapshot?.usedPercent ?? 0
-        let remaining = openRouterPoller.snapshot?.remainingUSD
-        return PanelCard {
+        let snapshot = openRouterPoller.snapshot
+        let percent = snapshot?.usedPercent ?? 0
+        return usageCard(
+            .openrouter,
+            period: "Credits",
+            headline: Self.openRouterHeadline(snapshot),
+            percent: percent
+        ) {
+            if let snapshot, snapshot.budgetSource == nil {
+                captionText("No credit limit — \(Format.usd(snapshot.keyUsageUSD)) spent on this key")
+            } else if let remaining = snapshot?.remainingUSD {
+                UsageLimitCaption(
+                    resetsAt: snapshot?.resetsAt,
+                    percent: percent,
+                    normalCaption: "\(Format.usd(remaining)) of credits left"
+                )
+            } else if snapshot == nil {
+                waitingCaption(.openrouter)
+            }
+            sessionControls(
+                .openrouter,
+                needsSignIn: openRouterAuth.needsSignIn,
+                hasData: snapshot != nil,
+                signIn: selectOpenRouter,
+                signOut: { openRouterAuth.signOut() }
+            )
+        }
+    }
+
+    // MARK: - Card parts
+
+    /// "42% Used" for a card's headline.
+    static func usedLabel(_ percent: Double) -> String {
+        "\(Int(percent.rounded()))% Used"
+    }
+
+    /// OpenRouter's headline: the key's spend when it has no credit limit to
+    /// measure a percent against, otherwise the percent used.
+    static func openRouterHeadline(_ snapshot: OpenRouterSnapshot?) -> String {
+        if let snapshot, snapshot.usedPercent == nil {
+            return Format.usd(snapshot.keyUsageUSD)
+        }
+        return usedLabel(snapshot?.usedPercent ?? 0)
+    }
+
+    /// A provider card: logo, name and period, headline, usage bar, then the
+    /// caption and session controls in `content`.
+    private func usageCard(
+        _ provider: MonitorProvider,
+        period: String,
+        headline: String? = nil,
+        percent: Double,
+        barColor: Color? = nil,
+        @ViewBuilder content: () -> some View
+    ) -> some View {
+        PanelCard {
             HStack(alignment: .center, spacing: 8) {
-                Image(nsImage: ProviderLogo.image(for: .openrouter))
+                Image(nsImage: ProviderLogo.image(for: provider))
                     .resizable()
                     .interpolation(.high)
                     .scaledToFit()
                     .frame(width: 14, height: 14)
-                Text("OpenRouter")
+                Text(provider.displayName)
                     .font(PanelTypography.title)
                     .foregroundStyle(.primary)
-                Text("— Credits").panelMetaLabel(uppercased: true)
+                Text("— " + period).panelMetaLabel(uppercased: true)
                 Spacer()
-                Text(openRouterPoller.snapshot?.usedPercent == nil && openRouterPoller.snapshot != nil
-                    ? Format.usd(openRouterPoller.snapshot?.keyUsageUSD ?? 0)
-                    : "\(Int(percent.rounded()))% Used")
+                Text(headline ?? Self.usedLabel(percent))
                     .font(PanelTypography.bodyDigit)
                     .foregroundStyle(.primary)
             }
@@ -385,33 +256,62 @@ struct OverviewPanelView: View {
                 let fillWidth = max(0, geo.size.width * CGFloat(Percent.clamp(percent) / 100))
                 ZStack(alignment: .leading) {
                     Capsule().fill(Color.primary.opacity(0.12))
-                    Capsule().fill(MonitorProvider.openrouter.accentColor).frame(width: fillWidth)
+                    Capsule().fill(barColor ?? provider.accentColor).frame(width: fillWidth)
                 }
             }
             .frame(height: 8)
-            if openRouterPoller.snapshot?.budgetSource == nil, let snapshot = openRouterPoller.snapshot {
-                Text("No credit limit — \(Format.usd(snapshot.keyUsageUSD)) spent on this key")
-                    .font(PanelTypography.caption)
-                    .foregroundStyle(.tertiary)
-            } else if let remaining {
-                UsageLimitCaption(
-                    resetsAt: openRouterPoller.snapshot?.resetsAt,
-                    percent: percent,
-                    normalCaption: "\(Format.usd(remaining)) of credits left"
-                )
-            } else if openRouterPoller.snapshot == nil {
-                Text("No OpenRouter data yet")
-                    .font(PanelTypography.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            if openRouterAuth.needsSignIn && openRouterPoller.snapshot == nil {
-                ProviderSignInButton(provider: .openrouter, action: selectOpenRouter)
-            }
-            if !openRouterAuth.needsSignIn {
-                ProviderSignOutButton(provider: .openrouter) {
-                    openRouterAuth.signOut()
-                }
-            }
+            content()
+        }
+    }
+
+    /// The reset caption once data has loaded, otherwise "No … data yet".
+    @ViewBuilder
+    private func limitCaption(_ provider: MonitorProvider, hasData: Bool, resetsAt: Date?, percent: Double) -> some View {
+        if hasData {
+            UsageLimitCaption(resetsAt: resetsAt, percent: percent)
+        } else {
+            waitingCaption(provider)
+        }
+    }
+
+    private func waitingCaption(_ provider: MonitorProvider) -> some View {
+        captionText("No " + provider.displayName + " data yet")
+    }
+
+    private func captionText(_ text: String) -> some View {
+        Text(text)
+            .font(PanelTypography.caption)
+            .foregroundStyle(.tertiary)
+    }
+
+    /// Sign-in while the session needs one and no data has loaded; sign-out
+    /// while the session is live.
+    private func sessionControls(
+        _ provider: MonitorProvider,
+        needsSignIn: Bool,
+        hasData: Bool,
+        signIn: @escaping () -> Void,
+        signOut: @escaping () -> Void
+    ) -> some View {
+        sessionControls(
+            provider,
+            signIn: needsSignIn && !hasData ? signIn : nil,
+            signOut: needsSignIn ? nil : signOut
+        )
+    }
+
+    @ViewBuilder
+    private func sessionControls(
+        _ provider: MonitorProvider,
+        signIn: (() -> Void)?,
+        signOut: (() -> Void)?,
+        signInTitle: String? = nil
+    ) -> some View {
+        if let signIn {
+            ProviderSignInButton(provider: provider, title: signInTitle, action: signIn)
+        }
+        if let signOut {
+            ProviderSignOutButton(provider: provider, action: signOut)
         }
     }
 }
@@ -425,7 +325,22 @@ struct OverviewDailyUsageCard: View {
     var calendar: Calendar = .current
 
     /// 0 is today; -1 is yesterday.
-    @State private var dayOffset = 0
+    @State private var dayOffset: Int
+
+    /// - Parameter dayOffset: The day shown first, 0 for today.
+    init(
+        now: Date,
+        history: OverviewHourlyHistoryStore,
+        todaySeries: @escaping (Date) -> OverviewDaySeries,
+        calendar: Calendar = .current,
+        dayOffset: Int = 0
+    ) {
+        self.now = now
+        self.history = history
+        self.todaySeries = todaySeries
+        self.calendar = calendar
+        _dayOffset = State(initialValue: dayOffset)
+    }
 
     private var day: Date {
         let today = calendar.startOfDay(for: now)

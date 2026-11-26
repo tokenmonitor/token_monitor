@@ -184,4 +184,179 @@ final class OverviewHourlyHistoryTests: XCTestCase {
         XCTAssertFalse(OverviewDailyUsageCard.canGoBack(from: try date(22), earliestDay: try date(22, hour: 0), calendar: calendar))
         XCTAssertTrue(OverviewDailyUsageCard.canGoBack(from: try date(22), earliestDay: try date(21, hour: 0), calendar: calendar))
     }
+
+    // MARK: - Series merging and chart hours
+
+    func testMergingKeepsTheLargerTokenCountsAndPadsShortDays() {
+        var lhs = OverviewDaySeries()
+        lhs.tokens[.cursor] = [5, 1]
+        var rhs = OverviewDaySeries()
+        rhs.tokens[.cursor] = [3, 4, 9]
+        rhs.tokens[.openCodeGo] = [2]
+        let merged = lhs.merging(rhs)
+        XCTAssertEqual(merged.tokens[.cursor], [5, 4, 9])
+        XCTAssertEqual(merged.tokens[.openCodeGo], [2])
+        XCTAssertFalse(merged.hasActivity)
+    }
+
+    func testChartHoursComeFromEachSeries() throws {
+        var series = OverviewDaySeries()
+        series.weights[.grokbot] = hours([8: 1])
+        series.weights[.cursor] = hours([8: 3])
+        series.tokens[.cursor] = (0..<24).map { $0 == 8 ? 1_000 : 0 }
+        let usage = ProviderDayHourlyUsage.build(dayStart: try date(5, hour: 0), series: series)
+        XCTAssertEqual(usage.hours[8].activity, 4, accuracy: 0.001)
+        XCTAssertEqual(usage.hours[8].grokbotActivity, 1, accuracy: 0.001)
+        XCTAssertEqual(usage.hours[8].cursorTokens, 1_000)
+        XCTAssertNil(usage.hours[8].grokTokens)
+        XCTAssertTrue(ProviderDayHourlyUsage.build(dayStart: try date(5, hour: 0), series: OverviewDaySeries()).isEmpty)
+    }
+}
+
+/// Today's Overview inputs come from the providers that are enabled and
+/// signed in; OpenCode's local hours need only the provider enabled.
+@MainActor
+final class OverviewTodaySourcesTests: XCTestCase {
+    private var dir: URL!
+    private var suiteName: String!
+    private var defaults: UserDefaults!
+
+    override func setUp() async throws {
+        dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        suiteName = "OverviewSources-\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: suiteName)
+    }
+
+    override func tearDown() async throws {
+        try? FileManager.default.removeItem(at: dir)
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
+    private func hours(_ values: [Int: Double]) -> [Double] {
+        (0..<24).map { values[$0] ?? 0 }
+    }
+
+    /// A fixture whose hourly stores each grew 5 points this hour, with Cursor
+    /// reporting 2 points and 900 tokens at 9am and OpenCode $1 of Go at 9am.
+    private func busyFixture() -> OverviewPanelFixture {
+        let fixture = OverviewPanelFixture(directory: dir, defaults: defaults)
+        for store in [fixture.grokHourly, fixture.claudeHourly, fixture.grokbotHourly] {
+            store.record(usedPercent: 10)
+            store.record(usedPercent: 15)
+        }
+        let today = Calendar.current.startOfDay(for: Date())
+        fixture.cursorHourly = CursorDayHourlyUsage(
+            dayStart: today,
+            hourWeights: hours([9: 1]),
+            quotaHourWeights: hours([9: 2]),
+            hourTokenWeights: (0..<24).map { $0 == 9 ? 900 : 0 }
+        )
+        let openCodeHours = (0..<24).map { hour in
+            OpenCodeHourUsage(hour: hour, segments: hour == 9 ? [
+                OpenCodeHourSegment(
+                    providerID: "opencode-go",
+                    modelID: "m",
+                    costUSD: 1,
+                    quotaCostUSD: 1,
+                    inputTokens: 100,
+                    messageCount: 1
+                )
+            ] : [])
+        }
+        fixture.openCodeHourly = OpenCodeDayHourlyUsage(dayStart: today, hours: openCodeHours, legend: [])
+        return fixture
+    }
+
+    private func total(_ weights: [Double]?) -> Double {
+        weights?.reduce(0, +) ?? 0
+    }
+
+    func testSignedInProvidersContributeTodaysHours() async throws {
+        let fixture = busyFixture()
+        fixture.signInAll()
+        await fixture.cursorPoller.refreshNow()
+        await fixture.openCodePoller.refreshNow()
+        let series = fixture.sources.series(on: Date())
+
+        XCTAssertEqual(total(series.weights[.grok]), 5, accuracy: 0.001)
+        XCTAssertEqual(total(series.weights[.claude]), 5, accuracy: 0.001)
+        XCTAssertEqual(total(series.weights[.grokbot]), 5, accuracy: 0.001)
+        XCTAssertEqual(series.weights[.cursor]?[9] ?? 0, 2, accuracy: 0.001)
+        XCTAssertEqual(series.tokens[.cursor]?[9], 900)
+        let go = try XCTUnwrap(series.weights[.openCodeGo])
+        XCTAssertEqual(go[9], 1 / (60 / QuotaNormalization.averageWeeksPerMonth) * 100, accuracy: 0.001)
+        XCTAssertEqual(series.tokens[.openCodeGo]?[9], 100)
+    }
+
+    /// Signed-out sessions contribute nothing, but OpenCode's local hours
+    /// still count, measured against the default monthly limit when the
+    /// local read gives no plan limit.
+    func testSignedOutProvidersContributeOnlyOpenCode() async throws {
+        let fixture = busyFixture()
+        fixture.openCodeLimitUSD = 240
+        fixture.openCodeHasLocalSnapshot = false
+        await fixture.cursorPoller.refreshNow()
+        await fixture.openCodePoller.refreshNow()
+        XCTAssertNil(fixture.openCodePoller.snapshot)
+        let series = fixture.sources.series(on: Date())
+        XCTAssertNil(series.weights[.grok])
+        XCTAssertNil(series.weights[.claude])
+        XCTAssertNil(series.weights[.grokbot])
+        XCTAssertNil(series.weights[.cursor])
+        let go = try XCTUnwrap(series.weights[.openCodeGo])
+        let defaultLimit = OpenCodeWindowKind.monthly.defaultLimitUSD
+        XCTAssertEqual(go[9], 1 / (defaultLimit / QuotaNormalization.averageWeeksPerMonth) * 100, accuracy: 0.001)
+    }
+
+    /// The OpenCode plan's own monthly limit scales its hours.
+    func testOpenCodeHoursFollowThePlanLimit() async throws {
+        let fixture = busyFixture()
+        fixture.openCodeLimitUSD = 120
+        await fixture.openCodePoller.refreshNow()
+        let go = try XCTUnwrap(fixture.sources.series(on: Date()).weights[.openCodeGo])
+        XCTAssertEqual(go[9], 1 / (120 / QuotaNormalization.averageWeeksPerMonth) * 100, accuracy: 0.001)
+    }
+
+    func testDisabledProvidersContributeNothing() async {
+        let fixture = busyFixture()
+        fixture.signInAll()
+        await fixture.cursorPoller.refreshNow()
+        await fixture.openCodePoller.refreshNow()
+        fixture.settings.enabledProviderIDs = [.chatgpt]
+        XCTAssertEqual(fixture.sources.series(on: Date()), OverviewDaySeries())
+    }
+
+    /// Hours recorded for another day are not today's.
+    func testHoursFromAnotherDayAreIgnored() async throws {
+        let fixture = busyFixture()
+        fixture.signInAll()
+        await fixture.cursorPoller.refreshNow()
+        await fixture.openCodePoller.refreshNow()
+        let tomorrow = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 1, to: Date()))
+        XCTAssertEqual(fixture.sources.series(on: tomorrow), OverviewDaySeries())
+    }
+
+    /// Cursor hours of the wrong length are left out rather than misplaced.
+    func testMalformedCursorHoursAreIgnored() async {
+        let fixture = busyFixture()
+        fixture.signInAll()
+        fixture.cursorHourly.quotaHourWeights = [1]
+        fixture.cursorHourly.hourTokenWeights = [1]
+        await fixture.cursorPoller.refreshNow()
+        let series = fixture.sources.series(on: Date())
+        XCTAssertNil(series.weights[.cursor])
+        XCTAssertNil(series.tokens[.cursor])
+    }
+
+    /// The app model reads the same sources from its own sessions and stores.
+    func testAppModelSeriesReadsItsOwnSessions() {
+        let model = AppModel()
+        XCTAssertNil(model.overviewSeries(on: Date()).weights[.grok])
+        model.grokAuth.save(cookieHeader: "sso=live")
+        model.grokHourly.record(usedPercent: 10)
+        model.grokHourly.record(usedPercent: 12)
+        XCTAssertNotNil(model.overviewSeries(on: Date()).weights[.grok])
+        XCTAssertIdentical(model.overviewTodaySources.cursorPoller, model.cursorPoller)
+    }
 }

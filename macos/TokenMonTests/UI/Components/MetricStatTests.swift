@@ -46,6 +46,6 @@ final class MetricStatTests: XCTestCase {
     func testShortSheetRenders() {
         let view = MetricStatGrid(source: .account, Array(stats.prefix(1)))
         XCTAssertGreaterThan(ViewHarness.render(view).height, 0)
-        XCTAssertEqual(ViewTree(view).texts.filter { $0 == "44M" }.count, 1)
+        XCTAssertEqual(ViewTree(view).all(MetricStat.self).map(\.value), ["44M"])
     }
 }

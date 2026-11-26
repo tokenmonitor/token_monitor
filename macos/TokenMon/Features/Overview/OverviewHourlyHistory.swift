@@ -165,11 +165,25 @@ final class OverviewHourlyHistoryStore {
     }
 }
 
-extension AppModel {
+/// The live inputs of today's Overview chart: the enabled-provider setting,
+/// the sessions that gate each provider, and where each one's hours live.
+@MainActor
+struct OverviewTodaySources {
+    let settings: AppSettings
+    let grokAuth: GrokAuthSession
+    let claudeAuth: ClaudeAuthSession
+    /// Cursor's session, which Grokbot shares.
+    let cursorAuth: CursorAuthSession
+    let grokHourly: HourlyDeltaActivityStore
+    let claudeHourly: HourlyDeltaActivityStore
+    let grokbotHourly: HourlyDeltaActivityStore
+    let cursorPoller: CursorUsagePoller
+    let openCodePoller: OpenCodeUsagePoller
+
     /// Today's Overview chart inputs from the providers that are enabled and
     /// signed in (OpenCode needs only to be enabled), in the units
     /// ``OverviewDaySeries`` describes.
-    func overviewSeries(on date: Date, calendar: Calendar = .current) -> OverviewDaySeries {
+    func series(on date: Date, calendar: Calendar = .current) -> OverviewDaySeries {
         let dayStart = calendar.startOfDay(for: date)
         var series = OverviewDaySeries()
         let enabled = settings.enabledProviderIDs
@@ -204,9 +218,26 @@ extension AppModel {
         }
         return series
     }
+}
 
-    /// Saves today's Overview chart inputs into the history.
-    func recordOverviewHistory(at date: Date = Date()) {
-        overviewHistory.record(overviewSeries(on: date), at: date)
+extension AppModel {
+    /// The app's live Overview chart inputs.
+    var overviewTodaySources: OverviewTodaySources {
+        OverviewTodaySources(
+            settings: settings,
+            grokAuth: grokAuth,
+            claudeAuth: claudeAuth,
+            cursorAuth: cursorAuth,
+            grokHourly: grokHourly,
+            claudeHourly: claudeHourly,
+            grokbotHourly: grokbotHourly,
+            cursorPoller: cursorPoller,
+            openCodePoller: openCodePoller
+        )
+    }
+
+    /// Today's Overview chart inputs; see ``OverviewTodaySources/series(on:calendar:)``.
+    func overviewSeries(on date: Date, calendar: Calendar = .current) -> OverviewDaySeries {
+        overviewTodaySources.series(on: date, calendar: calendar)
     }
 }

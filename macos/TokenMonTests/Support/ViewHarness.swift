@@ -127,6 +127,12 @@ struct ViewTree {
             walkModified(value, depth: depth)
             return
         }
+        if let forEach = value as? any ViewTreeRows {
+            for row in forEach.rows {
+                walk(row, depth: depth - 1)
+            }
+            return
+        }
         if Mirror(reflecting: value).displayStyle == .class, !String(reflecting: type(of: value)).hasPrefix("SwiftUI.") {
             return
         }
@@ -188,5 +194,17 @@ struct ViewTree {
 
     private static func body<V: View>(of view: V) -> Any? {
         V.Body.self == Never.self ? nil : view.body
+    }
+}
+
+/// A `ForEach` whose rows the walk builds by calling its content closure on
+/// each element, so a list's rows are walked like any other child.
+private protocol ViewTreeRows {
+    var rows: [Any] { get }
+}
+
+extension ForEach: ViewTreeRows where Content: View {
+    fileprivate var rows: [Any] {
+        data.map { content($0) }
     }
 }

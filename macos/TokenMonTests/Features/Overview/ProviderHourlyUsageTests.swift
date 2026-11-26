@@ -29,6 +29,62 @@ final class ProviderHourlyUsageTests: XCTestCase {
         XCTAssertEqual(usage.hours[23].activity, 1, accuracy: 0.001)
     }
 
+    /// Each provider's slice of an hour is its share of the combined activity;
+    /// negative inputs count as zero and token arrays are padded or truncated.
+    func testEveryProviderGetsItsShareOfTheHour() {
+        let usage = ProviderDayHourlyUsage.build(
+            dayStart: Date(),
+            grokHourWeights: [1],
+            openCodeGoHourWeights: [2],
+            openCodeZenHourWeights: [3],
+            cursorHourWeights: [4],
+            claudeHourWeights: [5, -2],
+            grokbotHourWeights: [5],
+            grokHourTokens: [10],
+            openCodeGoHourTokens: Array(repeating: 7, count: 30),
+            openCodeZenHourTokens: [-4],
+            cursorHourTokens: [30],
+            claudeHourTokens: Array(repeating: 9, count: 25)
+        )
+        let hour = usage.hours[0]
+        XCTAssertEqual(hour.activity, 20, accuracy: 0.001)
+        XCTAssertEqual(hour.grokActivity, 1, accuracy: 0.001)
+        XCTAssertEqual(hour.openCodeGoActivity, 2, accuracy: 0.001)
+        XCTAssertEqual(hour.openCodeZenActivity, 3, accuracy: 0.001)
+        XCTAssertEqual(hour.cursorActivity, 4, accuracy: 0.001)
+        XCTAssertEqual(hour.claudeActivity, 5, accuracy: 0.001)
+        XCTAssertEqual(hour.grokbotActivity, 5, accuracy: 0.001)
+        XCTAssertEqual(hour.grokTokens, 10)
+        XCTAssertEqual(hour.openCodeGoTokens, 7)
+        XCTAssertEqual(hour.openCodeZenTokens, 0)
+        XCTAssertEqual(hour.cursorTokens, 30)
+        XCTAssertEqual(hour.claudeTokens, 9)
+        XCTAssertEqual(usage.hours[1].activity, 0, accuracy: 0.001)
+        XCTAssertEqual(usage.hours[1].grokTokens, 0)
+        XCTAssertEqual(usage.hours[23].openCodeGoTokens, 7)
+        XCTAssertEqual(hour.id, 0)
+        XCTAssertEqual(hour.hourLabel, Format.hourLabel(for: 0))
+        XCTAssertTrue(hour.hasActivity)
+        XCTAssertFalse(usage.hours[1].hasActivity)
+        XCTAssertEqual(usage.maxActivity, 20, accuracy: 0.001)
+        XCTAssertFalse(usage.isEmpty)
+    }
+
+    /// Without token arrays Grok and Claude report quota only.
+    func testQuotaOnlyProvidersHaveNoTokens() {
+        let usage = ProviderDayHourlyUsage.build(
+            dayStart: Date(),
+            grokHourWeights: [],
+            openCodeGoHourWeights: [],
+            openCodeZenHourWeights: []
+        )
+        XCTAssertNil(usage.hours[0].grokTokens)
+        XCTAssertNil(usage.hours[0].claudeTokens)
+        XCTAssertTrue(usage.isEmpty)
+        XCTAssertEqual(usage.maxActivity, 0, accuracy: 0.001)
+        XCTAssertTrue(ProviderDayHourlyUsage(dayStart: Date(), hours: []).isEmpty)
+    }
+
     /// The Overview chart's schedule starts at today's midnight, so the first
     /// render shows today, then has one entry per following local midnight.
     func testMidnightScheduleStartsAtTodayThenEachLocalMidnight() throws {
