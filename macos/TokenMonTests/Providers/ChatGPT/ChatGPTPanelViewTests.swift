@@ -151,6 +151,23 @@ final class ChatGPTPanelViewTests: XCTestCase {
         XCTAssertFalse(ViewTree(failed).shows("Sign In"))
     }
 
+    func testSignInAuthHostsMatchExactlyOrBySubdomainNotSubstring() {
+        for host in ["auth.openai.com.evil.example", "evilaccounts.google.com", "notauth.openai.com",
+                     "login.microsoft.evil.example", "login.microsoftonline.com.evil.example",
+                     "appleid.apple.evil.example"] {
+            XCTAssertFalse(ChatGPTAuthSession.isAuthHost(host: host, path: "/"), host)
+        }
+        // A login path counts only on chatgpt.com itself.
+        XCTAssertFalse(ChatGPTAuthSession.isAuthHost(host: "evil.example", path: "/login"))
+        XCTAssertFalse(ChatGPTAuthSession.isAuthHost(host: "chatgpt.com.evil.example", path: "/signin"))
+
+        for host in ["AUTH.openai.com", "login.live.com", "login.microsoft.com", "idmsa.apple.com", "eu.auth0.openai.com"] {
+            XCTAssertTrue(ChatGPTAuthSession.isAuthHost(host: host, path: "/"), host)
+        }
+        XCTAssertTrue(ChatGPTAuthSession.isAuthHost(host: "www.chatgpt.com", path: "/Auth/Login"))
+        XCTAssertFalse(ChatGPTAuthSession.isReturnPage(URL(staticString: "https://chatgpt.com.evil.example/")))
+    }
+
     func testSignInRecognizesAuthHostsAndTheReturnPage() throws {
         for host in ["auth.openai.com", "auth0.openai.com", "accounts.google.com", "appleid.apple.com", "login.microsoftonline.com"] {
             XCTAssertTrue(ChatGPTAuthSession.isAuthHost(host: host, path: "/"), host)

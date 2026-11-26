@@ -1,6 +1,16 @@
 import Foundation
 
 extension OpenCodeAuthSession: ProviderSignInProviding {
+    /// True for the OpenCode identity host (`auth.opencode.ai`, matched
+    /// exactly or as a dot-suffix subdomain), or the authorize/login path on
+    /// opencode.ai itself. A look-alike host such as
+    /// `auth.opencode.ai.evil.example` is never an auth page.
+    nonisolated static func isAuthHost(host: String, path: String) -> Bool {
+        Domain.matches(host, hosts: ["auth.opencode.ai"])
+            || (Domain.matches(host, hosts: ["opencode.ai"])
+                && (path.contains("/auth/authorize") || path.contains("/console/login")))
+    }
+
     /// Captures the console session, then records the workspace and account.
     var signInConfig: ProviderSignInConfig {
         signInConfig { OpenCodeConsoleClient(cookieHeader: $0) }
@@ -13,11 +23,7 @@ extension OpenCodeAuthSession: ProviderSignInProviding {
             title: "Sign in to OpenCode",
             subtitle: "Sign in to the OpenCode console. This window finishes on its own once the console loads.",
             startURL: URL(staticString: "https://opencode.ai/console/login"),
-            isAuthHost: { host, path in
-                host.contains("auth.opencode.ai")
-                    || path.contains("/auth/authorize")
-                    || path.contains("/console/login")
-            },
+            isAuthHost: { host, path in Self.isAuthHost(host: host, path: path) },
             isReturnPage: { url in
                 guard let host = url.host?.lowercased(), host == "opencode.ai" || host.hasSuffix(".opencode.ai"),
                       !host.contains("auth.") else { return false }

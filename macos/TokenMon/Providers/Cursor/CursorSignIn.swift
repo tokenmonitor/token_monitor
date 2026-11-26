@@ -6,9 +6,11 @@ extension CursorAuthSession: ProviderSignInProviding {
 
     /// True for a sign-in step: an identity-provider host (exact-or-suffix
     /// match via `Domain.matches`, so `github.com.evil.example` is rejected) or
-    /// a login path.
+    /// a login path on a Cursor-owned host (a look-alike host with a `/login`
+    /// path is not an auth page).
     nonisolated static func isAuthPage(host: String, path: String) -> Bool {
-        Domain.matches(host, hosts: authHosts) || path.contains("/login") || path.contains("/signin")
+        Domain.matches(host, hosts: authHosts)
+            || (isCursorDomain(host) && (path.contains("/login") || path.contains("/signin")))
     }
 
     /// Captures the dashboard session cookie.

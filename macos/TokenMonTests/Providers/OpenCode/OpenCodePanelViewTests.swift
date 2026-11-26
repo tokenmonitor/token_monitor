@@ -240,6 +240,17 @@ final class OpenCodePanelViewTests: XCTestCase {
         XCTAssertEqual(monthly.caption, Format.resetCaption(soon))
     }
 
+    func testSignInAuthHostsMatchExactlyOrBySubdomainNotSubstring() {
+        let config = makeAuth(signedIn: false).signInConfig
+        XCTAssertFalse(config.isAuthHost("auth.opencode.ai.evil.example", "/"))
+        XCTAssertFalse(config.isAuthHost("notauth.opencode.ai.example", "/"))
+        // The authorize/login paths count only on opencode.ai itself.
+        XCTAssertFalse(config.isAuthHost("evil.example", "/console/login"))
+        XCTAssertFalse(config.isAuthHost("opencode.ai.evil.example", "/auth/authorize"))
+        XCTAssertTrue(config.isAuthHost("AUTH.opencode.ai", "/"))
+        XCTAssertTrue(config.isAuthHost("www.opencode.ai", "/console/login"))
+    }
+
     func testSignInRecognizesConsolePages() throws {
         let config = makeAuth(signedIn: false).signInConfig
         XCTAssertEqual(config.title, "Sign in to OpenCode")

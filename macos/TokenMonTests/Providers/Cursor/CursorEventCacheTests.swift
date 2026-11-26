@@ -174,6 +174,9 @@ final class CursorEventCacheTests: XCTestCase {
         XCTAssertTrue(CursorAuthSession.isAuthPage(host: "cursor.com", path: "/login"))
         XCTAssertFalse(CursorAuthSession.isAuthPage(host: "github.com.evil.example", path: "/"))
         XCTAssertFalse(CursorAuthSession.isAuthPage(host: "notgithub.com", path: "/"))
+        // A /login path only counts on a Cursor host.
+        XCTAssertFalse(CursorAuthSession.isAuthPage(host: "cursor.com.evil.example", path: "/login"))
+        XCTAssertFalse(CursorAuthSession.isAuthPage(host: "evil.example", path: "/signin"))
         XCTAssertFalse(CursorAuthSession.isAuthPage(host: "cursor.com", path: "/dashboard"))
     }
 

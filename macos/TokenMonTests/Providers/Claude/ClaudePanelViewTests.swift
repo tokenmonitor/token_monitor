@@ -284,6 +284,23 @@ final class ClaudePanelViewTests: XCTestCase {
         XCTAssertLessThan(ViewHarness.render(short).height, fullHeight)
     }
 
+    func testSignInAuthHostsMatchExactlyOrBySubdomainNotSubstring() {
+        for host in ["github.com.evil.example", "evilgithub.com", "notclaude.ai.example",
+                     "clerk.claude.ai.evil.example", "accounts.google.com.evil.example",
+                     "appleid.apple.com.evil.example"] {
+            XCTAssertFalse(ClaudeAuthSession.isAuthHost(host: host, path: "/"), host)
+        }
+        // A login path counts only on claude.ai itself.
+        XCTAssertFalse(ClaudeAuthSession.isAuthHost(host: "evil.example", path: "/login"))
+        XCTAssertFalse(ClaudeAuthSession.isAuthHost(host: "claude.ai.evil.example", path: "/signin"))
+        XCTAssertFalse(ClaudeAuthSession.isAuthHost(host: "notclaude.ai", path: "/login"))
+
+        for host in ["GitHub.com", "accounts.google.com.", "idmsa.apple.com", "foo.clerk.claude.ai", "gist.github.com"] {
+            XCTAssertTrue(ClaudeAuthSession.isAuthHost(host: host, path: "/"), host)
+        }
+        XCTAssertTrue(ClaudeAuthSession.isAuthHost(host: "www.claude.ai", path: "/LOGIN"))
+    }
+
     func testSignInRecognizesAuthHostsAndTheReturnPage() throws {
         XCTAssertTrue(ClaudeAuthSession.isAuthHost(host: "clerk.claude.ai", path: "/"))
         XCTAssertTrue(ClaudeAuthSession.isAuthHost(host: "accounts.google.com", path: "/o/oauth2"))
