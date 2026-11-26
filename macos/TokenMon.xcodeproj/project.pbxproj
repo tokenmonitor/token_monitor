@@ -19,6 +19,7 @@
 		06516B6263CAB3926C5C56CF /* UsageSourceTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB129D7632BECD0C35C49CA3 /* UsageSourceTag.swift */; };
 		067366E54644C42DFB3171F7 /* TokenMonAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83A76B55BF00F6DDCD2D266E /* TokenMonAppTests.swift */; };
 		094CD3B206EA8FAFBBA580FD /* PollingLoopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5375F025FD64E1086E59BBD7 /* PollingLoopTests.swift */; };
+		098181DB97EA74FFA1093B84 /* FileBackedStringStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A800BC30265B7DACF38AF9B1 /* FileBackedStringStoreTests.swift */; };
 		0A36C66775D03F67F873E630 /* ChatGPTAuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91DFEA8DE139942660A1CE20 /* ChatGPTAuthSession.swift */; };
 		0CF7BC8B5018ACCDBCE87978 /* PanelPill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 195C2F8C394F732F998DF509 /* PanelPill.swift */; };
 		0EE338537755EF3BDDCA6291 /* UsageErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9604EE2956CF38B9890E8646 /* UsageErrorTests.swift */; };
@@ -168,6 +169,7 @@
 		8F8D4FB2ED7FED1D54613157 /* OpenCodeConsoleClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F39C71A9B3571A51D2EFCB6 /* OpenCodeConsoleClient.swift */; };
 		936837B8ED636C576DB25583 /* GrokAuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18068381960C5188D44B696 /* GrokAuthSession.swift */; };
 		937404507E94F53ADC57A1C5 /* AppSupportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 389A1BBFB9FC8CEF3DC2FAD9 /* AppSupportTests.swift */; };
+		9376E318ABC4C7AEAAD27251 /* OpenRouterModelRankingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA3AD13D15F58A4657B7229D /* OpenRouterModelRankingTests.swift */; };
 		956553E4CE0AFAB46AA47C49 /* ProviderSignInWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69717652893FA60F803933C1 /* ProviderSignInWebView.swift */; };
 		9588F854C86CFDBD9A58E6FA /* ProviderCookieAllowlistTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BEDD42930D9C99B20B61469 /* ProviderCookieAllowlistTests.swift */; };
 		965FD844DFBABF57F1FF1304 /* ChatGPTUsageClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C30126089A362723703A372E /* ChatGPTUsageClient.swift */; };
@@ -497,6 +499,7 @@
 		A6021E6879FFCC12EDA03EED /* GrokHistoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokHistoryStoreTests.swift; sourceTree = "<group>"; };
 		A704659C81EAD8F363D298F0 /* ProviderColorsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderColorsTests.swift; sourceTree = "<group>"; };
 		A7B8A66EA39F8F4553E1C45A /* GrokUsageParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokUsageParsingTests.swift; sourceTree = "<group>"; };
+		A800BC30265B7DACF38AF9B1 /* FileBackedStringStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileBackedStringStoreTests.swift; sourceTree = "<group>"; };
 		A87B8D8414E03E5B888599ED /* OpenCodeZenCostEstimate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeZenCostEstimate.swift; sourceTree = "<group>"; };
 		A9C7E6A362DA6C66B9FC8A67 /* MenuBarPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPanel.swift; sourceTree = "<group>"; };
 		A9CB4ABDEB60519571F690BA /* OpenRouterAuthSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterAuthSessionTests.swift; sourceTree = "<group>"; };
@@ -515,6 +518,7 @@
 		B678298B3DC136E16331DFEB /* CursorPanelViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorPanelViewTests.swift; sourceTree = "<group>"; };
 		B850B5AF074C93AC1E04E5F9 /* OpenRouterUsagePoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterUsagePoller.swift; sourceTree = "<group>"; };
 		BA25A1E043ADA9EDAC5FD62D /* ClaudeModelHoverLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModelHoverLabel.swift; sourceTree = "<group>"; };
+		BA3AD13D15F58A4657B7229D /* OpenRouterModelRankingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterModelRankingTests.swift; sourceTree = "<group>"; };
 		BC8D8BCBDF7849DFD2927531 /* UpdateAvailableIndicatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateAvailableIndicatorTests.swift; sourceTree = "<group>"; };
 		BD98517BAED301412E21B91A /* BillingPeriodWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillingPeriodWindowTests.swift; sourceTree = "<group>"; };
 		BE993F50A438BDC9B7E9136A /* ClaudeModelHoverDetailTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModelHoverDetailTests.swift; sourceTree = "<group>"; };
@@ -893,6 +897,7 @@
 			children = (
 				A9CB4ABDEB60519571F690BA /* OpenRouterAuthSessionTests.swift */,
 				F5892356272356D5A030CE9C /* OpenRouterDailyBudgetTests.swift */,
+				BA3AD13D15F58A4657B7229D /* OpenRouterModelRankingTests.swift */,
 				16CC7EA776901FE9698D44AB /* OpenRouterModelsTests.swift */,
 				E0E09A9DA2D820EFCA41537E /* OpenRouterPanelViewTests.swift */,
 				4923AEDEFAAB7108F8A755E5 /* OpenRouterPollerRefreshTests.swift */,
@@ -1339,6 +1344,7 @@
 			children = (
 				389A1BBFB9FC8CEF3DC2FAD9 /* AppSupportTests.swift */,
 				766215037C3630BB8DEC6764 /* DailyQuotaDeltaStoreTests.swift */,
+				A800BC30265B7DACF38AF9B1 /* FileBackedStringStoreTests.swift */,
 				62EFCABB89EE23C3DF5F81FC /* HourlyDeltaActivityStoreTests.swift */,
 				E7170C1555B956864F463F26 /* LegacyCacheCleanupTests.swift */,
 			);
@@ -1482,6 +1488,7 @@
 				F28F3644F42FF3369C390A53 /* DailyUsageChartViewTests.swift in Sources */,
 				7A8B6C6D83133E7D71903FF0 /* DayKeyTests.swift in Sources */,
 				1B0999B917BB159021427CCE /* FakeSignInAuth.swift in Sources */,
+				098181DB97EA74FFA1093B84 /* FileBackedStringStoreTests.swift in Sources */,
 				CB4BE4149CD428E2F3A24DC7 /* FloatingHoverLabelTests.swift in Sources */,
 				B07C011D3AD2C6B26FD3853B /* FlowLayoutTests.swift in Sources */,
 				0343F0863B6CA22D49109EE0 /* FormatTests.swift in Sources */,
@@ -1525,6 +1532,7 @@
 				FD494ED4BBD4A5A3FD3B26E2 /* OpenCodeStatsTests.swift in Sources */,
 				D255FBF015712CBBB06E1DA6 /* OpenRouterAuthSessionTests.swift in Sources */,
 				DD3CD2279D41B869174A0AC1 /* OpenRouterDailyBudgetTests.swift in Sources */,
+				9376E318ABC4C7AEAAD27251 /* OpenRouterModelRankingTests.swift in Sources */,
 				A4FA015CCCF03CA853E66728 /* OpenRouterModelsTests.swift in Sources */,
 				F7CACDC9359F2324FB74BD69 /* OpenRouterPanelViewTests.swift in Sources */,
 				152968B3C4AAA230497EA2D0 /* OpenRouterPollerRefreshTests.swift in Sources */,

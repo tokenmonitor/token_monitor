@@ -2,14 +2,9 @@ import Foundation
 
 /// Daily Budget bars for OpenCode Go from local spend.
 extension OpenCodeLocalStats {
-    /// Daily USD spend per calendar day for the current monthly period, counting
-    /// only Go-plan usage (Zen is free and tracked separately in the models and
-    /// overview sections).
-    static func fetchMonthDailySpends(now: Date = Date()) throws -> [Date: Double] {
-        try fetchMonthDailySpends(dbURL: databaseURL, now: now)
-    }
-
-    /// Daily Go spend for the subscription-anchored month from `opencode.db`.
+    /// Daily Go spend for the subscription-anchored month from `opencode.db`,
+    /// counting only Go-plan usage (Zen is free and tracked separately in the
+    /// models and overview sections).
     static func fetchMonthDailySpends(dbURL: URL, now: Date) throws -> [Date: Double] {
         let scan = try loadScan(dbURL: dbURL, since: scanStart(now: now))
         let month = monthlyBounds(now: now, subscribedAt: scan.subscribedAt ?? now)

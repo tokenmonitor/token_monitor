@@ -101,4 +101,30 @@ final class ProductCatalogTests: XCTestCase {
         let products = [product("chat", 30), product("build", 20)]
         XCTAssertEqual(ProductCatalog.breakdownProducts(products, visible: ["build"]).map(\.id), ["build"])
     }
+
+    /// Unknown products sort after the known ones; a duplicated id keeps its
+    /// last entry.
+    func testUnknownProductsSortLastAndDuplicatesKeepTheLastEntry() {
+        let sorted = ProductCatalog.sortForDisplay([product("mystery", 1), product("chat", 1)])
+        XCTAssertEqual(sorted.map(\.id), ["chat", "mystery"])
+        let byUsage = ProductCatalog.sortedByUsage([product("mystery", 5), product("chat", 5)])
+        XCTAssertEqual(byUsage.map(\.id), ["chat", "mystery"])
+        let filtered = ProductCatalog.filtered([product("chat", 1), product("chat", 9)], visible: ["chat"], threshold: 0)
+        XCTAssertEqual(filtered.map(\.percentOfPool), [9])
+    }
+
+    func testDailyChartValuesAreIdentifiedByProductAndDay() {
+        let day = Date(timeIntervalSince1970: 1_800_000_000)
+        let segment = DailyUsageSegment(productID: "chat", displayName: "Chat", percentOfWeekly: 3, colorToken: .chat)
+        XCTAssertEqual(segment.id, "chat")
+        let usage = DailyUsageDay(
+            dayStart: day,
+            weekdaySymbol: "Mon",
+            dayOfMonth: "1",
+            segments: [segment],
+            isToday: false,
+            isAfterReset: false
+        )
+        XCTAssertEqual(usage.id, day)
+    }
 }

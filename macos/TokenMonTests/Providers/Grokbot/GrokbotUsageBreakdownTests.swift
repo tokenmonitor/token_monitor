@@ -98,4 +98,15 @@ final class GrokbotUsageBreakdownTests: XCTestCase {
         XCTAssertNil(GrokbotUsageClient.accessToken(fromCookieHeader: "other=aaa.bbb.ccc"))
         XCTAssertNil(GrokbotUsageClient.accessToken(fromCookieHeader: ""))
     }
+
+    // MARK: - Slice colours
+
+    /// Each source draws in its own colour; the user's own usage uses the
+    /// Grokbot accent. A slice is identified by its source.
+    func testEachSourceHasItsOwnColour() {
+        let colours = GrokbotUsageSource.allCases.map { "\($0.sRGB.red),\($0.sRGB.green),\($0.sRGB.blue)" }
+        XCTAssertEqual(Set(colours).count, GrokbotUsageSource.allCases.count)
+        XCTAssertEqual(GrokbotUsageSource.user.sRGB.red, MonitorProvider.grokbot.accent.red, accuracy: 1e-9)
+        XCTAssertEqual(GrokbotUsageBreakdown.Slice(source: .agent, value: 1).id, .agent)
+    }
 }

@@ -102,6 +102,20 @@ final class PollingLoopTests: XCTestCase {
         loop.stop()
     }
 
+    /// Opening the menu refreshes only data older than the freshness window.
+    func testRefreshNowIfOlderThanSkipsFreshData() async throws {
+        let loop = makeLoop()
+        await loop.refreshNow(ifOlderThan: 60)
+        XCTAssertEqual(refreshCount, 1, "no refresh yet, so it runs")
+        scheduler.now.addTimeInterval(30)
+        await loop.refreshNow(ifOlderThan: 60)
+        XCTAssertEqual(refreshCount, 1, "30 s old is fresh")
+        scheduler.now.addTimeInterval(31)
+        await loop.refreshNow(ifOlderThan: 60)
+        XCTAssertEqual(refreshCount, 2)
+        loop.stop()
+    }
+
     func testRefreshNowRestartsTheWaitFromThatRefresh() async throws {
         let loop = makeLoop()
         loop.start()

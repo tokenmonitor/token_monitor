@@ -150,6 +150,7 @@ specs do not list the test.
 | `TokenMonTests/Core/Polling/ProviderRefreshTests.swift::ProviderRefreshTests::testOtherFailuresDoNotCountAgainstTheSession` | URLError gives failure; no rejection or streak; 1 error | ws-core-polling | ported | `crates/tokenmon-core/tests/test_provider_refresh.rs::test_other_failures_do_not_count_against_the_session` |  |
 | `TokenMonTests/Core/Polling/ProviderRefreshTests.swift::ProviderRefreshTests::testFailureForAStaleGenerationIsIgnored` | Failure for a stale generation is ignored: skipped; no streak; no error reported | ws-core-polling | ported | `crates/tokenmon-core/tests/test_provider_refresh.rs::test_failure_for_a_stale_generation_is_ignored` |  |
 | `TokenMonTests/Core/Polling/ProviderRefreshTests.swift::ProviderRefreshTests::testCancellationIsSkipped` | Cancellation is skipped: skipped; no error | ws-core-polling | ported | `crates/tokenmon-core/tests/test_provider_refresh.rs::test_cancellation_is_skipped` |  |
+| `TokenMonTests/Core/Polling/PollingLoopTests.swift::PollingLoopTests::testRefreshNowIfOlderThanSkipsFreshData` | refreshNow(ifOlderThan:) refreshes only data older than the window | ws-core-polling | ported | `crates/tokenmon-core/tests/test_polling_loop.rs::test_refresh_now_if_older_than` |  |
 
 ### ws-core-storage (#8)
 
@@ -216,6 +217,9 @@ specs do not list the test.
 | `TokenMonTests/Core/Storage/LegacyCacheCleanupTests.swift::LegacyCacheCleanupTests::testClearsTheGivenCookieStorage` | `removeCookies(since: distantPast)` is called | ws-core-storage | n/a | | macOS-only: clears the legacy shared `HTTPCookieStorage`/`URLCache` and this app's WebKit cookie jars. `reqwest` keeps no jar or cache and there is no legacy install on Windows (spec 01 §1.3.3, §8). |
 | `TokenMonTests/Providers/Grok/GrokUsageParsingTests.swift::SharedHelpersTests::testFileBackedStringStoreRoundTrip` | File backed string store round trip: set, get, overwrite, remove. (Core) | ws-core-storage | ported | `crates/tokenmon-core/tests/storage_files.rs::test_file_backed_string_store_round_trip` |  |
 | `TokenMonTests/Providers/Grokbot/GrokbotUsagePollerTests.swift::GrokbotUsagePollerTests::testIsNewWindowDetectsRollover` | `QuotaWindowTransition.isRollover`: +7 days → true; +1 day → false; nil previous → false; backwards → false. (Core) | ws-core-storage | ported | `crates/tokenmon-core/tests/storage_daily.rs::test_is_new_window_detects_rollover` |  |
+| `TokenMonTests/Core/Storage/FileBackedStringStoreTests.swift::FileBackedStringStoreTests::testValuesRoundTripInOwnerOnlyFiles` | String store values round trip in 0600 files; removing twice is harmless | ws-core-storage | ported | `crates/tokenmon-core/tests/storage_string_store_errors.rs::test_set_replace_remove_cycle` |  |
+| `TokenMonTests/Core/Storage/FileBackedStringStoreTests.swift::FileBackedStringStoreTests::testUnreadableOrUnreplaceableKeyFailsQuietly` | A key path that is a directory reads nil, fails the write and leaves no staging file | ws-core-storage | ported | `crates/tokenmon-core/tests/storage_string_store_errors.rs::test_unreadable_entry_degrades_gracefully` |  |
+| `TokenMonTests/Core/Storage/FileBackedStringStoreTests.swift::FileBackedStringStoreTests::testWriteIntoAReadOnlyDirectoryFails` | A read-only store directory refuses writes and removes, keeping the value | ws-core-storage | todo |  |  |
 
 ### ws-core-usage (#9)
 
@@ -726,6 +730,8 @@ specs do not list the test.
 | `TokenMonTests/Providers/Grok/GRPCWebParserFallbackTests.swift::GRPCWebParserFallbackTests::testEmptyBodyIsAnError` | An empty gRPC body is an error | ws-grok | ported | `crates/tokenmon-provider-grok/tests/test_grpc_parser.rs::test_empty_body_is_an_error` |  |
 | `TokenMonTests/Providers/Grok/GRPCWebParserFallbackTests.swift::GRPCWebParserFallbackTests::testDebugDumpListsEveryScannedField` | The debug dump lists each frame's fixed32 and varint fields, dating timestamps | ws-grok | todo |  |  |
 | `TokenMonTests/Providers/Grok/GrokPollerGatingTests.swift::GrokPollerGatingTests::testAccountSwitchClearsSnapshotAndHourlyHistory` | An account switch drops the Grok snapshot and the stored hourly deltas | ws-grok | ported | `crates/tokenmon-provider-grok/tests/test_poller.rs::test_account_reset_clears_hourly_sign_out_keeps_it` |  |
+| `TokenMonTests/Providers/Grok/ProductCatalogTests.swift::ProductCatalogTests::testUnknownProductsSortLastAndDuplicatesKeepTheLastEntry` | Unknown Grok products sort last; a duplicated id keeps its last entry | ws-grok | todo |  |  |
+| `TokenMonTests/Providers/Grok/ProductCatalogTests.swift::ProductCatalogTests::testDailyChartValuesAreIdentifiedByProductAndDay` | Daily chart segments and days are identified by product and day | ws-grok | todo |  |  |
 
 ### ws-cursor (#14)
 
@@ -861,6 +867,7 @@ specs do not list the test.
 | `TokenMonTests/Providers/Grokbot/GrokbotPollerRefreshTests.swift::GrokbotPollerRefreshTests::testBreakdownFailureKeepsTheLastBreakdown` | A failed breakdown keeps the last one and reports no error | ws-grokbot | ported | `crates/tokenmon-provider-grokbot/tests/breakdown_poller.rs::test_grokbot_breakdown_failure_keeps_last_and_session` |  |
 | `TokenMonTests/Providers/Grokbot/GrokbotPollerRefreshTests.swift::GrokbotPollerRefreshTests::testAccountSwitchClearsSnapshotAndHistory` | An account switch clears the snapshot, breakdown, hourly and daily history | ws-grokbot | ported | `crates/tokenmon-provider-grokbot/tests/polling_loop.rs::test_session_events_clear_snapshot_and_account_reset_clears_history` |  |
 | `TokenMonTests/Providers/Grokbot/GrokbotPollerRefreshTests.swift::GrokbotPollerRefreshTests::testPollIntervalFollowsMenuAndEnablement` | An open menu shortens the interval; disabling parks the loop | ws-grokbot | ported | `crates/tokenmon-provider-grokbot/tests/polling_loop.rs::test_set_menu_open_wakes_the_polling_loop` |  |
+| `TokenMonTests/Providers/Grokbot/GrokbotUsageBreakdownTests.swift::GrokbotUsageBreakdownTests::testEachSourceHasItsOwnColour` | Each Grokbot usage source has its own colour; the user's is the accent | ws-grokbot | ported | `crates/tokenmon-provider-grokbot/tests/misc_surface.rs::test_every_source_has_distinct_name_label_and_color` |  |
 
 ### ws-claude (#16)
 
@@ -1217,6 +1224,8 @@ specs do not list the test.
 | `TokenMonTests/Providers/OpenRouter/OpenRouterPollerRefreshTests.swift::OpenRouterPollerRefreshTests::testLiveClientSendsTheBearerKeyAndReadsManagementEndpoints` | The live client sends the bearer key and reads credits and activity for a management key | ws-openrouter | ported | `crates/tokenmon-provider-openrouter/tests/test_client.rs::test_transport_sends_bearer_and_returns_body`<br>`crates/tokenmon-provider-openrouter/tests/test_client.rs::test_management_key_fetches_credits_and_activity` |  |
 | `TokenMonTests/Providers/OpenRouter/OpenRouterPollerRefreshTests.swift::OpenRouterPollerRefreshTests::testUnexpectedKeyJSONIsABadResponse` | An unexpected /key payload is a bad response | ws-openrouter | ported | `crates/tokenmon-provider-openrouter/tests/test_client.rs::test_key_failures_propagate` |  |
 | `TokenMonTests/Providers/OpenRouter/OpenRouterPollerRefreshTests.swift::OpenRouterPollerRefreshTests::testBudgetSourceLabels` | Budget source labels | ws-openrouter | todo |  |  |
+| `TokenMonTests/Providers/OpenRouter/OpenRouterModelRankingTests.swift::OpenRouterModelRankingTests::testModelsRankBySpendThenTokens` | OpenRouter models rank by spend, then tokens; shares sum to 100% | ws-openrouter | ported | `crates/tokenmon-provider-openrouter/tests/test_models.rs::test_models_sorted_by_cost_then_tokens` |  |
+| `TokenMonTests/Providers/OpenRouter/OpenRouterModelRankingTests.swift::OpenRouterModelRankingTests::testSnapshotIsIdentifiedByItsFetchTime` | An OpenRouter snapshot is identified by its fetch time | ws-openrouter | todo |  |  |
 
 ### ws-secrets (#20)
 

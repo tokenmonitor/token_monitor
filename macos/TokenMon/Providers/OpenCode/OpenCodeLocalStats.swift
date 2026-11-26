@@ -167,10 +167,6 @@ enum OpenCodeLocalStats {
         }
     }
 
-    static func fetchSnapshot(now: Date = Date()) throws -> OpenCodeSnapshot {
-        try fetchSnapshot(dbURL: databaseURL, now: now)
-    }
-
     /// Builds rolling, weekly, and monthly usage from `opencode.db`.
     static func fetchSnapshot(dbURL: URL, now: Date = Date()) throws -> OpenCodeSnapshot {
         try snapshot(from: loadScan(dbURL: dbURL, since: scanStart(now: now)), now: now)
@@ -215,10 +211,6 @@ enum OpenCodeLocalStats {
             monthlyInputTokens: monthTotals.input,
             monthlyOutputTokens: monthTotals.output
         )
-    }
-
-    static func fetchDayHourlyUsage(now: Date = Date()) throws -> OpenCodeDayHourlyUsage {
-        try fetchDayHourlyUsage(dbURL: databaseURL, now: now)
     }
 
     /// Builds today's 24 hourly model-cost stacks from `opencode.db`.
