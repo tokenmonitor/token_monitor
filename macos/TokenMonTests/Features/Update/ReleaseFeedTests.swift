@@ -157,4 +157,16 @@ final class ReleaseFeedTests: XCTestCase {
         XCTAssertThrowsError(try parse(#"{"tag_name":"nightly"}"#))
         XCTAssertThrowsError(try parse("not json at all"))
     }
+
+    /// Two releases are the same update when version and page match, whatever
+    /// assets they list.
+    func testReleasesCompareByVersionAndPage() throws {
+        let page = try XCTUnwrap(URL(string: "https://github.com/tokenmonitor/token_monitor/releases/tag/v1.6.0"))
+        let asset = ReleaseAsset(name: "TokenMon-1.6.0.zip", url: page, sha256: nil)
+        let bare = AvailableRelease(version: try XCTUnwrap(AppVersion("1.6.0")), pageURL: page)
+        let withAsset = AvailableRelease(version: try XCTUnwrap(AppVersion("v1.6.0")), pageURL: page, archive: asset)
+        XCTAssertEqual(bare, withAsset)
+        XCTAssertNotEqual(bare, AvailableRelease(version: try XCTUnwrap(AppVersion("1.6.1")), pageURL: page))
+        XCTAssertNotEqual(bare, AvailableRelease(version: try XCTUnwrap(AppVersion("1.6.0")), pageURL: asset.url.deletingLastPathComponent()))
+    }
 }

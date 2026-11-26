@@ -55,4 +55,10 @@ final class AppVersionTests: XCTestCase {
         XCTAssertTrue(AppVersion("1.5.0-beta.1")! < AppVersion("1.5.0-beta.2")!)
         XCTAssertTrue(AppVersion("1.5.0-alpha.1")! < AppVersion("1.5.0-beta.1")!)
     }
+
+    /// A pre-release that is a prefix of another sorts first (SemVer 11.4.4).
+    func testShorterPrereleaseSortsFirstWhenItIsAPrefix() {
+        XCTAssertTrue(AppVersion("1.5.0-beta")! < AppVersion("1.5.0-beta.1")!)
+        XCTAssertFalse(AppVersion("1.5.0-beta.1")! < AppVersion("1.5.0-beta")!)
+    }
 }

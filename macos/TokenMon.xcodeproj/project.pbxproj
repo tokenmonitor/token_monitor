@@ -44,6 +44,7 @@
 		21A4AFC7363077FA40FF9EB5 /* DayKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F31151B54ECEEE84B43FDD8 /* DayKey.swift */; };
 		22374D61B31053158A30ADC4 /* SettingsTabTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A1E4CFA6BCF18D33DB9553 /* SettingsTabTests.swift */; };
 		22DD3F58F039128692D42543 /* SignInBrowserNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F430FF7C5A3558077DD46EA1 /* SignInBrowserNavigation.swift */; };
+		24F9DF995B55617B4626106D /* AppBundleFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FC268956474B3A73CEE44CF /* AppBundleFixture.swift */; };
 		26404D26FAD27814ACCFBBBB /* GrokDailyUsageBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69DF42E1E35463C382C71A1D /* GrokDailyUsageBuilder.swift */; };
 		27708FE67616DF783006606C /* ChatGPTPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80C9BA690FBDE2552436BE62 /* ChatGPTPanelView.swift */; };
 		280BCF1923E8768B3B5A28E4 /* GrokbotPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 128B083D5F66A4B86258C392 /* GrokbotPanelView.swift */; };
@@ -230,6 +231,7 @@
 		E5CD11DC5D3D9AC90C006C1E /* GrokbotUsageBreakdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5725BEE57AB0A0E64713B2C2 /* GrokbotUsageBreakdown.swift */; };
 		E5E387716D831E2424120DFC /* ViewHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C959DA0D99EF4835C267129 /* ViewHarness.swift */; };
 		E67B01BEBBE9F134B1AE09F0 /* SignInBrowserNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7265D1C2FC9BF60197606191 /* SignInBrowserNavigationTests.swift */; };
+		E6D48720F85B76B83C0A783D /* UpdateAvailableIndicatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC8D8BCBDF7849DFD2927531 /* UpdateAvailableIndicatorTests.swift */; };
 		E7BD504EB15E1515C3B4F9B5 /* MonthlyUsageChange.swift in Sources */ = {isa = PBXBuildFile; fileRef = 054C36F279715DBD2D9A7D0F /* MonthlyUsageChange.swift */; };
 		E81D484901DB8B194CB1093F /* UsageSourceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DED621C386DCDE852983A23 /* UsageSourceTests.swift */; };
 		EBE2B4D303FE5D350ED91F63 /* CursorUsagePoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = A184FA4C6EC0C25EAA78002C /* CursorUsagePoller.swift */; };
@@ -410,6 +412,7 @@
 		8CFCB359B0E4FCFFB5F79CE0 /* MenuBarStatusRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusRenderer.swift; sourceTree = "<group>"; };
 		8D1811D20FD36F1FE6B12397 /* DailyBudget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyBudget.swift; sourceTree = "<group>"; };
 		8EAE66EC189024EDE1B52B77 /* OpenRouterModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterModels.swift; sourceTree = "<group>"; };
+		8FC268956474B3A73CEE44CF /* AppBundleFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBundleFixture.swift; sourceTree = "<group>"; };
 		900E667C6972741C36D32F47 /* AppVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersion.swift; sourceTree = "<group>"; };
 		91A42A8E38FC1086E45DCFDF /* DailyUsageChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyUsageChartView.swift; sourceTree = "<group>"; };
 		91DFEA8DE139942660A1CE20 /* ChatGPTAuthSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTAuthSession.swift; sourceTree = "<group>"; };
@@ -455,6 +458,7 @@
 		B449EDDB7717A5E25E7818E9 /* SegmentedUsageBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SegmentedUsageBar.swift; sourceTree = "<group>"; };
 		B850B5AF074C93AC1E04E5F9 /* OpenRouterUsagePoller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterUsagePoller.swift; sourceTree = "<group>"; };
 		BA25A1E043ADA9EDAC5FD62D /* ClaudeModelHoverLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModelHoverLabel.swift; sourceTree = "<group>"; };
+		BC8D8BCBDF7849DFD2927531 /* UpdateAvailableIndicatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateAvailableIndicatorTests.swift; sourceTree = "<group>"; };
 		BD98517BAED301412E21B91A /* BillingPeriodWindowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BillingPeriodWindowTests.swift; sourceTree = "<group>"; };
 		BE993F50A438BDC9B7E9136A /* ClaudeModelHoverDetailTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeModelHoverDetailTests.swift; sourceTree = "<group>"; };
 		BEACE0C551D957D16FFE77A9 /* OpenCodeConsoleClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeConsoleClientTests.swift; sourceTree = "<group>"; };
@@ -685,6 +689,7 @@
 		21AF8BFBCDD4C0C7E335655E /* Support */ = {
 			isa = PBXGroup;
 			children = (
+				8FC268956474B3A73CEE44CF /* AppBundleFixture.swift */,
 				323AB6D42BFEF8ECA241651E /* HTTPStub.swift */,
 				99D2E036E380B0DDABA98D7A /* NeverRespondingURLProtocol.swift */,
 				272DA88178BA65200C0629CD /* ObservationProbe.swift */,
@@ -699,6 +704,7 @@
 				ED51EA8ED28DE1DDA20CF97D /* AppInstallerTests.swift */,
 				0298514421CD199D587E721F /* AppVersionTests.swift */,
 				87D7FE0A0302721F21E99B06 /* ReleaseFeedTests.swift */,
+				BC8D8BCBDF7849DFD2927531 /* UpdateAvailableIndicatorTests.swift */,
 				DB537762C8DFD0F0A4108A10 /* UpdateCheckerTests.swift */,
 			);
 			path = Update;
@@ -1324,6 +1330,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				24F9DF995B55617B4626106D /* AppBundleFixture.swift in Sources */,
 				DD15D0690AD26260AA35CEE7 /* AppInstallerTests.swift in Sources */,
 				40EC04A94B76F68252C94E9E /* AppModelPollingTests.swift in Sources */,
 				AB003C88589B88A88C1B74D0 /* AppSettingsTests.swift in Sources */,
@@ -1415,6 +1422,7 @@
 				A7B20EAE780B59211A64BD75 /* SystemWakeGateTests.swift in Sources */,
 				0202D9BAD67E4678DEA2DD47 /* ThisMacLabelTests.swift in Sources */,
 				FC09C3592BD99FAFACBCBDA9 /* ThresholdNotifierTests.swift in Sources */,
+				E6D48720F85B76B83C0A783D /* UpdateAvailableIndicatorTests.swift in Sources */,
 				298C863AB7E62E9D5CB3CC99 /* UpdateCheckerTests.swift in Sources */,
 				C48A23F8D6E2A585F9685ED0 /* UsageBreakdownCardTests.swift in Sources */,
 				0EE338537755EF3BDDCA6291 /* UsageErrorTests.swift in Sources */,

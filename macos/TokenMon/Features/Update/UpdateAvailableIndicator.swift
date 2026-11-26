@@ -26,7 +26,7 @@ struct UpdateAvailableIndicator: View {
 
 /// The pill installs the release when pressed; its tooltip names the version.
 /// A status message from the checker shows as a caption beneath it.
-private struct UpdateAvailablePill: View {
+struct UpdateAvailablePill: View {
     let checker: UpdateChecker
 
     var body: some View {

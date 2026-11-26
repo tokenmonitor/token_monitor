@@ -112,19 +112,24 @@ enum AppInstaller {
     /// Opens `app` once this process has exited, then quits.
     @MainActor
     static func relaunch(_ app: URL) throws {
+        try relaunchProcess(for: app, after: ProcessInfo.processInfo.processIdentifier).run()
+        NSApp.terminate(nil)
+    }
+
+    /// A shell that waits for process `pid` to exit, then opens `app`.
+    static func relaunchProcess(for app: URL, after pid: Int32) -> Process {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/sh")
         process.arguments = [
             "-c",
             #"while /bin/kill -0 "$1" 2>/dev/null; do /bin/sleep 0.2; done; /usr/bin/open "$2""#,
             "tokenmon-relaunch",
-            String(ProcessInfo.processInfo.processIdentifier),
+            String(pid),
             app.path
         ]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
-        try process.run()
-        NSApp.terminate(nil)
+        return process
     }
 
     // MARK: - Download

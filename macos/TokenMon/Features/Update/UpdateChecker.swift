@@ -43,17 +43,24 @@ final class UpdateChecker {
     private let bundleIdentifier: String?
     private let installedAppURL: URL
     private let openURL: (URL) -> Void
+    private let downloadSession: URLSession
+    private let relaunch: @MainActor (URL) throws -> Void
 
     /// - Parameters:
     ///   - installedAppURL: The app bundle an update replaces.
     ///   - openURL: Opens release pages and installer downloads.
+    ///   - downloadSession: Downloads the release zip; refuses redirects off
+    ///     GitHub's release hosts.
+    ///   - relaunch: Starts the installed app once this process exits, then quits.
     init(
         settings: AppSettings,
         currentVersion: AppVersion? = AppVersion.current(),
         session: URLSession = .shared,
         bundleIdentifier: String? = Bundle.main.bundleIdentifier,
         installedAppURL: URL = Bundle.main.bundleURL,
-        openURL: @escaping (URL) -> Void = { NSWorkspace.shared.open($0) }
+        openURL: @escaping (URL) -> Void = { NSWorkspace.shared.open($0) },
+        downloadSession: URLSession = UpdateChecker.makeDownloadSession(),
+        relaunch: @escaping @MainActor (URL) throws -> Void = AppInstaller.relaunch
     ) {
         self.settings = settings
         self.currentVersion = currentVersion
@@ -61,6 +68,13 @@ final class UpdateChecker {
         self.bundleIdentifier = bundleIdentifier
         self.installedAppURL = installedAppURL
         self.openURL = openURL
+        self.downloadSession = downloadSession
+        self.relaunch = relaunch
+    }
+
+    /// An ephemeral session whose redirects stay on GitHub's release hosts.
+    nonisolated static func makeDownloadSession() -> URLSession {
+        URLSession(configuration: .ephemeral, delegate: TrustedReleaseRedirect(), delegateQueue: nil)
     }
 
     func start() {
@@ -141,7 +155,7 @@ final class UpdateChecker {
                 session: downloadSession
             )
             do {
-                try AppInstaller.relaunch(app)
+                try relaunch(app)
             } catch {
                 statusMessage = "TokenMon \(release.version.description) is installed. Quit and reopen TokenMon to finish."
             }
@@ -169,11 +183,6 @@ final class UpdateChecker {
         statusMessage = message
         openURL(release.pageURL)
     }
-
-    @ObservationIgnored private lazy var downloadSession: URLSession = {
-        let configuration = URLSessionConfiguration.ephemeral
-        return URLSession(configuration: configuration, delegate: TrustedReleaseRedirect(), delegateQueue: nil)
-    }()
 
     private func performCheck(userInitiated: Bool) async {
         guard userInitiated || settings.checksForUpdates, !isChecking else { return }
