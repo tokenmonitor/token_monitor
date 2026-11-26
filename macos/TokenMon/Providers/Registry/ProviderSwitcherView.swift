@@ -68,7 +68,8 @@ struct ProviderSwitcherView: View {
         }
     }
 
-    private func tabButton(_ provider: MonitorProvider) -> some View {
+    /// One tab: the provider's logo and label; selecting it sets `selection`.
+    func tabButton(_ provider: MonitorProvider) -> some View {
         Button {
             selection = provider
         } label: {
