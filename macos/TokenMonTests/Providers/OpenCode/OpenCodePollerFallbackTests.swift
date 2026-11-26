@@ -30,7 +30,8 @@ final class OpenCodePollerFallbackTests: XCTestCase {
             settings: settings,
             auth: auth,
             fetchConsole: { _, _ in throw ProviderError.unauthorized(.openCode) },
-            fetchLocal: { (local, nil) }
+            fetchLocal: { (local, nil) },
+            databaseURL: dir.appendingPathComponent("opencode.db")
         )
         await poller.refreshNow()
         XCTAssertFalse(auth.needsSignIn)

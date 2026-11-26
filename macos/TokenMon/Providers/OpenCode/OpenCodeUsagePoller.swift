@@ -27,6 +27,8 @@ final class OpenCodeUsagePoller: ProviderUsagePoller {
     /// Injected console/local fetch seams (tests supply fakes); default to live.
     private let fetchConsole: (String, String?) async throws -> (OpenCodeSnapshot, String)
     private let fetchLocal: () async throws -> (OpenCodeSnapshot?, OpenCodeDayHourlyUsage?)
+    /// The local `opencode.db` the default local fetch and the daily bars read.
+    private let databaseURL: URL
     private let logger = Logger(category: "OpenCode")
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
 
@@ -39,10 +41,12 @@ final class OpenCodeUsagePoller: ProviderUsagePoller {
         settings: AppSettings,
         auth: OpenCodeAuthSession,
         fetchConsole: ((String, String?) async throws -> (OpenCodeSnapshot, String))? = nil,
-        fetchLocal: (() async throws -> (OpenCodeSnapshot?, OpenCodeDayHourlyUsage?))? = nil
+        fetchLocal: (() async throws -> (OpenCodeSnapshot?, OpenCodeDayHourlyUsage?))? = nil,
+        databaseURL: URL = OpenCodeLocalStats.databaseURL
     ) {
         self.settings = settings
         self.auth = auth
+        self.databaseURL = databaseURL
         self.fetchConsole = fetchConsole ?? { cookieHeader, knownOrgID in
             try await OpenCodeConsoleClient(cookieHeader: cookieHeader)
                 .fetchGoUsageSnapshot(knownOrgID: knownOrgID)
@@ -52,8 +56,8 @@ final class OpenCodeUsagePoller: ProviderUsagePoller {
                 // Fetch independently, so a successful hourly read reaches the Overview
                 // chart even when the snapshot fails.
                 (
-                    try? OpenCodeLocalStats.fetchSnapshot(),
-                    try? OpenCodeLocalStats.fetchDayHourlyUsage()
+                    try? OpenCodeLocalStats.fetchSnapshot(dbURL: databaseURL),
+                    try? OpenCodeLocalStats.fetchDayHourlyUsage(dbURL: databaseURL)
                 )
             }.value
         }
@@ -106,7 +110,7 @@ final class OpenCodeUsagePoller: ProviderUsagePoller {
                 }
                 snapshot = snap
                 if let hourly = localBundle?.1 { dayHourlyUsage = hourly }
-                let budget = await Self.buildDailyBudgetDays(for: snap)
+                let budget = await Self.buildDailyBudgetDays(for: snap, dbURL: databaseURL)
                 budgetSource = budget
                 dailyBudgetDays = budget?.days
                 dailyBudgetPeriodStart = budget?.periodStart
@@ -162,7 +166,7 @@ final class OpenCodeUsagePoller: ProviderUsagePoller {
                 return consoleOutcome
             }
             snapshot = snap
-            let budget = await Self.buildDailyBudgetDays(for: snap)
+            let budget = await Self.buildDailyBudgetDays(for: snap, dbURL: databaseURL)
             budgetSource = budget
             dailyBudgetDays = budget?.days
             dailyBudgetPeriodStart = budget?.periodStart
@@ -210,7 +214,8 @@ final class OpenCodeUsagePoller: ProviderUsagePoller {
     }
 
     private static func buildDailyBudgetDays(
-        for snapshot: OpenCodeSnapshot
+        for snapshot: OpenCodeSnapshot,
+        dbURL: URL
     ) async -> OpenCodeLocalStats.OpenCodeMonthBudget? {
         let monthly = snapshot.windows.first { $0.kind == .monthly }
         let monthlyLimit = monthly?.limitUSD ?? OpenCodeWindowKind.monthly.defaultLimitUSD
@@ -223,10 +228,12 @@ final class OpenCodeUsagePoller: ProviderUsagePoller {
             guard var budget = OpenCodeLocalStats.monthDailyBudgetDays(
                 limitUSD: monthlyLimit,
                 usedPercent: usedPercent,
-                periodResetsAt: resetsAt
+                periodResetsAt: resetsAt,
+                dbURL: dbURL
             ) else { return nil }
             budget.tokensByDay = OpenCodeLocalStats.dailyTokens(
-                since: OpenCodeLocalStats.scanStart(now: budget.referenceNow)
+                since: OpenCodeLocalStats.scanStart(now: budget.referenceNow),
+                dbURL: dbURL
             )
             budget.days = budget.days.attachingTokens(budget.tokensByDay)
             return budget

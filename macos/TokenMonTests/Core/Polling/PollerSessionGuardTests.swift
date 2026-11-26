@@ -569,7 +569,8 @@ final class PollerSessionGuardTests: XCTestCase {
                 auth.save(cookieHeader: "auth=new")
                 return (self.openCodeSnapshot(), "wrk_new")
             },
-            fetchLocal: { (self.openCodeSnapshot(), nil) }
+            fetchLocal: { (self.openCodeSnapshot(), nil) },
+            databaseURL: dir.appendingPathComponent("opencode.db")
         )
         await poller.refreshNow()
         XCTAssertNil(poller.snapshot)
@@ -589,7 +590,8 @@ final class PollerSessionGuardTests: XCTestCase {
                 auth.save(cookieHeader: "auth=new")
                 return (self.openCodeSnapshot(), "wrk_old")
             },
-            fetchLocal: { (self.openCodeSnapshot(), nil) }
+            fetchLocal: { (self.openCodeSnapshot(), nil) },
+            databaseURL: dir.appendingPathComponent("opencode.db")
         )
         await poller.refreshNow()
         XCTAssertNotEqual(auth.workspaceID, "wrk_old")
@@ -606,7 +608,8 @@ final class PollerSessionGuardTests: XCTestCase {
                 auth.save(cookieHeader: "auth=new")
                 throw ProviderError.unauthorized(.openCode)
             },
-            fetchLocal: { (self.openCodeSnapshot(), nil) }
+            fetchLocal: { (self.openCodeSnapshot(), nil) },
+            databaseURL: dir.appendingPathComponent("opencode.db")
         )
         await poller.refreshNow()
         XCTAssertTrue(auth.isSignedIn)
@@ -620,7 +623,8 @@ final class PollerSessionGuardTests: XCTestCase {
             settings: settings(.opencode),
             auth: auth,
             fetchConsole: { _, _ in throw ProviderError.unauthorized(.openCode) },
-            fetchLocal: { (self.openCodeSnapshot(), nil) }
+            fetchLocal: { (self.openCodeSnapshot(), nil) },
+            databaseURL: dir.appendingPathComponent("opencode.db")
         )
         await pollUntilInvalidated(poller, auth: auth)
         XCTAssertTrue(auth.needsSignIn)
@@ -635,7 +639,8 @@ final class PollerSessionGuardTests: XCTestCase {
             settings: settings(.opencode),
             auth: auth,
             fetchConsole: { _, _ in throw ProviderError.unauthorized(.openCode) },
-            fetchLocal: { (self.openCodeSnapshot(), nil) }
+            fetchLocal: { (self.openCodeSnapshot(), nil) },
+            databaseURL: dir.appendingPathComponent("opencode.db")
         )
         await poller.refreshNow()
         XCTAssertNotNil(poller.snapshot)
@@ -653,7 +658,8 @@ final class PollerSessionGuardTests: XCTestCase {
                 auth.save(cookieHeader: "auth=late")
                 auth.signOut()
                 return (self.openCodeSnapshot(), nil)
-            }
+            },
+            databaseURL: dir.appendingPathComponent("opencode.db")
         )
         await poller.refreshNow()
         XCTAssertNil(poller.snapshot)

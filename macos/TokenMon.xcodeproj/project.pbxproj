@@ -14,6 +14,7 @@
 		02F9895A5FE317B177F0A7BA /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDE9B2E5E834AAC33179D1D0 /* PreferencesView.swift */; };
 		0343F0863B6CA22D49109EE0 /* FormatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2FA0A7BC2A66A14A883280 /* FormatTests.swift */; };
 		050FC38C3C439004A9F7C918 /* GrokbotUsageClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BF9D23574F1B2B95F95A02E /* GrokbotUsageClientTests.swift */; };
+		055E94C1888038E791BBD0CB /* OpenCodeConsoleLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5781965F9C3C7889F8D96473 /* OpenCodeConsoleLiveTests.swift */; };
 		056EE3C301AA3C6719A2ACD6 /* GRPCWebParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 614FC01D640C95963A8C2B0D /* GRPCWebParser.swift */; };
 		06516B6263CAB3926C5C56CF /* UsageSourceTag.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB129D7632BECD0C35C49CA3 /* UsageSourceTag.swift */; };
 		094CD3B206EA8FAFBBA580FD /* PollingLoopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5375F025FD64E1086E59BBD7 /* PollingLoopTests.swift */; };
@@ -66,6 +67,7 @@
 		36184DD589D91241A2D881FD /* ChatGPTUsageClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 035D5817CDF2B39ABB3D7C99 /* ChatGPTUsageClientTests.swift */; };
 		36924334AB06F286EA0EB9E2 /* CursorAuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 120B27BA3E0C7C34F8C8EAF0 /* CursorAuthSession.swift */; };
 		372288D3C915919883B438FB /* CursorPanelViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B678298B3DC136E16331DFEB /* CursorPanelViewTests.swift */; };
+		383B2E34062A19F3CA630204 /* OpenCodeModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32B4F504AB5DDB200D0E0F6 /* OpenCodeModelsTests.swift */; };
 		38FF2FE848C92E20E6902585 /* ProviderAuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4180D20B69224C21DF403BB /* ProviderAuthSession.swift */; };
 		39595560EBACEBC55F86B3F4 /* ClaudeModelHoverDetailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE993F50A438BDC9B7E9136A /* ClaudeModelHoverDetailTests.swift */; };
 		3A664AC59BE0C9AA0DA5C241 /* MenuBarPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 129FBF60B08DD9FB200AB5D2 /* MenuBarPanelView.swift */; };
@@ -167,6 +169,7 @@
 		9B27710A617B72CD317F138D /* ProviderRegistryViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1203C44DD0CAD02DFA531FF8 /* ProviderRegistryViewTests.swift */; };
 		9B3652C1E9161B9D35718AF1 /* ClaudeCodeLocalStatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D482FA604A9BABA24A0C8A30 /* ClaudeCodeLocalStatsTests.swift */; };
 		9BCE8C52D80BC11A2275E9D2 /* ProviderSignInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E7CA6B1DC30F70B7D7491ED /* ProviderSignInSheet.swift */; };
+		9C2D54B8E84C35BB1C201515 /* OpenCodePollerConsoleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40AD44B46AE2A87C828C7FDB /* OpenCodePollerConsoleTests.swift */; };
 		A0CA70731D8293825C8C112F /* WebKitCookieCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8472924EA1AD232D4CB97C0F /* WebKitCookieCaptureTests.swift */; };
 		A1ACF29AE3D20DECB60508EA /* WebKitCookieCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34CEC1CB335D2F1AEEF0C1A6 /* WebKitCookieCapture.swift */; };
 		A2CD41733E07C0D3DF5C5EB7 /* ThresholdNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7183F5C73C410C9B07C6B9EA /* ThresholdNotifier.swift */; };
@@ -357,6 +360,7 @@
 		3EB96EB4E8D176C9CC45340D /* CursorSummaryParsingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorSummaryParsingTests.swift; sourceTree = "<group>"; };
 		3FACC7D56F3A746C8EC99537 /* UsageBreakdownCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageBreakdownCard.swift; sourceTree = "<group>"; };
 		40369E0000F6866AA0E7ADE4 /* CredentialStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStoreTests.swift; sourceTree = "<group>"; };
+		40AD44B46AE2A87C828C7FDB /* OpenCodePollerConsoleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodePollerConsoleTests.swift; sourceTree = "<group>"; };
 		41448E1586D47C2F4D0A32DB /* GrokbotUsageBreakdownTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokbotUsageBreakdownTests.swift; sourceTree = "<group>"; };
 		421E4A8A1FF8BCCB113A2B28 /* MonthlyDailyBudgetBarsViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlyDailyBudgetBarsViewTests.swift; sourceTree = "<group>"; };
 		42817B8BF1E4710FBDEC3144 /* ClaudeCodeUsageLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCodeUsageLedger.swift; sourceTree = "<group>"; };
@@ -379,6 +383,7 @@
 		55564038BBB5A4CFF17E17CA /* DailyBudgetResetBoundaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyBudgetResetBoundaryTests.swift; sourceTree = "<group>"; };
 		56FF237C2579B9A0ED8E85DF /* ProviderHTTP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderHTTP.swift; sourceTree = "<group>"; };
 		5725BEE57AB0A0E64713B2C2 /* GrokbotUsageBreakdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokbotUsageBreakdown.swift; sourceTree = "<group>"; };
+		5781965F9C3C7889F8D96473 /* OpenCodeConsoleLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeConsoleLiveTests.swift; sourceTree = "<group>"; };
 		578BC8095F6B9259CD3A4E82 /* GrokPanelViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokPanelViewTests.swift; sourceTree = "<group>"; };
 		59A75CD9EEFE026263DFB293 /* TokenMonTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TokenMonTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5AFB98C154957652BC2C7649 /* PollingLoop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PollingLoop.swift; sourceTree = "<group>"; };
@@ -455,6 +460,7 @@
 		A1A3C12CF7CE4ACA1F91372F /* OverviewHourlyHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewHourlyHistoryTests.swift; sourceTree = "<group>"; };
 		A2D1A99EE1BD2F037EE86F36 /* AccountsPrivacyNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountsPrivacyNote.swift; sourceTree = "<group>"; };
 		A2DDD3245E64986F2219364F /* PanelTypographyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelTypographyTests.swift; sourceTree = "<group>"; };
+		A32B4F504AB5DDB200D0E0F6 /* OpenCodeModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeModelsTests.swift; sourceTree = "<group>"; };
 		A3362D7FC0A4E8B3BB5C867C /* CursorLiveTransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorLiveTransportTests.swift; sourceTree = "<group>"; };
 		A431C434EB3E0B6FAD49FC5B /* JSONTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONTests.swift; sourceTree = "<group>"; };
 		A536607A4C132B9B95FD2E68 /* ISO8601.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ISO8601.swift; sourceTree = "<group>"; };
@@ -1135,10 +1141,13 @@
 			isa = PBXGroup;
 			children = (
 				BEACE0C551D957D16FFE77A9 /* OpenCodeConsoleClientTests.swift */,
+				5781965F9C3C7889F8D96473 /* OpenCodeConsoleLiveTests.swift */,
 				D83D9AF627830BDAB0DD6EFA /* OpenCodeLocalScanTests.swift */,
 				A17550B220ADFC13EB666DED /* OpenCodeModelNameTests.swift */,
+				A32B4F504AB5DDB200D0E0F6 /* OpenCodeModelsTests.swift */,
 				9FAE417F56CAB34C320EB40F /* OpenCodeMonthBudgetWeekTests.swift */,
 				1A8A62DF3A7AFFFC9C9B2F60 /* OpenCodePanelViewTests.swift */,
+				40AD44B46AE2A87C828C7FDB /* OpenCodePollerConsoleTests.swift */,
 				8001BC8DA86414D01D4DA1D2 /* OpenCodePollerFallbackTests.swift */,
 				18E376C96F9DA3FC6F23C4FB /* OpenCodePriceTableTests.swift */,
 				782349AA9FC5243305136053 /* OpenCodeStatsTests.swift */,
@@ -1439,10 +1448,13 @@
 				C56D215B0E039B1EC9647FB7 /* ObservationLoopTests.swift in Sources */,
 				B5921DDB23CA5A2E32D2D6A5 /* ObservationProbe.swift in Sources */,
 				34D64337F564984D9AB83D8C /* OpenCodeConsoleClientTests.swift in Sources */,
+				055E94C1888038E791BBD0CB /* OpenCodeConsoleLiveTests.swift in Sources */,
 				7F4A6E4F09FF7CBB0B98D4BD /* OpenCodeLocalScanTests.swift in Sources */,
 				DE6D0A7365E90E2BBCF5804B /* OpenCodeModelNameTests.swift in Sources */,
+				383B2E34062A19F3CA630204 /* OpenCodeModelsTests.swift in Sources */,
 				444BA2F34EE2C04F332F3CEA /* OpenCodeMonthBudgetWeekTests.swift in Sources */,
 				11249E776D62AA66BEB65A98 /* OpenCodePanelViewTests.swift in Sources */,
+				9C2D54B8E84C35BB1C201515 /* OpenCodePollerConsoleTests.swift in Sources */,
 				7B125859919FF6C0B288F468 /* OpenCodePollerFallbackTests.swift in Sources */,
 				D35E38E41FF91B2819CBDBCA /* OpenCodePriceTableTests.swift in Sources */,
 				FD494ED4BBD4A5A3FD3B26E2 /* OpenCodeStatsTests.swift in Sources */,
