@@ -14,8 +14,9 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use windows_sys::Win32::Foundation::{
-    CloseHandle, ERROR_ALREADY_EXISTS, ERROR_BROKEN_PIPE, ERROR_IO_PENDING, ERROR_PIPE_CONNECTED,
-    GetLastError, HANDLE, INVALID_HANDLE_VALUE, LocalFree, WAIT_OBJECT_0, WAIT_TIMEOUT,
+    CloseHandle, ERROR_ALREADY_EXISTS, ERROR_BROKEN_PIPE, ERROR_IO_PENDING, ERROR_NO_DATA,
+    ERROR_PIPE_CONNECTED, GetLastError, HANDLE, INVALID_HANDLE_VALUE, LocalFree, WAIT_OBJECT_0,
+    WAIT_TIMEOUT,
 };
 use windows_sys::Win32::Security::Authorization::{
     ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
@@ -270,7 +271,10 @@ impl Pipe {
         }
         // SAFETY: reads the last error right after the call.
         match unsafe { GetLastError() } {
-            ERROR_PIPE_CONNECTED => Ok(true),
+            // The client connected and already closed before we listened: its
+            // buffered message is still readable, so accept it rather than
+            // dropping a message `send` reported as delivered.
+            ERROR_PIPE_CONNECTED | ERROR_NO_DATA => Ok(true),
             ERROR_IO_PENDING => match self.wait(&mut ov, INFINITE)? {
                 Waited::Done(_) => Ok(true),
                 Waited::Stopped | Waited::Timeout => Ok(false),

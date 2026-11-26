@@ -139,7 +139,9 @@ fn test_server_ignores_silent_and_garbage_clients_then_serves_a_good_one() {
     drop(server);
 }
 
-/// Several sequential clients are each delivered.
+/// Several sequential clients are each delivered, including one that connects
+/// and closes before the server thread first listens (regression: that
+/// message used to be dropped on `ERROR_NO_DATA` although `send` succeeded).
 #[test]
 fn test_server_delivers_consecutive_messages() {
     let name = pipe_name("seq");
