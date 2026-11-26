@@ -91,6 +91,71 @@ final class ChatGPTUsagePollerTests: XCTestCase {
         XCTAssertTrue(store.spentByDay.isEmpty)
     }
 
+    // MARK: - Gating and lifecycle
+
+    func testSignedOutRefreshAsksForSignInWithoutFetching() async throws {
+        var fetches = 0
+        let auth = ChatGPTAuthSession(directory: dir)
+        let poller = try makePoller(daily: dailyStore(), auth: auth, response: weeklyResponse(percent: 1, resetsAt: Date())) {
+            fetches += 1
+        }
+        await poller.refreshNow()
+        XCTAssertEqual(fetches, 0)
+        XCTAssertTrue(auth.needsSignIn)
+        XCTAssertEqual(poller.lastError, "Sign in to ChatGPT to load usage.")
+        XCTAssertNil(poller.headlineUsedPercent)
+    }
+
+    func testDisabledProviderSkipsAndParksItsLoop() async throws {
+        var fetches = 0
+        let poller = try makePoller(daily: dailyStore(), response: weeklyResponse(percent: 1, resetsAt: Date())) {
+            fetches += 1
+        }
+        pollerSettings.enabledProviderIDs = [.cursor]
+        await poller.refreshNow()
+        XCTAssertEqual(fetches, 0)
+        XCTAssertNil(poller.pollingLoop.delayUntilDue())
+    }
+
+    func testPollIntervalFollowsTheMenuState() async throws {
+        let poller = try makePoller(daily: dailyStore(), response: weeklyResponse(percent: 1, resetsAt: Date()))
+        poller.start()
+        defer { poller.stop() }
+        await poller.refreshNow()
+        let idle = try XCTUnwrap(poller.pollingLoop.delayUntilDue())
+        poller.menuIsOpen = true
+        let active = try XCTUnwrap(poller.pollingLoop.delayUntilDue())
+        XCTAssertLessThan(active, idle, "an open menu polls faster")
+        XCTAssertLessThanOrEqual(active, pollerSettings.pollSeconds(menuIsOpen: true) * 1.1)
+    }
+
+    func testHeadlineAndAlertAccountReadTheSnapshotAndSession() async throws {
+        let resetsAt = Date().addingTimeInterval(3_600)
+        let auth = ChatGPTAuthSession(directory: dir)
+        auth.save(cookieHeader: "__Secure-next-auth.session-token=a")
+        auth.saveAccountEmail("me@example.com")
+        let poller = try makePoller(daily: dailyStore(), auth: auth, response: weeklyResponse(percent: 42, resetsAt: resetsAt))
+        await poller.refreshNow()
+        XCTAssertEqual(poller.headlineUsedPercent ?? -1, 5, accuracy: 0.001, "the 5-hour primary window leads")
+        XCTAssertNotNil(poller.headlineResetsAt)
+        XCTAssertEqual(poller.alertAccount, "me@example.com")
+        poller.clearSnapshot()
+        XCTAssertNil(poller.headlineUsedPercent)
+        XCTAssertNil(poller.lastRefreshedAt)
+    }
+
+    func testStoredResetIsProjectedForwardWhenNoPayloadHasOne() async throws {
+        let store = dailyStore()
+        let past = Date().addingTimeInterval(-86_400)
+        let first = try makePoller(daily: store, response: weeklyResponse(percent: 10, resetsAt: past))
+        await first.refreshNow()
+        let fresh = try makePoller(daily: store, response: weeklyResponse(percent: 10, resetsAt: past))
+        let projected = try XCTUnwrap(fresh.weeklyResetsAt())
+        XCTAssertGreaterThan(projected, Date(), "a passed reset is carried forward by whole weeks")
+        XCTAssertEqual(projected.timeIntervalSince(past).truncatingRemainder(dividingBy: 7 * 86_400), 0, accuracy: 1)
+        XCTAssertEqual(fresh.dailyBudgetDays(weekOffset: -1).count, 7)
+    }
+
     // MARK: - Helpers
 
     private func snapshot(primary: ChatGPTUsageWindow?, secondary: ChatGPTUsageWindow?) -> ChatGPTSnapshot {
@@ -114,16 +179,21 @@ final class ChatGPTUsagePollerTests: XCTestCase {
         )
     }
 
+    /// Settings of the poller built last.
+    private var pollerSettings: AppSettings!
+
     private func makePoller(
         daily: DailyQuotaDeltaStore,
         auth: ChatGPTAuthSession? = nil,
-        response: ChatGPTUsageResponse
+        response: ChatGPTUsageResponse,
+        onFetch: @escaping () -> Void = {}
     ) throws -> ChatGPTUsagePoller {
         let suite = "ChatGPTPoller-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
         let settings = AppSettings(defaults: defaults)
         settings.selectedProvider = .chatgpt
+        pollerSettings = settings
         let session = auth ?? {
             let fresh = ChatGPTAuthSession(directory: dir)
             fresh.save(cookieHeader: "__Secure-next-auth.session-token=test")
@@ -134,7 +204,8 @@ final class ChatGPTUsagePollerTests: XCTestCase {
             auth: session,
             daily: daily,
             fetchUsage: { _, _ in
-                ChatGPTUsageClient.Fetch(response: response, fetchedAt: Date(), setCookieHeaders: [])
+                onFetch()
+                return ChatGPTUsageClient.Fetch(response: response, fetchedAt: Date(), setCookieHeaders: [])
             }
         )
     }
