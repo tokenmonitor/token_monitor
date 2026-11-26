@@ -90,9 +90,9 @@ final class HTTPStub: URLProtocol {
         var data = Data()
         var buffer = [UInt8](repeating: 0, count: 4096)
         while stream.hasBytesAvailable {
-            let count = stream.read(&buffer, maxLength: buffer.count)
-            guard count > 0 else { break }
-            data.append(buffer, count: count)
+            let bytesRead = stream.read(&buffer, maxLength: buffer.count)
+            guard bytesRead > 0 else { break }
+            data.append(buffer, count: bytesRead)
         }
         return data
     }
