@@ -130,7 +130,14 @@ struct OpenCodeModelsSection: View {
     @Binding var isExpanded: Bool
 
     private let previewCount = 3
-    @State private var showAll = false
+    @State private var showAll: Bool
+
+    /// `showAll` seeds whether the list opens past its first three models.
+    init(models: [OpenCodeModelUsage], isExpanded: Binding<Bool>, showAll: Bool = false) {
+        self.models = models
+        _isExpanded = isExpanded
+        _showAll = State(initialValue: showAll)
+    }
 
     private var visible: [OpenCodeModelUsage] {
         showAll ? models : Array(models.prefix(previewCount))

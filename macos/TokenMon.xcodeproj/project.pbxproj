@@ -22,6 +22,7 @@
 		0EE338537755EF3BDDCA6291 /* UsageErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9604EE2956CF38B9890E8646 /* UsageErrorTests.swift */; };
 		0F4B29F57DC82A008117C9B1 /* ProviderSwitcherLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C0BAFB2DDDF57C66DF9D2E /* ProviderSwitcherLayoutTests.swift */; };
 		0FBD1B945D843FE741A7BF7F /* CollapsibleSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2FEDDDEE343A8D475344F9 /* CollapsibleSectionHeader.swift */; };
+		11249E776D62AA66BEB65A98 /* OpenCodePanelViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A8A62DF3A7AFFFC9C9B2F60 /* OpenCodePanelViewTests.swift */; };
 		128EEA35787A2F2B6948304E /* SegmentedUsageBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B449EDDB7717A5E25E7818E9 /* SegmentedUsageBar.swift */; };
 		12CE961787E2B45C2EB685BB /* GrokHistoryImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208DE1472F36E49ECB046CB8 /* GrokHistoryImport.swift */; };
 		141AE334C343C2386FA351C7 /* UsagePool.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADD114DF69FF92FB987B1451 /* UsagePool.swift */; };
@@ -311,6 +312,7 @@
 		18C58EB16225901A8C9B6350 /* CursorUsageClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorUsageClientTests.swift; sourceTree = "<group>"; };
 		18E376C96F9DA3FC6F23C4FB /* OpenCodePriceTableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodePriceTableTests.swift; sourceTree = "<group>"; };
 		195C2F8C394F732F998DF509 /* PanelPill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelPill.swift; sourceTree = "<group>"; };
+		1A8A62DF3A7AFFFC9C9B2F60 /* OpenCodePanelViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodePanelViewTests.swift; sourceTree = "<group>"; };
 		1BE037A3E93382D18BF9AF36 /* ProviderLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderLogo.swift; sourceTree = "<group>"; };
 		1E0965BB07B19CF2D5881626 /* CollapsibleSectionHeaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollapsibleSectionHeaderTests.swift; sourceTree = "<group>"; };
 		208DE1472F36E49ECB046CB8 /* GrokHistoryImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokHistoryImport.swift; sourceTree = "<group>"; };
@@ -1115,6 +1117,7 @@
 				D83D9AF627830BDAB0DD6EFA /* OpenCodeLocalScanTests.swift */,
 				A17550B220ADFC13EB666DED /* OpenCodeModelNameTests.swift */,
 				9FAE417F56CAB34C320EB40F /* OpenCodeMonthBudgetWeekTests.swift */,
+				1A8A62DF3A7AFFFC9C9B2F60 /* OpenCodePanelViewTests.swift */,
 				8001BC8DA86414D01D4DA1D2 /* OpenCodePollerFallbackTests.swift */,
 				18E376C96F9DA3FC6F23C4FB /* OpenCodePriceTableTests.swift */,
 				782349AA9FC5243305136053 /* OpenCodeStatsTests.swift */,
@@ -1415,6 +1418,7 @@
 				7F4A6E4F09FF7CBB0B98D4BD /* OpenCodeLocalScanTests.swift in Sources */,
 				DE6D0A7365E90E2BBCF5804B /* OpenCodeModelNameTests.swift in Sources */,
 				444BA2F34EE2C04F332F3CEA /* OpenCodeMonthBudgetWeekTests.swift in Sources */,
+				11249E776D62AA66BEB65A98 /* OpenCodePanelViewTests.swift in Sources */,
 				7B125859919FF6C0B288F468 /* OpenCodePollerFallbackTests.swift in Sources */,
 				D35E38E41FF91B2819CBDBCA /* OpenCodePriceTableTests.swift in Sources */,
 				FD494ED4BBD4A5A3FD3B26E2 /* OpenCodeStatsTests.swift in Sources */,

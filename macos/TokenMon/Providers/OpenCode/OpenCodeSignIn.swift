@@ -3,6 +3,12 @@ import Foundation
 extension OpenCodeAuthSession: ProviderSignInProviding {
     /// Captures the console session, then records the workspace and account.
     var signInConfig: ProviderSignInConfig {
+        signInConfig { OpenCodeConsoleClient(cookieHeader: $0) }
+    }
+
+    /// The sign-in config, with `makeClient` building the console client from
+    /// the captured cookie header (tests supply canned console responses).
+    func signInConfig(makeClient: @escaping (String) -> OpenCodeConsoleClient) -> ProviderSignInConfig {
         ProviderSignInConfig(
             title: "Sign in to OpenCode",
             subtitle: "Sign in to the OpenCode console. This window finishes on its own once the console loads.",
@@ -30,7 +36,7 @@ extension OpenCodeAuthSession: ProviderSignInProviding {
             },
             afterCapture: { [weak self] in
                 guard let self, let cookie = cookieHeader() else { return }
-                let client = OpenCodeConsoleClient(cookieHeader: cookie)
+                let client = makeClient(cookie)
                 // Keep the workspace from the sign-in redirect; list the
                 // account's workspaces only when the redirect carried none.
                 if let id = try? await client.resolveOrgID(preferred: workspaceID) {
