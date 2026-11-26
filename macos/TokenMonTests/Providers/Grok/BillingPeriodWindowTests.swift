@@ -369,4 +369,22 @@ final class BillingPeriodWindowTests: XCTestCase {
         let oct1 = try XCTUnwrap(previous.days.first { cal.component(.day, from: $0.dayStart) == 1 })
         XCTAssertEqual(oct1.totalPercent, 20, accuracy: 0.5)
     }
+
+    /// The weekday and day-of-month labels come from the calendar's zone, not the system zone: at
+    /// 12:30Z it is already Friday the 17th in Auckland, but still Thursday the 16th west of UTC+11:30.
+    func testDateFormattersFormatInTheCalendarZone() throws {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = try XCTUnwrap(TimeZone(identifier: "Pacific/Auckland"))
+        let instant = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-07-16T12:30:00Z"))
+
+        let formatters = GrokDailyUsageBuilder.makeDateFormatters(calendar: cal)
+
+        XCTAssertEqual(formatters.weekday.timeZone, cal.timeZone)
+        XCTAssertEqual(formatters.dayOfMonth.string(from: instant), "17")
+        XCTAssertEqual(cal.component(.weekday, from: instant), 6) // Friday in the calendar's zone
+        XCTAssertEqual(
+            formatters.weekday.string(from: instant),
+            cal.shortWeekdaySymbols[cal.component(.weekday, from: instant) - 1]
+        )
+    }
 }

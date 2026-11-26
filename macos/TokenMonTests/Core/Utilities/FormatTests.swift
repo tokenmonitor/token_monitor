@@ -188,12 +188,7 @@ final class FormatTests: XCTestCase {
     func testFormatterAppliesCalendarAndLocale() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC") ?? .current
-        let weekday = Format.formatter(
-            dateFormat: "EEE",
-            timeZone: calendar.timeZone,
-            calendar: calendar,
-            locale: Locale(identifier: "en_US")
-        )
+        let weekday = Format.formatter(dateFormat: "EEE", calendar: calendar, locale: Locale(identifier: "en_US"))
         XCTAssertEqual(weekday.calendar.identifier, .gregorian)
         XCTAssertEqual(weekday.locale.identifier, "en_US")
         XCTAssertEqual(weekday.string(from: Date(timeIntervalSince1970: 0)), "Thu")

@@ -59,11 +59,10 @@ enum Format {
     /// key holds the format, the time zone, and the calendar and locale when
     /// given, so each distinct combination builds one formatter.
     ///
-    /// - Without a `calendar` the formatter uses `timeZone`, or the current
-    ///   system zone when that is nil, and the POSIX locale unless `locale`
-    ///   is given.
-    /// - With a `calendar` the formatter takes the calendar's rules and
-    ///   keeps its own zone unless `timeZone` is given.
+    /// The formatter's zone is `timeZone` when given, else the `calendar`'s
+    /// zone, else the current system zone, so a formatter built from a
+    /// calendar formats in that calendar's zone. The locale is `locale`, or
+    /// POSIX when nil.
     ///
     /// The cache is emptied when the system time zone or the current locale
     /// changes, so it holds only the combinations in use.
@@ -74,11 +73,11 @@ enum Format {
         locale: Locale? = nil
     ) -> DateFormatter {
         _ = changeObservers
-        let zone = timeZone ?? (calendar == nil ? TimeZone.current : nil)
+        let zone = timeZone ?? calendar?.timeZone ?? TimeZone.current
         let calendarKey = calendar.map {
             "\($0.identifier)|\($0.timeZone.identifier)|\($0.locale?.identifier ?? "")"
         } ?? ""
-        let key = [dateFormat, zone?.identifier ?? "", calendarKey, locale?.identifier ?? ""].joined(separator: "|")
+        let key = [dateFormat, zone.identifier, calendarKey, locale?.identifier ?? ""].joined(separator: "|")
         formatterCacheLock.lock()
         defer { formatterCacheLock.unlock() }
         if let formatter = formatterCache[key] {
@@ -89,9 +88,7 @@ enum Format {
         if let calendar {
             formatter.calendar = calendar
         }
-        if let zone {
-            formatter.timeZone = zone
-        }
+        formatter.timeZone = zone
         formatter.dateFormat = dateFormat
         formatterCache[key] = formatter
         return formatter
