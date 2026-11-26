@@ -57,4 +57,43 @@ final class CIDiagnosticsTests: XCTestCase {
         let tree = ViewTree(toggle)
         report("ViewTree toggles:", tree.toggles.map(\.label))
     }
+
+    private func closure<T>(_ value: Any, as _: T.Type) -> T {
+        var copy = value
+        return withUnsafeBytes(of: &copy) { $0.load(as: T.self) }
+    }
+
+    private func findClosures(_ value: Any, depth: Int = 14) -> (get: Any, set: Any)? {
+        let children = Array(Mirror(reflecting: value).children)
+        if let get = children.first(where: { $0.label == "getValue" })?.value,
+           let set = children.first(where: { $0.label == "setValue" })?.value {
+            return (get, set)
+        }
+        guard depth > 0 else { return nil }
+        for child in children {
+            if let found = findClosures(child.value, depth: depth - 1) { return found }
+        }
+        return nil
+    }
+
+    /// What tag byte each ToggleState has and which Bool a tag sets (read back through the app's own setter).
+    func testToggleStateTags() throws {
+        var flag = false
+        let toggle = Toggle(isOn: Binding(get: { flag }, set: { flag = $0 })) { Text("A") }
+        let found = try XCTUnwrap(findClosures(toggle))
+        let get = closure(found.get, as: (() -> UInt8).self)
+        let set = closure(found.set, as: ((UInt8, Transaction) -> Void).self)
+        flag = false
+        report("getValue tag while false:", get())
+        flag = true
+        report("getValue tag while true:", get())
+        for tag in UInt8(0)...3 {
+            flag = false
+            set(tag, Transaction())
+            let afterFromFalse = flag
+            flag = true
+            set(tag, Transaction())
+            report("setValue tag", tag, "from false ->", afterFromFalse, "from true ->", flag)
+        }
+    }
 }

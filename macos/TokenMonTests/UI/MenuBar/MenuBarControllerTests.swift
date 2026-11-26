@@ -128,7 +128,21 @@ final class MenuBarControllerTests: XCTestCase {
         spin(0.3)
         XCTAssertTrue(controller.isPanelVisible)
         XCTAssertNotEqual(panel.frame.height, grokHeight)
-        XCTAssertEqual(panel.frame.width, MenuBarPanelView.panelWidth)
+        // The width is the content's, plus the scroll bar's when the screen clamps the height
+        // and the scroll bar style is the always-visible one.
+        XCTAssertEqual(panel.frame.width, MenuBarController.panelWidth(isHeightClamped: controller.isPanelHeightClamped))
+    }
+
+    /// An overlay scroll bar floats over the content; only a visible legacy one widens the panel.
+    func testPanelWidthGrowsOnlyForAVisibleLegacyScrollBar() {
+        let legacyBar = NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
+        XCTAssertEqual(MenuBarController.panelWidth(isHeightClamped: false, scrollerStyle: .legacy), MenuBarPanelView.panelWidth)
+        XCTAssertEqual(MenuBarController.panelWidth(isHeightClamped: true, scrollerStyle: .overlay), MenuBarPanelView.panelWidth)
+        XCTAssertEqual(
+            MenuBarController.panelWidth(isHeightClamped: true, scrollerStyle: .legacy),
+            MenuBarPanelView.panelWidth + legacyBar
+        )
+        XCTAssertGreaterThan(legacyBar, 0)
     }
 
     /// A click on the status item itself always opens a closed panel,
