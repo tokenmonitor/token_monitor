@@ -8,7 +8,22 @@ struct GrokPanelView: View {
     let openSignIn: () -> Void
 
     /// 0 = current calendar week; negative = past weeks.
-    @State private var weekOffset: Int = 0
+    @State private var weekOffset: Int
+
+    /// `weekOffset` seeds the week the chart opens on; the current one by default.
+    init(
+        auth: GrokAuthSession,
+        poller: GrokUsagePoller,
+        settings: AppSettings,
+        openSignIn: @escaping () -> Void,
+        weekOffset: Int = 0
+    ) {
+        self.auth = auth
+        self.poller = poller
+        self.settings = settings
+        self.openSignIn = openSignIn
+        _weekOffset = State(initialValue: weekOffset)
+    }
 
     var body: some View {
         if auth.needsSignIn, auth.lastAuthError != nil {
