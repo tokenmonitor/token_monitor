@@ -24,6 +24,7 @@
 		0EE338537755EF3BDDCA6291 /* UsageErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9604EE2956CF38B9890E8646 /* UsageErrorTests.swift */; };
 		0F4B29F57DC82A008117C9B1 /* ProviderSwitcherLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C0BAFB2DDDF57C66DF9D2E /* ProviderSwitcherLayoutTests.swift */; };
 		0FBD1B945D843FE741A7BF7F /* CollapsibleSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2FEDDDEE343A8D475344F9 /* CollapsibleSectionHeader.swift */; };
+		0FE92776217CBD423A418A2B /* PreferencesViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6155B00EAAAC0C40633E63A /* PreferencesViewTests.swift */; };
 		11249E776D62AA66BEB65A98 /* OpenCodePanelViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A8A62DF3A7AFFFC9C9B2F60 /* OpenCodePanelViewTests.swift */; };
 		128EEA35787A2F2B6948304E /* SegmentedUsageBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B449EDDB7717A5E25E7818E9 /* SegmentedUsageBar.swift */; };
 		12CE961787E2B45C2EB685BB /* GrokHistoryImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 208DE1472F36E49ECB046CB8 /* GrokHistoryImport.swift */; };
@@ -259,6 +260,7 @@
 		DE6D0A7365E90E2BBCF5804B /* OpenCodeModelNameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A17550B220ADFC13EB666DED /* OpenCodeModelNameTests.swift */; };
 		E034A31E376D3E03047EDF44 /* ProviderRefreshTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22CDEB40CD2C6229C53B7B4B /* ProviderRefreshTests.swift */; };
 		E356ED7177119DEB29328479 /* AppLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46C194D27624BF19AF988189 /* AppLog.swift */; };
+		E4F18C216BE292D9A4BD93D1 /* AccountsSettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6F4330B5FCA6E3C97C7972F /* AccountsSettingsTab.swift */; };
 		E5CD11DC5D3D9AC90C006C1E /* GrokbotUsageBreakdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5725BEE57AB0A0E64713B2C2 /* GrokbotUsageBreakdown.swift */; };
 		E5E387716D831E2424120DFC /* ViewHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C959DA0D99EF4835C267129 /* ViewHarness.swift */; };
 		E67B01BEBBE9F134B1AE09F0 /* SignInBrowserNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7265D1C2FC9BF60197606191 /* SignInBrowserNavigationTests.swift */; };
@@ -559,6 +561,7 @@
 		DF28EC0DA6B02E7E5121AE7F /* GrokSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokSignIn.swift; sourceTree = "<group>"; };
 		E0E09A9DA2D820EFCA41537E /* OpenRouterPanelViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterPanelViewTests.swift; sourceTree = "<group>"; };
 		E316C0E9333D1931BE2482FD /* OpenRouterPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterPanelView.swift; sourceTree = "<group>"; };
+		E6F4330B5FCA6E3C97C7972F /* AccountsSettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountsSettingsTab.swift; sourceTree = "<group>"; };
 		E7170C1555B956864F463F26 /* LegacyCacheCleanupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyCacheCleanupTests.swift; sourceTree = "<group>"; };
 		E92ABD2BD38261018603D1C7 /* GrokbotPollerRefreshTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrokbotPollerRefreshTests.swift; sourceTree = "<group>"; };
 		E94895C66965C91D98417915 /* BackoffTimerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackoffTimerTests.swift; sourceTree = "<group>"; };
@@ -578,6 +581,7 @@
 		F430FF7C5A3558077DD46EA1 /* SignInBrowserNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInBrowserNavigation.swift; sourceTree = "<group>"; };
 		F4BDA550A83633C5A4301FF7 /* ProviderRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderRegistry.swift; sourceTree = "<group>"; };
 		F5892356272356D5A030CE9C /* OpenRouterDailyBudgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterDailyBudgetTests.swift; sourceTree = "<group>"; };
+		F6155B00EAAAC0C40633E63A /* PreferencesViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesViewTests.swift; sourceTree = "<group>"; };
 		F69D8EE1005CB6E65C0D5459 /* DailyTokenUsage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyTokenUsage.swift; sourceTree = "<group>"; };
 		F6C0354565D378468D97357D /* ProviderColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderColors.swift; sourceTree = "<group>"; };
 		F727FF0E3AAB4DA6D1CBA072 /* CursorUsageEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorUsageEvents.swift; sourceTree = "<group>"; };
@@ -699,6 +703,7 @@
 			isa = PBXGroup;
 			children = (
 				A2D1A99EE1BD2F037EE86F36 /* AccountsPrivacyNote.swift */,
+				E6F4330B5FCA6E3C97C7972F /* AccountsSettingsTab.swift */,
 				24166148544CA5C059FC8F1F /* AppSettings.swift */,
 				DDE9B2E5E834AAC33179D1D0 /* PreferencesView.swift */,
 				B241A8BA6A9968EAF244B7A8 /* SettingsTab.swift */,
@@ -1204,6 +1209,7 @@
 			isa = PBXGroup;
 			children = (
 				257FA737834B257FD6A46E6B /* AppSettingsTests.swift */,
+				F6155B00EAAAC0C40633E63A /* PreferencesViewTests.swift */,
 				D4A1E4CFA6BCF18D33DB9553 /* SettingsTabTests.swift */,
 			);
 			path = Settings;
@@ -1531,6 +1537,7 @@
 				421703C01DD2D578C3458127 /* PanelTypographyTests.swift in Sources */,
 				D0E03B963EAB02582CAF220F /* PollerSessionGuardTests.swift in Sources */,
 				094CD3B206EA8FAFBBA580FD /* PollingLoopTests.swift in Sources */,
+				0FE92776217CBD423A418A2B /* PreferencesViewTests.swift in Sources */,
 				54E1583425680A42345D21B3 /* ProductCatalogTests.swift in Sources */,
 				D62C237CC3D971D516CBE8A3 /* ProviderAuthSessionTests.swift in Sources */,
 				1AAED15EBF5C0F54EC39CA21 /* ProviderColorsTests.swift in Sources */,
@@ -1573,6 +1580,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B700652F2DD043C0A4538C72 /* AccountsPrivacyNote.swift in Sources */,
+				E4F18C216BE292D9A4BD93D1 /* AccountsSettingsTab.swift in Sources */,
 				8BB76C62F022DC30E7C84C5C /* AppDelegate.swift in Sources */,
 				AE99E42791B76C883445B33B /* AppInstaller.swift in Sources */,
 				E356ED7177119DEB29328479 /* AppLog.swift in Sources */,

@@ -51,7 +51,7 @@ private extension View {
 }
 
 /// Startup, updates, refresh timing, alerts, and quitting.
-private struct GeneralSettingsTab: View {
+struct GeneralSettingsTab: View {
     let model: AppModel
     @Bindable var settings: AppSettings
     let updateChecker: UpdateChecker
@@ -146,15 +146,30 @@ private struct GeneralSettingsTab: View {
 
     /// Last refresh (and error) of the selected provider, or every provider's
     /// last refresh on Overview.
-    @ViewBuilder
     private var refreshStatus: some View {
-        if settings.selectedProvider == .overview {
-            ForEach(model.providers.all, id: \.provider) { entry in
-                pollerStatus(entry.poller, label: entry.provider.displayName)
-            }
-        } else if let entry = model.providers.all.first(where: { $0.provider == settings.selectedProvider }) {
-            pollerStatus(entry.poller, label: nil)
+        ForEach(refreshRows, id: \.provider) { row in
+            pollerStatus(row.poller, label: row.label)
         }
+    }
+
+    /// One poller whose last refresh the Refresh section lists.
+    struct RefreshRow {
+        let provider: MonitorProvider
+        let poller: any ProviderUsagePoller
+        /// The provider name on Overview, which lists every provider; nil on
+        /// a provider's own tab.
+        let label: String?
+    }
+
+    /// Every provider on Overview, else the selected provider alone.
+    var refreshRows: [RefreshRow] {
+        let entries = model.providers.all
+        if settings.selectedProvider == .overview {
+            return entries.map { RefreshRow(provider: $0.provider, poller: $0.poller, label: $0.provider.displayName) }
+        }
+        return entries
+            .filter { $0.provider == settings.selectedProvider }
+            .map { RefreshRow(provider: $0.provider, poller: $0.poller, label: nil) }
     }
 
     private func pollerStatus(_ poller: some ProviderUsagePoller, label: String?) -> AnyView {
@@ -163,7 +178,7 @@ private struct GeneralSettingsTab: View {
 }
 
 /// Which provider tabs show and in what order, and what the menu bar draws.
-private struct ProvidersSettingsTab: View {
+struct ProvidersSettingsTab: View {
     @Bindable var settings: AppSettings
     @State private var draggingProvider: MonitorProvider?
 
@@ -249,71 +264,33 @@ private struct ProvidersSettingsTab: View {
     }
 }
 
-/// One row per provider account: who is signed in, and sign-in actions.
-private struct AccountsSettingsTab: View {
-    let model: AppModel
-    let openWindow: (AppWindow) -> Void
-
-    var body: some View {
-        Form {
-            Section {
-                Label {
-                    Text(AccountsPrivacyNote.text)
-                        .fixedSize(horizontal: false, vertical: true)
-                } icon: {
-                    Image(systemName: "lock.shield")
-                }
-                .foregroundStyle(.secondary)
-            }
-
-            Section {
-                ProviderAccountRow(
-                    provider: .grok,
-                    auth: model.grokAuth,
-                    signInTitle: "Sign In…",
-                    openSignIn: { openWindow(.signIn(.grok)) }
-                )
-                ProviderAccountRow(
-                    provider: .claude,
-                    auth: model.claudeAuth,
-                    signInTitle: "Sign In…",
-                    openSignIn: { openWindow(.signIn(.claude)) }
-                )
-                ProviderAccountRow(
-                    provider: .chatgpt,
-                    auth: model.chatGPTAuth,
-                    signInTitle: "Sign In…",
-                    openSignIn: { openWindow(.signIn(.chatgpt)) }
-                )
-                ProviderAccountRow(
-                    provider: .cursor,
-                    auth: model.cursorAuth,
-                    signInTitle: "Sign In…",
-                    openSignIn: { openWindow(.signIn(.cursor)) }
-                )
-                ProviderAccountRow(
-                    provider: .opencode,
-                    auth: model.openCodeAuth,
-                    signInTitle: "Sign In…",
-                    openSignIn: { openWindow(.signIn(.opencode)) }
-                )
-            } header: {
-                Text("Accounts")
-            } footer: {
-                Text("Grokbot uses your Cursor account.")
-            }
-
-            OpenRouterAccountSection(auth: model.openRouterAuth, poller: model.openRouterPoller)
-        }
-        .formStyle(.grouped)
-    }
-}
-
 /// SuperGrok categories plus exporting and clearing local history.
-private struct DataSettingsTab: View {
+struct DataSettingsTab: View {
+    /// An exported history file: its bytes, suggested name and type.
+    struct ExportFile {
+        let data: Data
+        let filename: String
+        let contentType: UTType
+    }
+
     @Bindable var settings: AppSettings
     let history: GrokHistoryStore
+    /// Saves an export; the default asks where with a save panel.
+    let save: (ExportFile) throws -> Void
     @State private var exportError: String?
+
+    /// - Parameter exportError: The export failure shown when the tab opens.
+    init(
+        settings: AppSettings,
+        history: GrokHistoryStore,
+        exportError: String? = nil,
+        save: @escaping (ExportFile) throws -> Void = DataSettingsTab.saveWithPanel
+    ) {
+        self.settings = settings
+        self.history = history
+        self.save = save
+        _exportError = State(initialValue: exportError)
+    }
 
     var body: some View {
         Form {
@@ -372,22 +349,35 @@ private struct DataSettingsTab: View {
         // message.
         exportError = nil
         do {
-            let data = try GrokExportService.export(history.allSnapshots(), format: format)
-            let panel = NSSavePanel()
-            panel.allowedContentTypes = [format == .csv ? .commaSeparatedText : .json]
-            panel.nameFieldStringValue = format == .csv ? "grok-usage.csv" : "grok-usage.json"
-            if panel.runModal() == .OK, let url = panel.url {
-                try data.write(to: url)
-            }
+            try save(Self.exportFile(history.allSnapshots(), format: format))
         } catch {
             exportError = error.localizedDescription
+        }
+    }
+
+    /// The history encoded as `format`, with its file name and type.
+    static func exportFile(_ snapshots: [WeeklyUsageSnapshot], format: GrokExportService.Format) throws -> ExportFile {
+        let data = try GrokExportService.export(snapshots, format: format)
+        switch format {
+        case .csv: return ExportFile(data: data, filename: "grok-usage.csv", contentType: .commaSeparatedText)
+        case .json: return ExportFile(data: data, filename: "grok-usage.json", contentType: .json)
+        }
+    }
+
+    /// Asks where to save `file`, then writes it.
+    static func saveWithPanel(_ file: ExportFile) throws {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [file.contentType]
+        panel.nameFieldStringValue = file.filename
+        if panel.runModal() == .OK, let url = panel.url {
+            try file.data.write(to: url)
         }
     }
 }
 
 /// Form rows ignore `onMove` on macOS; this delegate reorders while dragging
 /// a handle over another provider row.
-private struct ProviderReorderDropDelegate: DropDelegate {
+struct ProviderReorderDropDelegate: DropDelegate {
     let target: MonitorProvider
     @Binding var dragging: MonitorProvider?
     let move: (MonitorProvider, MonitorProvider) -> Void
@@ -395,9 +385,8 @@ private struct ProviderReorderDropDelegate: DropDelegate {
     func validateDrop(info: DropInfo) -> Bool { true }
 
     func dropEntered(info: DropInfo) {
-        guard let dragging, dragging != target else { return }
         withAnimation(.easeInOut(duration: 0.12)) {
-            move(dragging, target)
+            moveDraggedProvider()
         }
     }
 
@@ -406,90 +395,25 @@ private struct ProviderReorderDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
+        finishDrag()
+    }
+
+    /// Moves the dragged provider to this row's place; a row dragged over
+    /// itself stays put.
+    func moveDraggedProvider() {
+        guard let dragging, dragging != target else { return }
+        move(dragging, target)
+    }
+
+    /// Ends the drag; the drop is always accepted.
+    func finishDrag() -> Bool {
         dragging = nil
         return true
     }
 }
 
-/// One cookie-session provider's account on a single row: its logo and name,
-/// who is signed in, and the sign-in actions.
-private struct ProviderAccountRow: View {
-    let provider: MonitorProvider
-    let auth: ProviderAuthSession
-    let signInTitle: String
-    let openSignIn: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 10) {
-                Image(nsImage: ProviderLogo.image(for: provider))
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(width: 16, height: 16)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(provider.displayName)
-                    Text(auth.isSignedIn ? (auth.accountEmail ?? "Signed in") : "Not signed in")
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                Spacer(minLength: 8)
-                if auth.isSignedIn {
-                    Button("Re-authenticate…") { openSignIn() }
-                    Button("Sign Out", role: .destructive) {
-                        auth.signOut()
-                    }
-                } else {
-                    Button(signInTitle) { openSignIn() }
-                }
-            }
-            if let err = auth.lastAuthError {
-                Text(err).foregroundStyle(.red).font(.caption)
-            }
-        }
-    }
-}
-
-/// OpenRouter account rows; OpenRouter connects with an API key.
-private struct OpenRouterAccountSection: View {
-    let auth: OpenRouterAuthSession
-    let poller: OpenRouterUsagePoller
-    @State private var keyDraft = ""
-
-    var body: some View {
-        Section("OpenRouter") {
-            if auth.isSignedIn {
-                LabeledContent("Connected with") {
-                    Text("OpenRouter API key")
-                }
-                Button("Sign Out", role: .destructive) {
-                    auth.signOut()
-                    keyDraft = ""
-                }
-            } else {
-                Text("Not connected")
-                    .foregroundStyle(.secondary)
-                SecureField("sk-or-v1-…", text: $keyDraft)
-                Button("Save API Key") { saveKey() }
-                    .disabled(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                if let err = auth.lastAuthError {
-                    Text(err).foregroundStyle(.red).font(.caption)
-                }
-            }
-        }
-    }
-
-    private func saveKey() {
-        if auth.saveAPIKey(keyDraft) {
-            keyDraft = ""
-            Task { await poller.refreshNow() }
-        }
-    }
-}
-
 /// A poller's last refresh time and, without a `label`, its last error.
-private struct PollerRefreshStatus<Poller: ProviderUsagePoller>: View {
+struct PollerRefreshStatus<Poller: ProviderUsagePoller>: View {
     let poller: Poller
     /// Prefixes the time with the provider name (Overview lists every provider).
     let label: String?

@@ -67,8 +67,15 @@ struct ViewTree {
         let action: () -> Void
     }
 
+    /// A toggle found in the tree: the strings in its label and its binding.
+    struct Toggle {
+        let label: [String]
+        let isOn: Binding<Bool>
+    }
+
     private(set) var texts: [String] = []
     private(set) var buttons: [Button] = []
+    private(set) var toggles: [Toggle] = []
     /// Every custom (non-primitive) view value met during the walk.
     private(set) var views: [Any] = []
 
@@ -107,6 +114,16 @@ struct ViewTree {
         button.action()
     }
 
+    /// The binding of the first toggle whose label contains `label`; a test
+    /// reads or sets it as flipping the switch would.
+    func toggle(_ label: String, file: StaticString = #filePath, line: UInt = #line) -> Binding<Bool>? {
+        guard let toggle = toggles.first(where: { $0.label.contains { $0.contains(label) } }) else {
+            XCTFail("no toggle labelled \(label); toggles: \(toggles.map(\.label))", file: file, line: line)
+            return nil
+        }
+        return toggle.isOn
+    }
+
     private mutating func walk(_ value: Any, depth: Int) {
         guard depth > 0 else { return }
         if let string = value as? String {
@@ -120,6 +137,13 @@ struct ViewTree {
             var label = ViewTree()
             label.walkChildren(of: value, depth: depth)
             buttons.append(Button(label: label.texts, action: action))
+            absorb(label)
+            return
+        }
+        if typeName.hasPrefix("Toggle<"), let binding = Self.boolBinding(of: value) {
+            var label = ViewTree()
+            label.walkChildren(of: value, depth: depth)
+            toggles.append(Toggle(label: label.texts, isOn: binding))
             absorb(label)
             return
         }
@@ -174,6 +198,7 @@ struct ViewTree {
             texts.append(text)
         }
         buttons += other.buttons
+        toggles += other.toggles
         views += other.views
     }
 
@@ -193,6 +218,28 @@ struct ViewTree {
                 return { MainActor.assumeIsolated { action() } }
             }
             if let found = action(of: child.value, depth: depth - 1) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    /// A toggle keeps its `isOn` binding as a `Binding<ToggleState>` whose
+    /// location wraps the original binding. A `Binding(get:set:)` (the kind
+    /// app code writes) ends in a get/set pair, rebuilt here; a key-path
+    /// binding such as `$settings.flag` has none and yields nil.
+    private static func boolBinding(of value: Any, depth: Int = 10) -> Binding<Bool>? {
+        guard depth > 0 else { return nil }
+        let children = Array(Mirror(reflecting: value).children)
+        if let get = children.first(where: { $0.label == "getValue" })?.value as? () -> Bool,
+           let set = children.first(where: { $0.label == "setValue" })?.value as? (Bool, Transaction) -> Void {
+            return Binding(get: get, set: { set($0, Transaction()) })
+        }
+        for child in children {
+            if let binding = child.value as? Binding<Bool> {
+                return binding
+            }
+            if let found = boolBinding(of: child.value, depth: depth - 1) {
                 return found
             }
         }
