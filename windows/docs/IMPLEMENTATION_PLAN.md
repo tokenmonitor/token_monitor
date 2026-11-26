@@ -66,7 +66,7 @@ windows/
 
 ## Engineering rules (from `skills/`)
 
-- Follow `skills/rust-backend-engineer` and `skills/rust-quality-pipeline`.
+- Follow `skills/rust-engineer` and `skills/rust-fuzzing`.
 - Tests go in each crate's `tests/`, never in `#[cfg(test)]` blocks in `src/`. They are hermetic: injected `Clock`, temp dirs, local mock HTTP (wiremock), no real network, no real home directory.
 - Every Swift test in the spec checklists gets a Rust test, and its row in `docs/PARITY.md` is updated in the same commit.
 - Every parser of untrusted input gets a fuzz target in `fuzz/`, with a seed corpus taken from the spec fixtures.
