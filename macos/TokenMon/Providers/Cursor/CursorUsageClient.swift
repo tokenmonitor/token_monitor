@@ -38,9 +38,14 @@ struct CursorUsageClient: Sendable {
     private let eventCache: CursorEventCache?
 
     /// Live client for `cookieHeader`; `eventCache` keeps event aggregates
-    /// between calls (nil fetches events on every call).
-    init(cookieHeader: String, eventCache: CursorEventCache? = nil) {
-        self.init(transport: .live(cookieHeader: cookieHeader), cacheKey: cookieHeader, eventCache: eventCache)
+    /// between calls (nil fetches events on every call). Requests go through
+    /// `session`: the shared provider session unless a test stubs it.
+    init(cookieHeader: String, eventCache: CursorEventCache? = nil, session: URLSession = ProviderURLSession.shared) {
+        self.init(
+            transport: .live(cookieHeader: cookieHeader, session: session),
+            cacheKey: cookieHeader,
+            eventCache: eventCache
+        )
     }
 
     init(transport: Transport, cacheKey: String, eventCache: CursorEventCache?) {
