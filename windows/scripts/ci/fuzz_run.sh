@@ -2,7 +2,11 @@
 # Run every cargo-fuzz target (or the ones named) for a fixed time and record
 # one JSON row per target for fuzz_report.py.
 #
-#   fuzz_run.sh --seconds 60 --out <dir> [--cmin] [target...]
+#   fuzz_run.sh --seconds 60 --out <dir> [--jobs N] [--cmin] [target...]
+#
+# --jobs N fuzzes N targets at a time (default 1); each target is one
+# single-threaded libFuzzer process, so N = the number of cores keeps them all
+# busy. Each target's console output is printed when the whole run ends.
 #
 # Run from windows/ (the fuzz crate is windows/fuzz). Uses `cargo fuzz`, so
 # set RUSTUP_TOOLCHAIN to the pinned nightly. For each target it:
@@ -19,17 +23,21 @@ set -uo pipefail
 seconds=60
 out=""
 cmin=0
+jobs=1
 targets=()
+named=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --seconds) seconds=$2; shift 2 ;;
     --out) out=$2; shift 2 ;;
+    --jobs) jobs=$2; shift 2 ;;
     --cmin) cmin=1; shift ;;
     -*) echo "unknown option $1" >&2; exit 2 ;;
-    *) targets+=("$1"); shift ;;
+    *) targets+=("$1"); named=1; shift ;;
   esac
 done
-[ -n "$out" ] || { echo "usage: fuzz_run.sh --seconds N --out DIR [--cmin] [target...]" >&2; exit 2; }
+[ -n "$out" ] || { echo "usage: fuzz_run.sh --seconds N --out DIR [--jobs N] [--cmin] [target...]" >&2; exit 2; }
+case "$jobs" in ''|*[!0-9]*|0) echo "--jobs needs a positive number" >&2; exit 2 ;; esac
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 fuzz_dir=fuzz
@@ -57,20 +65,25 @@ if [ ${#targets[@]} -eq 0 ]; then
   exit 0
 fi
 
-# Build first so the time budget is spent fuzzing, not compiling: the one
-# target when a single one is named (nightly matrix), otherwise all of them.
-build_args=()
-[ ${#targets[@]} -eq 1 ] && build_args=("${targets[0]}")
+# Build first so the time budget is spent fuzzing, not compiling. No target
+# named: one build of all of them. Targets named: one build per target, so a
+# change that reaches three of fifty-one targets does not compile the rest.
+build_names=("")
+[ "$named" = 1 ] && build_names=("${targets[@]}")
 echo "::group::cargo fuzz build"
-if ! cargo fuzz build --fuzz-dir "$fuzz_dir" "${target_args[@]}" "${build_args[@]}" 2>&1 | tee "$out/logs/build.log"; then
-  echo "::endgroup::"
-  # fuzz_report.py table --build-failed-log shows this instead of an empty table.
-  cp "$out/logs/build.log" "$out/build-failed.log"
-  exit 1
-fi
+: >"$out/logs/build.log"
+for build_target in "${build_names[@]}"; do
+  if ! cargo fuzz build --fuzz-dir "$fuzz_dir" "${target_args[@]}" ${build_target:+"$build_target"} 2>&1 | tee -a "$out/logs/build.log"; then
+    echo "::endgroup::"
+    # fuzz_report.py table --build-failed-log shows this instead of an empty table.
+    cp "$out/logs/build.log" "$out/build-failed.log"
+    exit 1
+  fi
+done
 echo "::endgroup::"
 
-for target in "${targets[@]}"; do
+run_target() {
+  local target=$1
   corpus="$fuzz_dir/corpus/$target"
   artifacts="$fuzz_dir/artifacts/$target"
   log="$out/logs/$target.log"
@@ -116,5 +129,16 @@ for target in "${targets[@]}"; do
   python3 -I "$here/fuzz_report.py" row --target "$target" --log "$log" --corpus-dir "$corpus" \
     --corpus-before "$before" --seconds "$seconds" --exit-code "$status" --elapsed "$elapsed" \
     "${crash_args[@]}" --out "$out/rows/$target.json"
+}
+
+# Start the targets `jobs` at a time. `jobs -rp` (not `wait -n`) keeps this
+# working on the bash 3.2 that macOS ships.
+for target in "${targets[@]}"; do
+  while [ "$(jobs -rp | wc -l | tr -d ' ')" -ge "$jobs" ]; do sleep 1; done
+  run_target "$target" >"$out/logs/$target.console" 2>&1 &
+done
+wait
+for target in "${targets[@]}"; do
+  cat "$out/logs/$target.console"
 done
 exit 0

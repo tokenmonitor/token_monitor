@@ -20,6 +20,13 @@ After adding or removing source files, regenerate the Xcode project:
 make -C macos project
 ```
 
+`make project` needs the XcodeGen version CI pins (`XCODEGEN_VERSION` in
+`.github/workflows/ci.yml`, currently 2.46.0) and stops with a message on any
+other version, because each release writes slightly different project files and
+CI fails the build on drift. Download the pinned release from
+<https://github.com/yonaskolb/XcodeGen/releases>; `brew install xcodegen` installs
+the latest version, which can differ.
+
 To regenerate the TokenMon app icon:
 
 ```bash
