@@ -1,5 +1,5 @@
 # Makefile — TokenMon (macOS Swift / Xcode)
-.PHONY: default help tasks build release run install uninstall clean test test-core lint lint-fix format format-fix secrets \
+.PHONY: default help tasks build release run install uninstall clean test test-core coverage coverage-report lint lint-fix format format-fix secrets \
 	project icon check open archive export pkg notarize distclean _release-app _stage-dist _zip _dsym
 
 default: help
@@ -105,6 +105,7 @@ help tasks: ## Show this help message
 	fi
 	@printf "\nExamples:\n"
 	@printf "  make test          # Run unit tests\n"
+	@printf "  make coverage      # Run unit tests, then print coverage per folder and file\n"
 	@printf "  make lint          # SwiftLint strict gate (must be clean)\n"
 	@printf "  make build          # Debug .app\n"
 	@printf "  make run            # Build Debug and launch\n"
@@ -334,6 +335,14 @@ test: ## Run full Xcode unit test suite (with code coverage)
 		-enableCodeCoverage YES \
 		test
 	$(call ok,Tests passed)
+
+# Files listed by `make coverage`, most uncovered lines first (0 = all).
+COVERAGE_FILES ?= 40
+
+coverage: test coverage-report ## Run the test suite, then print app coverage (lines, functions, regions)
+
+coverage-report: ## Print app coverage from the last `make test` run without re-running it
+	@python3 -I scripts/coverage_report.py --derived-data "$(DERIVED_DATA)" --files $(COVERAGE_FILES)
 
 test-core: ## Run CLT-only core parser tests (no app host)
 	$(call say,Running core tests…)
