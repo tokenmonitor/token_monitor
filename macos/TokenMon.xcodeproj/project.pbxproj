@@ -145,6 +145,7 @@
 		8B55A24D72BF071CD3201ED7 /* OpenCodeUsagePoller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 364C4AE8CDE842335336133C /* OpenCodeUsagePoller.swift */; };
 		8BB76C62F022DC30E7C84C5C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5C6B1CABD31B8A6B55C5D7 /* AppDelegate.swift */; };
 		8C77765336CA361A4E18C3D8 /* BillingPeriodWindowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD98517BAED301412E21B91A /* BillingPeriodWindowTests.swift */; };
+		8F06347171E5A9C69C0C8D07 /* ClaudePanelViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E1E887B3CA086704019C223 /* ClaudePanelViewTests.swift */; };
 		8F1DCFB98EA1499264E0B821 /* GrokbotUsageClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F443655589536918F93410C /* GrokbotUsageClient.swift */; };
 		8F8D4FB2ED7FED1D54613157 /* OpenCodeConsoleClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F39C71A9B3571A51D2EFCB6 /* OpenCodeConsoleClient.swift */; };
 		936837B8ED636C576DB25583 /* GrokAuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18068381960C5188D44B696 /* GrokAuthSession.swift */; };
@@ -348,6 +349,7 @@
 		4BEDD42930D9C99B20B61469 /* ProviderCookieAllowlistTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderCookieAllowlistTests.swift; sourceTree = "<group>"; };
 		4DF6B68965BDD791222AA6D3 /* ClaudeSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeSignIn.swift; sourceTree = "<group>"; };
 		4E1C55A8318F0D1096461EC6 /* MetricStatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricStatTests.swift; sourceTree = "<group>"; };
+		4E1E887B3CA086704019C223 /* ClaudePanelViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudePanelViewTests.swift; sourceTree = "<group>"; };
 		5246F3C2D2B196AF13018BE1 /* PollerSessionGuardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PollerSessionGuardTests.swift; sourceTree = "<group>"; };
 		528508A5C024A0F7ACF1ABEB /* CursorEventCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorEventCacheTests.swift; sourceTree = "<group>"; };
 		5375F025FD64E1086E59BBD7 /* PollingLoopTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PollingLoopTests.swift; sourceTree = "<group>"; };
@@ -574,6 +576,7 @@
 				D482FA604A9BABA24A0C8A30 /* ClaudeCodeLocalStatsTests.swift */,
 				79A2E60147414792A12FB1BD /* ClaudeCodeUsageLedgerTests.swift */,
 				BE993F50A438BDC9B7E9136A /* ClaudeModelHoverDetailTests.swift */,
+				4E1E887B3CA086704019C223 /* ClaudePanelViewTests.swift */,
 				C7F0B2379F781F6B272D915D /* ClaudeUsageClientTests.swift */,
 				42BE01CE9076F1597069A144 /* ClaudeUsageMonthTests.swift */,
 				5404678F894BE67E948C598B /* ClaudeUsagePollerTests.swift */,
@@ -1338,6 +1341,7 @@
 				9B3652C1E9161B9D35718AF1 /* ClaudeCodeLocalStatsTests.swift in Sources */,
 				F965079D799BDD329B04A168 /* ClaudeCodeUsageLedgerTests.swift in Sources */,
 				39595560EBACEBC55F86B3F4 /* ClaudeModelHoverDetailTests.swift in Sources */,
+				8F06347171E5A9C69C0C8D07 /* ClaudePanelViewTests.swift in Sources */,
 				68C91C3ADC9E14A8C0BCD30C /* ClaudeUsageClientTests.swift in Sources */,
 				CABB0E3140B1131AA11B6FE8 /* ClaudeUsageMonthTests.swift in Sources */,
 				1B0013D9C72857476273DD03 /* ClaudeUsagePollerTests.swift in Sources */,
