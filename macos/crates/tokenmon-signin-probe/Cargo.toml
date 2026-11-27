@@ -1,0 +1,24 @@
+[package]
+name = "tokenmon-signin-probe"
+description = "M0 probe of issue #89: HttpOnly cookie capture with wry vs objc2-web-kit"
+version = "0.0.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[workspace]
+
+[lints.rust]
+unsafe_code = "allow"
+missing_docs = "warn"
+
+[dependencies]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+wry = "0.58"
+tao = "0.38"
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["std", "NSString", "NSURL", "NSURLRequest", "NSArray", "NSDate", "NSRunLoop", "NSHTTPCookie", "NSGeometry", "NSError", "NSObject", "NSDictionary", "NSEnumerator"] }
+objc2-web-kit = { version = "0.3", features = ["std", "WKWebView", "WKWebViewConfiguration", "WKWebsiteDataStore", "WKHTTPCookieStore", "WKNavigationDelegate", "WKNavigation", "WKNavigationAction", "WKNavigationResponse", "WKFrameInfo", "WKWebsiteDataRecord", "WKWebpagePreferences", "objc2-app-kit", "block2"] }
+objc2-app-kit = { version = "0.3", features = ["std", "NSApplication", "NSResponder", "NSView", "NSWindow"] }
