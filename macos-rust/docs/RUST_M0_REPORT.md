@@ -216,3 +216,44 @@ macos-rust/scripts/bench/panel_behavior.sh macos-rust/docs/m0/screens
 macos-rust/scripts/bench/signin_probe.sh
 target/release/tokenmon-macos --render-status macos-rust/docs/m0/status
 ```
+
+## Follow-up: real mode as the default of `make -C macos-rust run`
+
+`run` now starts in real mode; `make -C macos-rust run-mock` keeps the mock.
+
+What works (verified on this Mac):
+- **Same tabs as the Swift app.** On first run the beta imports the Swift app's
+  non-secret preferences (enabled providers, selected tab, menu-bar graphs) from its
+  `UserDefaults` domain through `defaults export` (read-only). The panel shows
+  All, Grok, Claude, ChatGPT (`macos-rust/docs/m1/rust-nokeychain.png`). All providers the shared
+  `App` supports are wired; local-log data (Claude "tokens this month 18.7B, spend
+  this month $4,929.68, total spend $6,506.07" in that screenshot) loads without credentials.
+- **Settings window.** The gear and the status item's right-click menu open the shared
+  Slint Settings (General, Providers, Accounts, Data) backed by the beta's own
+  `settings.json` (`macos-rust/docs/m1/rust-settings.png`). Wired panel actions: tab switch, open
+  Settings, sign-out, toggle section, API key submit. The right-click menu has
+  the provider entries, Settings and Quit.
+- **Keychain reader (read-only).** `keychain.rs` defines `SecretSource` (read only, no
+  write/delete) with a fake for tests; `shell/keychain_mac.rs` is the real one (only
+  `get_generic_password`). It reads exactly one item, the Swift vault (service
+  `com.modelmonitor.app.credentials`, account `vault`), and sets each entry in the beta's
+  own vault, sealed with a per-process key, so no secret is on disk. Account names and counts are
+  logged, never values. Tests use the fake only (7 tests).
+
+What did not work / could not be verified:
+- **No provider returned authenticated data.** macOS asks for the *login Keychain
+  password* (Always Allow / Deny / Allow) the first time the beta reads the Swift item.
+  I cannot and must not type your password, so the run stopped at that prompt. A
+  dialog from my killed process may still be on your screen: click Deny. Therefore
+  "signed in with the Swift credentials" is **untested end to end**; the code path up
+  to the prompt and the seeding logic (fake) are tested. Please run
+  `make -C macos-rust run` and Allow once, then check the log
+  (`/tmp/tokenmon-rust-beta.log`: "read the Swift app's Keychain vault" with account names).
+- Not compared side by side with a live Swift panel: the Swift app is running but its
+  panel was not open and driving another app's UI was out of scope. Compared with the
+  Swift screenshots and the user's description only.
+- Swift per-account legacy Keychain items (pre-vault) are not read.
+- No web sign-in (the Sign In button shows an explanatory message), no login item, no
+  updater (stand-ins report "not available"). The shared Settings text still mentions
+  Windows (DPAPI, `%LOCALAPPDATA%`); it needs macOS wording.
+- `--no-keychain` starts real mode without the prompt (local-log providers only).
