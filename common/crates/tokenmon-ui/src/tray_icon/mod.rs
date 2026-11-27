@@ -22,6 +22,7 @@ mod tooltip;
 
 pub use cache::{TRAY_CACHE_CAPACITY, TrayIconCache};
 pub use content::{BarSegment, MAX_BARS, TrayContent, TrayInputs};
+pub use glyphs::{draw_logo, fill_rrect};
 pub use mark::{decode_ico_frame, mark_rgba};
 pub use menu::{MenuAction, MenuEntry, MenuInputs, build_menu};
 pub use render::{TrayBitmap, TrayIconRequest, TrayIconSize, render_tray_icon};

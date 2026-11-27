@@ -43,6 +43,34 @@ use tokenmon_provider_openrouter::{
     client::DEFAULT_BASE_URL as OPENROUTER_BASE_URL,
 };
 
+/// Environment variable that points the OpenRouter client at a local test
+/// server (the macOS beta's mock for the end-to-end polling check).
+pub const OPENROUTER_BASE_URL_ENV: &str = "TOKENMON_OPENROUTER_BASE_URL";
+
+fn is_loopback_http(raw: &str) -> bool {
+    url::Url::parse(raw).is_ok_and(|u| {
+        u.scheme() == "http"
+            && u.username().is_empty()
+            && matches!(u.host_str(), Some("127.0.0.1" | "localhost"))
+    })
+}
+
+/// The OpenRouter base URL: the production one, unless `override_url` is a
+/// plain-HTTP loopback address (anything else is ignored so a stray variable
+/// can never send a real key to another host).
+///
+/// ```
+/// use tokenmon_app::providers::openrouter_base_url;
+/// assert_eq!(openrouter_base_url(Some("http://127.0.0.1:9000")), "http://127.0.0.1:9000");
+/// assert!(openrouter_base_url(Some("https://evil.example")).starts_with("https://openrouter.ai"));
+/// assert!(openrouter_base_url(None).starts_with("https://openrouter.ai"));
+/// ```
+pub fn openrouter_base_url(override_url: Option<&str>) -> String {
+    override_url
+        .filter(|u| is_loopback_http(u))
+        .map_or_else(|| OPENROUTER_BASE_URL.to_owned(), str::to_owned)
+}
+
 use crate::poller::SharedPoller;
 use crate::registry::{ProviderEntry, ProviderRegistry};
 use crate::sessions::Sessions;
@@ -402,9 +430,10 @@ pub fn build_registry(deps: &ProviderDeps<'_>) -> Result<ProviderRegistry, Build
     ));
 
     let (factory_clock, factory_version) = (Arc::clone(clock), version.map(str::to_owned));
+    let base_url = openrouter_base_url(std::env::var(OPENROUTER_BASE_URL_ENV).ok().as_deref());
     let factory: ClientFactory = Arc::new(move |key| {
         let fetcher = ReqwestFetcher::new(
-            OPENROUTER_BASE_URL,
+            &base_url,
             key.clone(),
             factory_version.as_deref(),
             Arc::clone(&factory_clock),
