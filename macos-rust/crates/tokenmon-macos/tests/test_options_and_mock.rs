@@ -79,6 +79,15 @@ fn test_bad_input_is_rejected_with_the_flag_named() {
     }
 }
 
+/// The real-mode flags: skip the Keychain read, open Settings on a timer.
+#[test]
+fn test_real_mode_flags_parse() {
+    let o = parse(&["--no-keychain", "--open-settings-after", "2"]).expect("ok");
+    assert!(o.no_keychain);
+    assert_eq!(o.open_settings_after, Some(2.0));
+    assert!(!Options::default().no_keychain);
+}
+
 fn get(port: u16, path: &str, auth: bool) -> String {
     let mut s = TcpStream::connect(("127.0.0.1", port)).expect("connect");
     let header = if auth {

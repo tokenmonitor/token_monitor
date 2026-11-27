@@ -1,6 +1,6 @@
 # Makefile - TokenMon Rust macOS client (beta; issue #89). Separate bundle id,
 # data directory and Keychain items from the Swift app in ../macos.
-.PHONY: default help build run stop test pkg clean
+.PHONY: default help build run run-mock stop test pkg clean
 
 default: help
 
@@ -23,10 +23,15 @@ build: ## Build the beta .app (ad-hoc signed) into target/rust-beta
 test: ## Run the macOS client crate tests
 	@cd $(ROOT) && cargo test -p tokenmon-macos
 
-run: build ## Build and launch the beta against a local mock OpenRouter (no real credentials)
+run: build ## Build and launch the beta with your real providers (reads the Swift app's Keychain item read-only; macOS asks "Always Allow" once)
+	@pkill -f "$(OUT_DIR)" 2>/dev/null || true
+	@"$(APP)/Contents/MacOS/tokenmon-macos" >/tmp/tokenmon-rust-beta.log 2>&1 &
+	@printf "Rust beta running in the menu bar (log: /tmp/tokenmon-rust-beta.log). Stop it with: make -C macos-rust stop\n"
+
+run-mock: build ## Build and launch the beta against a local mock OpenRouter (no credentials, no Keychain)
 	@pkill -f "$(OUT_DIR)" 2>/dev/null || true
 	@"$(APP)/Contents/MacOS/tokenmon-macos" --mock-openrouter >/tmp/tokenmon-rust-beta.log 2>&1 &
-	@printf "Rust beta running in the menu bar (log: /tmp/tokenmon-rust-beta.log). Stop it with: make -C macos-rust stop\n"
+	@printf "Rust beta (mock data) running in the menu bar (log: /tmp/tokenmon-rust-beta.log).\n"
 
 stop: ## Quit the beta
 	@pkill -f "$(OUT_DIR)" 2>/dev/null || true

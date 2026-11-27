@@ -15,28 +15,43 @@ use std::time::{Duration, Instant};
 use chrono::Utc;
 use objc2::MainThreadMarker;
 use objc2_app_kit::{NSApplication, NSApplicationActivationPolicy, NSScreen};
+use slint::ComponentHandle;
 use tokenmon_app::app::{App, AppInputs};
-use tokenmon_app::overview::OverviewStore;
-use tokenmon_app::panel::{Action, PanelState, PanelView, ViewEnv, build_view};
+use tokenmon_app::overview::{OverviewStore, record_live};
+use tokenmon_app::panel::{Action, PanelState, PanelView, ViewEnv, build_view, commit_api_key};
+use tokenmon_app::settings_host::{AppHost, AppSettingsBackend, HostParts};
+use tokenmon_app::tray::{MenuCommand, context_menu, menu_command};
+use tokenmon_app::updates::UpdateService;
 use tokenmon_core::alerts::{Notifier, ThresholdAlert};
 use tokenmon_core::storage::AppPaths;
-use tokenmon_core::{AppTheme, ProviderId, SystemClock};
+use tokenmon_core::update::ReleaseSource;
+use tokenmon_core::{AppTheme, Clock, ProviderId, SystemClock};
+use tokenmon_platform::secrets::Vault;
 use tokenmon_platform::webauth::FakeWebAuthHost;
 use tokenmon_provider_opencode::db::DataDirEnv;
 use tokenmon_ui::panels::events::{PanelEvent, PanelHandler};
 use tokenmon_ui::panels::overview::OverviewCardVm;
 use tokenmon_ui::panels::switcher::{RowVm, build_switcher};
+use tokenmon_ui::settings::bind::{
+    SettingsWindow, apply_theme, create_settings_window, refresh, select_opening_tab,
+};
+use tokenmon_ui::settings::{NativeSaveDialog, SettingsViewModel};
+use tokenmon_ui::tray_icon::MenuEntry;
 use tokenmon_ui::tray_icon::{BarSegment, TrayContent, TrayInputs};
 
+use super::keychain_mac::MacKeychain;
 use super::panel::PanelWindow;
-use super::status_item::StatusItem;
+use super::status_item::{MenuRow, StatusItem};
 use super::{appkit_status, bitmap};
 use crate::bundle;
 use crate::credentials::{self, LoadedKey};
+use crate::keychain::seed_from_swift_vault;
 use crate::mock::MockOpenRouter;
 use crate::options::{Options, StatusRenderer};
 use crate::placement::place_under;
+use crate::prefs::SwiftPrefs;
 use crate::secrets::EphemeralEncryptor;
+use crate::services::{BetaDesktopVerb, BetaInstaller, BetaLoginItem, HttpsOpener};
 use crate::skia_status::{self, Chrome};
 
 /// How often the UI tick runs (status image, live panel).
@@ -70,6 +85,9 @@ struct Ui {
     /// The panel has been key since it was last shown (winit reports a
     /// spurious `Focused(false)` while the window opens).
     was_focused: Cell<bool>,
+    settings_vm: Arc<SettingsViewModel>,
+    settings_window: RefCell<Option<Rc<SettingsWindow>>>,
+    menu_entries: RefCell<Vec<MenuEntry>>,
     tick: slint::Timer,
     me: RefCell<Weak<Ui>>,
 }
@@ -131,7 +149,7 @@ pub fn run(mtm: MainThreadMarker, options: &Options) -> ExitCode {
     };
     let _enter = runtime.enter();
     let encryptor = match EphemeralEncryptor::random() {
-        Ok(e) => e,
+        Ok(e) => Arc::new(e),
         Err(e) => {
             eprintln!("no entropy for the vault key: {e}");
             return ExitCode::FAILURE;
@@ -147,20 +165,30 @@ pub fn run(mtm: MainThreadMarker, options: &Options) -> ExitCode {
     for stale in ["vault.bin", "vault_pending_removals.json"] {
         let _ = std::fs::remove_file(dir.join(stale));
     }
+    let real = !options.mock_openrouter;
+    if real && !options.no_keychain {
+        seed_vault_from_swift(&dir, &encryptor);
+    }
     let version = env!("CARGO_PKG_VERSION").to_owned();
     let app = match App::build(
         AppInputs {
             paths,
-            encryptor: Arc::new(encryptor),
+            encryptor: encryptor.clone(),
             web_host: Arc::new(FakeWebAuthHost::default()),
             notifier: Arc::new(LogNotifier),
             clock: Arc::new(SystemClock),
             version: version.clone(),
-            // No home and no Claude/OpenCode data: M0 must not read the
-            // developer's real local usage data.
-            home: None,
-            claude_config_dir: None,
-            opencode_env: DataDirEnv::default(),
+            // Real mode reads local usage logs (Claude/Codex/OpenCode) like the
+            // Swift app; the mock run stays isolated from the developer's data.
+            home: real.then(|| home.clone()),
+            claude_config_dir: real
+                .then(|| std::env::var("CLAUDE_CONFIG_DIR").ok())
+                .flatten(),
+            opencode_env: if real {
+                DataDirEnv::from_process()
+            } else {
+                DataDirEnv::default()
+            },
         },
         runtime.handle().clone(),
     ) {
@@ -170,9 +198,36 @@ pub fn run(mtm: MainThreadMarker, options: &Options) -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    configure_settings(&app, options.panel_tab.as_deref());
+    if real {
+        import_swift_prefs_once(&dir, &app);
+        if let Some(p) = options
+            .panel_tab
+            .as_deref()
+            .and_then(|t| t.parse::<ProviderId>().ok())
+        {
+            app.settings.set_selected_provider(p);
+        }
+    } else {
+        configure_settings(&app, options.panel_tab.as_deref());
+    }
     seed_key(&app, key.as_ref());
     let _tasks = app.launch();
+    let updates = match UpdateService::with_http_feed(
+        ReleaseSource::new("macos-rust-v", "TokenMon-RustBeta"),
+        &app.settings,
+        &version,
+        Arc::new(HttpsOpener::new(Arc::new(|url| {
+            let _ = std::process::Command::new("open").arg(url).spawn();
+        }))),
+        Arc::new(BetaInstaller),
+    ) {
+        Ok(u) => Arc::new(u),
+        Err(e) => {
+            eprintln!("update service: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    let settings_vm = settings_view_model(&app, &updates, &version, runtime.handle());
 
     let selected = app.settings.snapshot().selected_provider;
     let ui = Rc::new(Ui {
@@ -189,6 +244,9 @@ pub fn run(mtm: MainThreadMarker, options: &Options) -> ExitCode {
         last_status_key: RefCell::new(String::new()),
         focus_lost_at: Cell::new(None),
         was_focused: Cell::new(false),
+        settings_vm,
+        settings_window: RefCell::new(None),
+        menu_entries: RefCell::new(Vec::new()),
         tick: slint::Timer::default(),
         me: RefCell::new(Weak::new()),
     });
@@ -260,6 +318,89 @@ fn seed_key(app: &App, key: Option<&LoadedKey>) {
     }
 }
 
+/// Copies the Swift app's Keychain vault (read-only) into the beta's own vault
+/// file, sealed with this process's key. Logs account names and counts only.
+fn seed_vault_from_swift(dir: &std::path::Path, encryptor: &Arc<EphemeralEncryptor>) {
+    let vault = Vault::new(dir, encryptor.clone());
+    match seed_from_swift_vault(&MacKeychain, &vault) {
+        Ok(report) if report.found => tracing::info!(
+            accounts = ?report.accounts,
+            refused = report.refused,
+            "read the Swift app's Keychain vault (read-only)"
+        ),
+        Ok(_) => tracing::info!("no Swift Keychain vault found; starting signed out"),
+        Err(e) => {
+            tracing::warn!(error = %e, "could not read the Swift Keychain vault; starting signed out");
+        }
+    }
+}
+
+/// The Swift app's `UserDefaults` as JSON, read through `defaults` (read-only).
+fn swift_prefs_json() -> Option<String> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let exported = Command::new("defaults")
+        .args(["export", "com.modelmonitor.app", "-"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())?;
+    let mut convert = Command::new("plutil")
+        .args(["-convert", "json", "-o", "-", "-"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .ok()?;
+    convert.stdin.take()?.write_all(&exported.stdout).ok()?;
+    let out = convert.wait_with_output().ok()?;
+    String::from_utf8(out.stdout).ok()
+}
+
+/// First run only: adopt the Swift app's enabled providers, selected tab and
+/// menu-bar graphs so the beta opens with the same tabs.
+fn import_swift_prefs_once(dir: &std::path::Path, app: &App) {
+    let marker = dir.join("swift-prefs-imported");
+    if marker.exists() {
+        return;
+    }
+    if let Some(prefs) = swift_prefs_json().and_then(|j| SwiftPrefs::from_json(&j)) {
+        prefs.apply(&app.settings);
+        tracing::info!(enabled = ?prefs.enabled, "imported the Swift app's provider preferences");
+    }
+    let _ = std::fs::write(marker, b"");
+}
+
+/// The Settings window's view model over the real services.
+fn settings_view_model(
+    app: &Rc<App>,
+    updates: &Arc<UpdateService>,
+    version: &str,
+    handle: &tokio::runtime::Handle,
+) -> Arc<SettingsViewModel> {
+    let host = AppHost::new(HostParts {
+        settings: Arc::clone(&app.settings),
+        model: Arc::clone(&app.model),
+        sessions: Arc::clone(&app.sessions),
+        signin: Arc::clone(&app.signin),
+        updates: Arc::clone(updates),
+        login_item: Arc::new(BetaLoginItem),
+        desktop_verb: Arc::new(BetaDesktopVerb),
+        history: app.model.registry().history(),
+        version: version.to_owned(),
+        tz: Arc::new(|at| SystemClock.local_offset_at(at)),
+        handle: handle.clone(),
+        quit: Arc::new(|| {
+            let _ = slint::invoke_from_event_loop(|| {
+                let _ = slint::quit_event_loop();
+            });
+        }),
+    });
+    Arc::new(SettingsViewModel::new(
+        Arc::new(AppSettingsBackend::new(Arc::clone(&app.settings))),
+        Arc::new(host),
+        Arc::new(NativeSaveDialog),
+    ))
+}
+
 impl Ui {
     fn weak(&self) -> Weak<Ui> {
         self.me.borrow().clone()
@@ -272,9 +413,13 @@ impl Ui {
         let weak = self.weak();
         let item = StatusItem::new(
             self.mtm,
-            Rc::new(move || {
+            Rc::new(move |right| {
                 if let Some(ui) = weak.upgrade() {
-                    ui.toggle();
+                    if right {
+                        ui.show_context_menu();
+                    } else {
+                        ui.toggle();
+                    }
                 }
             }),
         );
@@ -297,11 +442,98 @@ impl Ui {
                 }
             });
         }
+        if let Some(secs) = self.options.open_settings_after {
+            let weak = self.weak();
+            slint::Timer::single_shot(Duration::from_secs_f64(secs), move || {
+                if let Some(ui) = weak.upgrade() {
+                    ui.open_settings();
+                }
+            });
+        }
         if let Some(secs) = self.options.quit_after {
             slint::Timer::single_shot(Duration::from_secs_f64(secs), || {
                 let _ = slint::quit_event_loop();
             });
         }
+    }
+
+    fn open_settings(&self) {
+        let existing = self.settings_window.borrow().clone();
+        let window = match existing {
+            Some(w) => w,
+            None => match create_settings_window(Arc::clone(&self.settings_vm)) {
+                Ok(w) => {
+                    *self.settings_window.borrow_mut() = Some(Rc::clone(&w));
+                    w
+                }
+                Err(e) => {
+                    tracing::error!(error = %e, "settings window failed");
+                    return;
+                }
+            },
+        };
+        refresh(&window, &self.settings_vm);
+        select_opening_tab(&window, &self.settings_vm);
+        apply_theme(&window, self.app_theme());
+        let _ = window.show();
+        #[allow(deprecated)]
+        NSApplication::sharedApplication(self.mtm).activateIgnoringOtherApps(true);
+    }
+
+    fn show_context_menu(&self) {
+        let entries = context_menu(&self.app.settings.snapshot());
+        let rows: Vec<MenuRow> = entries
+            .iter()
+            .map(|e| match e {
+                MenuEntry::Item { label, .. } => MenuRow::Item(label.clone()),
+                MenuEntry::Separator => MenuRow::Separator,
+            })
+            .collect();
+        *self.menu_entries.borrow_mut() = entries;
+        let weak = self.weak();
+        if let Some(item) = self.status.borrow().as_ref() {
+            item.show_menu(
+                self.mtm,
+                &rows,
+                Rc::new(move |index| {
+                    if let Some(ui) = weak.upgrade() {
+                        ui.run_menu_index(index);
+                    }
+                }),
+            );
+        }
+    }
+
+    fn run_menu_index(&self, index: usize) {
+        let action = match self.menu_entries.borrow().get(index) {
+            Some(MenuEntry::Item { action, .. }) => *action,
+            _ => return,
+        };
+        match menu_command(action) {
+            MenuCommand::Show(p) => {
+                self.state.borrow_mut().selected = p;
+                self.app.settings.set_selected_provider(p);
+                self.show_panel();
+            }
+            MenuCommand::OpenSettings => self.open_settings(),
+            MenuCommand::CheckForUpdates => {
+                tracing::info!("updates are not available in the beta");
+            }
+            MenuCommand::Quit => self.quit(),
+        }
+    }
+
+    fn quit(&self) {
+        record_live(
+            &self.store,
+            self.app.model.registry(),
+            &self.app.settings.snapshot(),
+            &self.app.sessions,
+            Utc::now(),
+            &SystemClock,
+        );
+        self.app.model.quit();
+        let _ = slint::quit_event_loop();
     }
 
     fn on_tick(&self) {
@@ -412,7 +644,40 @@ impl Ui {
                     self.app.settings.set_selected_provider(p);
                     self.render(false);
                 }
-                other => tracing::info!(?other, "action not wired in M0"),
+                Action::OpenSettings => {
+                    self.hide_panel();
+                    self.open_settings();
+                }
+                Action::SignIn(p) => {
+                    // No web sign-in in the beta (M2): the Swift app's session is
+                    // read from its Keychain instead.
+                    self.app.sessions.set_sign_in_error(
+                        p,
+                        Some(
+                            "Sign-in is not available in the Rust beta yet. Sign in with the TokenMon (Swift) app; the beta reads its credentials."
+                                .to_owned(),
+                        ),
+                    );
+                    self.render(false);
+                }
+                Action::SignOut(p) => {
+                    self.app.signin.sign_out(p);
+                    self.render(false);
+                }
+                Action::ToggleSection(section) => {
+                    let expanded = self.app.settings.snapshot().is_expanded(section);
+                    self.app.settings.set_expanded(!expanded, section);
+                    self.render(false);
+                }
+                Action::SubmitApiKey(key) => {
+                    let accepted =
+                        commit_api_key(&mut self.state.borrow_mut(), &self.app.sessions, &key);
+                    if accepted {
+                        self.app.model.sign_in_completed(ProviderId::OpenRouter);
+                    }
+                    self.render(false);
+                }
+                Action::InstallUpdate => tracing::info!("updates are not available in the beta"),
             }
         }
     }

@@ -26,12 +26,16 @@ pub struct Options {
     pub mock_openrouter: bool,
     /// Open the panel this many seconds after start.
     pub open_panel_after: Option<f64>,
+    /// Open the Settings window this many seconds after start.
+    pub open_settings_after: Option<f64>,
     /// Quit this many seconds after start.
     pub quit_after: Option<f64>,
     /// Draw the status image for this chrome instead of following the system.
     pub force_chrome: Option<Chrome>,
     /// The status-item renderer.
     pub renderer: StatusRenderer,
+    /// Do not read the Swift app's Keychain vault (no Keychain prompt).
+    pub no_keychain: bool,
     /// Keep the panel open when it loses focus (for screenshots).
     pub keep_open: bool,
     /// Open the panel on this provider's tab (a provider id).
@@ -74,6 +78,7 @@ impl Options {
                 "--print-info-plist" => options.print_info_plist = true,
                 "--mock-openrouter" => options.mock_openrouter = true,
                 "--keep-open" => options.keep_open = true,
+                "--no-keychain" => options.no_keychain = true,
                 "--render-status" => {
                     options.render_status = Some(PathBuf::from(value("--render-status")?));
                 }
@@ -81,6 +86,12 @@ impl Options {
                     options.open_panel_after = Some(seconds(
                         "--open-panel-after",
                         &value("--open-panel-after")?,
+                    )?);
+                }
+                "--open-settings-after" => {
+                    options.open_settings_after = Some(seconds(
+                        "--open-settings-after",
+                        &value("--open-settings-after")?,
                     )?);
                 }
                 "--quit-after" => {
