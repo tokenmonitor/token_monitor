@@ -46,10 +46,10 @@ functions = 93
 branches = 92
 
 [crates.tokenmon-platform-windows]
-lines = 89
-regions = 85
-functions = 87
-branches = 96
+lines = 95
+regions = 92
+functions = 96
+branches = 97
 
 [crates.tokenmon-provider-chatgpt]
 lines = 97
@@ -100,7 +100,7 @@ functions = 95
 branches = 91
 
 [crates.tokenmon-windows]
-lines = 62
-regions = 62
-functions = 65
-branches = 77
+lines = 95
+regions = 94
+functions = 93
+branches = 99
