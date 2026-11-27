@@ -8,7 +8,7 @@ use std::process::ExitCode;
 
 use tokenmon_windows::exe_resources::resources_match_with;
 use tokenmon_windows::startup::{
-    Collaborators, data_dir_from_env, init_file_logging, is_smoke, start,
+    Collaborators, data_dir_from_env, init_file_logging, is_smoke, process_env, start,
 };
 
 fn args(list: &[&str]) -> Vec<String> {
@@ -33,7 +33,7 @@ fn drive(list: &[&str], resources: bool, cycle: bool) -> (ExitCode, [bool; 4]) {
         &args(list),
         "9.9.9",
         &Collaborators {
-            data_dir: &|| {
+            env: &|_| {
                 dir_called.set(true);
                 None
             },
@@ -163,4 +163,15 @@ fn test_resource_check_fails_without_an_icon() {
 #[test]
 fn test_resource_check_passes_when_both_resources_are_present() {
     assert!(resources_match_with("2.3.4", &|v| v == "2.3.4", &|| true));
+}
+
+/// The production environment lookup reads the real process environment: a
+/// variable that is set resolves, an unset one does not.
+#[test]
+fn test_process_env_reads_the_real_environment() {
+    let (name, value) = std::env::vars_os()
+        .find_map(|(k, v)| k.into_string().ok().map(|k| (k, v)))
+        .expect("the test process has an environment variable");
+    assert_eq!(process_env(&name), Some(value));
+    assert!(process_env("TOKENMON_SURELY_UNSET_VAR").is_none());
 }

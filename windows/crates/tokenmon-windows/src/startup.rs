@@ -44,13 +44,6 @@ pub fn init_file_logging(data_dir: Option<PathBuf>) -> bool {
     started
 }
 
-/// The production data directory (`%LOCALAPPDATA%\TokenMon`), if it can be
-/// resolved and created.
-#[must_use]
-pub fn production_data_dir() -> Option<PathBuf> {
-    data_dir_from_env(|name| std::env::var_os(name))
-}
-
 /// The data directory resolved from an environment lookup, created on first
 /// use; `None` when no base directory is set or it cannot be created.
 #[must_use]
@@ -62,8 +55,8 @@ pub fn data_dir_from_env(get: impl Fn(&str) -> Option<std::ffi::OsString>) -> Op
 
 /// What a run needs from the outside world; `main` passes the real ones.
 pub struct Collaborators<'a> {
-    /// Resolves the data directory the log folder lives in.
-    pub data_dir: &'a dyn Fn() -> Option<PathBuf>,
+    /// Environment lookup the data directory is resolved from (`std::env::var_os` in production).
+    pub env: &'a dyn Fn(&str) -> Option<std::ffi::OsString>,
     /// Whether the exe carries the resources this build declares.
     pub resources_ok: &'a dyn Fn(&str) -> bool,
     /// Runs the headless refresh cycle; `true` when it passed.
@@ -78,7 +71,7 @@ pub struct Collaborators<'a> {
 /// application.
 pub fn start(args: &[String], version: &str, with: &Collaborators<'_>) -> ExitCode {
     if !is_smoke(args) {
-        init_file_logging((with.data_dir)());
+        init_file_logging(data_dir_from_env(with.env));
         return (with.app)(args, version);
     }
     init_stdout_logging();
@@ -87,4 +80,17 @@ pub fn start(args: &[String], version: &str, with: &Collaborators<'_>) -> ExitCo
     } else {
         ExitCode::FAILURE
     }
+}
+
+/// The process environment as an environment lookup (what `main` passes as
+/// [`Collaborators::env`]).
+///
+/// # Examples
+///
+/// ```
+/// assert!(tokenmon_windows::startup::process_env("TOKENMON_SURELY_UNSET_VAR").is_none());
+/// ```
+#[must_use]
+pub fn process_env(name: &str) -> Option<std::ffi::OsString> {
+    std::env::var_os(name)
 }

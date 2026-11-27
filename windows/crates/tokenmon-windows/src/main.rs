@@ -7,7 +7,7 @@
 use std::process::ExitCode;
 
 use tokenmon_windows::exe_resources;
-use tokenmon_windows::startup::{Collaborators, production_data_dir, start};
+use tokenmon_windows::startup::{Collaborators, process_env, start};
 
 #[cfg(windows)]
 mod shell;
@@ -18,7 +18,7 @@ fn main() -> ExitCode {
         &args,
         env!("CARGO_PKG_VERSION"),
         &Collaborators {
-            data_dir: &production_data_dir,
+            env: &process_env,
             resources_ok: &exe_resources::own_resources_match,
             smoke_ok: &tokenmon_app::smoke::run_headless,
             app: &run_app,
