@@ -3,7 +3,9 @@
 # it exists). One Cargo.lock, one [workspace.dependencies] table, one target/.
 [workspace]
 resolver = "3"
-exclude = ["common/fuzz"]
+# The sign-in probe has its own workspace: wry/tao pull gtk 0.19 on Linux, which
+# cannot share a lockfile with tray-icon 0.26 (gtk 0.18) (finding of the M0 report).
+exclude = ["common/fuzz", "macos/crates/tokenmon-signin-probe"]
 members = [
     "common/crates/tokenmon-core",
     "common/crates/tokenmon-provider-grok",
@@ -18,6 +20,7 @@ members = [
     "common/crates/tokenmon-ui",
     "common/crates/tokenmon-app",
     "windows/crates/tokenmon-windows",
+    "macos/crates/tokenmon-macos",
 ]
 
 [workspace.package]

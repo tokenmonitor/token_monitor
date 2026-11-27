@@ -1,0 +1,68 @@
+[package]
+name = "tokenmon-macos"
+description = "TokenMon (Rust beta) for macOS: menu bar status item + Slint panel (M0 spike of issue #89)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+# Same lint set as the workspace except `unsafe_code`: the AppKit glue is
+# objc2 FFI. Unsafe is confined to src/shell/ (compiled on macOS only) and each
+# block carries a SAFETY comment; the pure modules in src/*.rs stay safe.
+[lints.rust]
+unsafe_code = "warn"
+missing_docs = "warn"
+unused_must_use = "deny"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+many_single_char_names = "allow"
+format_collect = "allow"
+similar_names = "allow"
+doc_markdown = "allow"
+return_self_not_must_use = "allow"
+too_many_lines = "allow"
+unwrap_used = "warn"
+dbg_macro = "deny"
+todo = "warn"
+
+[features]
+# Alternative Slint renderers for the M0 benchmark (software is the default).
+femtovg = ["slint/renderer-femtovg"]
+skia = ["slint/renderer-skia"]
+
+[dependencies]
+tokenmon-app = { workspace = true }
+tokenmon-core = { workspace = true }
+tokenmon-platform = { workspace = true }
+tokenmon-provider-opencode = { workspace = true }
+tokenmon-ui = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync"] }
+chrono = { workspace = true }
+sha2 = { workspace = true }
+tiny-skia = { workspace = true }
+zeroize = "1.8"
+ab_glyph = "0.2"
+slint = { workspace = true, features = ["std", "compat-1-18", "backend-winit", "renderer-software", "software-renderer-systemfonts", "unstable-winit-030"] }
+
+[[bin]]
+name = "tokenmon-macos"
+path = "src/main.rs"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["std", "NSApplication", "NSStatusBar", "NSStatusItem", "NSStatusBarButton", "NSButton", "NSControl", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSView", "NSWindow", "NSResponder", "NSScreen", "NSGraphicsContext", "NSBezierPath", "NSColor", "NSFont", "NSAppearance", "NSEvent", "NSRunningApplication", "NSStringDrawing", "NSText", "NSCell", "NSMenu", "NSMenuItem", "NSPanel", "NSAccessibilityConstants", "objc2-core-graphics"] }
+objc2-foundation = { version = "0.3", features = ["std", "NSString", "NSGeometry", "NSDictionary", "NSAttributedString", "NSThread", "NSNotification", "NSArray", "NSValue", "NSObject", "NSEnumerator", "NSData", "NSBundle"] }
