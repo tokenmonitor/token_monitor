@@ -11,10 +11,13 @@
 pub mod bundle;
 pub mod compare;
 pub mod credentials;
+pub mod keychain;
 pub mod mock;
 pub mod options;
 pub mod placement;
+pub mod prefs;
 pub mod secrets;
+pub mod services;
 pub mod skia_status;
 pub mod status_layout;
 

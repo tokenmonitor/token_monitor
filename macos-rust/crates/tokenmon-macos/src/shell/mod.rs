@@ -3,6 +3,7 @@
 
 pub mod appkit_status;
 pub mod bitmap;
+pub mod keychain_mac;
 pub mod panel;
 pub mod status_item;
 mod ui;
