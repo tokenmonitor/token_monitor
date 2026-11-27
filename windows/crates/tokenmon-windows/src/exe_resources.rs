@@ -6,11 +6,25 @@
 /// Whether the running exe carries the version resource and the icon this
 /// build declares. Logs the first problem. Always `true` off Windows/MSVC.
 pub fn own_resources_match(version: &str) -> bool {
-    if !own_version_resource_matches(version) {
+    resources_match_with(
+        version,
+        &own_version_resource_matches,
+        &own_icon_resource_present,
+    )
+}
+
+/// [`own_resources_match`] with the two checks supplied, so the failure
+/// reporting runs without a real exe that lacks a resource.
+pub fn resources_match_with(
+    version: &str,
+    version_ok: &dyn Fn(&str) -> bool,
+    icon_ok: &dyn Fn() -> bool,
+) -> bool {
+    if !version_ok(version) {
         tracing::error!("smoke: the exe's version resource does not match {version}");
         return false;
     }
-    if !own_icon_resource_present() {
+    if !icon_ok() {
         tracing::error!("smoke: the exe has no application icon (RT_GROUP_ICON) resource");
         return false;
     }
