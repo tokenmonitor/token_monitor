@@ -96,26 +96,59 @@ pub fn zone_id_marks_internet(contents: &str) -> bool {
 /// Only Windows has such streams. The app's own downloads never carry one, so
 /// this is a defensive check, not protection for the update path (#37).
 fn read_zone_identifier(path: &Path) -> Option<String> {
-    if cfg!(windows) {
-        let mut stream = path.as_os_str().to_owned();
-        stream.push(":Zone.Identifier");
-        std::fs::read_to_string(stream).ok()
-    } else {
-        None
-    }
+    cfg!(windows)
+        .then(|| std::fs::read_to_string(zone_stream_path(path)).ok())
+        .flatten()
 }
 
-impl SignatureVerifier for PeHeaderVerifier {
-    fn verify_exe(&self, path: &Path) -> Result<(), InstallError> {
+/// The path of the `Zone.Identifier` alternate data stream of `path`
+/// (`<path>:Zone.Identifier`).
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use tokenmon_platform_windows::install::verify::zone_stream_path;
+///
+/// assert_eq!(
+///     zone_stream_path(Path::new("a.exe")).to_string_lossy(),
+///     "a.exe:Zone.Identifier"
+/// );
+/// ```
+pub fn zone_stream_path(path: &Path) -> std::path::PathBuf {
+    let mut stream = path.as_os_str().to_owned();
+    stream.push(":Zone.Identifier");
+    stream.into()
+}
+
+impl PeHeaderVerifier {
+    /// [`SignatureVerifier::verify_exe`] with the file's `Zone.Identifier`
+    /// text supplied, so the Internet-zone refusal is testable on any host.
+    ///
+    /// # Errors
+    ///
+    /// [`InstallError::Verification`] when the file is not a PE image or the
+    /// zone text marks it as downloaded from the Internet.
+    pub fn verify_exe_with_zone(
+        &self,
+        path: &Path,
+        zone: Option<&str>,
+    ) -> Result<(), InstallError> {
         if !matches!(is_pe(path), Ok(true)) {
             return Err(bad("The download is not a Windows program."));
         }
-        if read_zone_identifier(path).is_some_and(|t| zone_id_marks_internet(&t)) {
+        if zone.is_some_and(zone_id_marks_internet) {
             return Err(bad(
                 "Windows would block this unsigned download from opening.",
             ));
         }
         Ok(())
+    }
+}
+
+impl SignatureVerifier for PeHeaderVerifier {
+    fn verify_exe(&self, path: &Path) -> Result<(), InstallError> {
+        self.verify_exe_with_zone(path, read_zone_identifier(path).as_deref())
     }
 
     fn verify_msi(&self, path: &Path) -> Result<(), InstallError> {
