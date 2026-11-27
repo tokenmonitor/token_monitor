@@ -123,10 +123,24 @@ class RenderCoverageTest(unittest.TestCase):
         self.assertIn("crate alpha lines coverage 47.06% is below its floor 80.00%", r.stdout)
         self.assertIn("| `ghost` | not measured |", r.stdout)
 
-    def test_committed_floors_file_parses_and_passes(self):
-        floors = (SCRIPTS.parents[2] / ".config" / "coverage-floors.toml").read_text()
-        r, _ = self.cov(floors=floors)
-        self.assertEqual(r.returncode, 0, r.stdout)
+    def test_committed_floors_file_is_well_formed_and_applied(self):
+        """The real floors file parses, names only known metrics with values in
+        0-100, and the renderer applies it without crashing. The fixture's
+        coverage is far below real floors, so a failing gate is expected and
+        not asserted against."""
+        import tomllib
+        text = (SCRIPTS.parents[2] / ".config" / "coverage-floors.toml").read_text()
+        data = tomllib.loads(text)
+        metrics = {"lines", "regions", "functions", "branches"}
+        tables = [data.get("total", {})] + list(data.get("crates", {}).values())
+        for table in tables:
+            self.assertLessEqual(set(table), metrics, table)
+            for value in table.values():
+                self.assertTrue(0 <= float(value) <= 100, value)
+        r, _ = self.cov(floors=text)
+        self.assertIn(r.returncode, (0, 1), r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+        self.assertIn("(floor ", r.stdout)
 
     def branch_cov(self, tmp: str) -> Path:
         """The fixture with branch counts, as `cargo llvm-cov --branch` writes them."""
