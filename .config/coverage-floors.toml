@@ -17,15 +17,90 @@
 #
 # Floors only ever go up. Start at 0 while the workspace is being built.
 
-[total]
-lines = 0
-regions = 0
+# Set 2026-11-27 from the lower of the Ubuntu (windows-ci, --branch) and
+# Windows (windows-coverage-nightly) runners on 16d99db4, about one point below.
+# Branch floors gate only runs that measure branches (Ubuntu).
 
-# One table per crate, keyed by the crate directory name under common/crates/ or windows/crates/.
-# Crates without a table have no floor (the total and the delta still apply).
-# A crate listed here but not measured shows as "not measured" in the summary.
-#
-# [crates.tokenmon-core]
-# lines = 80
-# regions = 75
-[crates]
+[total]
+lines = 95
+regions = 94
+functions = 94
+branches = 91
+
+[crates.tokenmon-app]
+lines = 91
+regions = 91
+functions = 90
+branches = 89
+
+[crates.tokenmon-core]
+lines = 96
+regions = 94
+functions = 95
+branches = 91
+
+[crates.tokenmon-platform]
+lines = 95
+regions = 93
+functions = 93
+branches = 92
+
+[crates.tokenmon-platform-windows]
+lines = 89
+regions = 85
+functions = 87
+branches = 96
+
+[crates.tokenmon-provider-chatgpt]
+lines = 97
+regions = 96
+functions = 96
+branches = 95
+
+[crates.tokenmon-provider-claude]
+lines = 96
+regions = 95
+functions = 94
+branches = 91
+
+[crates.tokenmon-provider-cursor]
+lines = 97
+regions = 96
+functions = 96
+branches = 89
+
+[crates.tokenmon-provider-grok]
+lines = 96
+regions = 95
+functions = 97
+branches = 89
+
+[crates.tokenmon-provider-grokbot]
+lines = 98
+regions = 97
+functions = 99
+branches = 92
+
+[crates.tokenmon-provider-opencode]
+lines = 94
+regions = 92
+functions = 93
+branches = 90
+
+[crates.tokenmon-provider-openrouter]
+lines = 98
+regions = 96
+functions = 98
+branches = 91
+
+[crates.tokenmon-ui]
+lines = 95
+regions = 95
+functions = 95
+branches = 91
+
+[crates.tokenmon-windows]
+lines = 62
+regions = 62
+functions = 65
+branches = 77
