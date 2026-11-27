@@ -2,7 +2,7 @@
 # Builds "TokenMon (Rust beta).app" (bundle id com.modelmonitor.app.rust) from the
 # tokenmon-macos crate and signs it ad hoc (M0 spike of issue #89).
 #
-# Usage: macos/scripts/bundle-rust-beta.sh [--features femtovg|skia] [OUT_DIR]
+# Usage: macos-rust/scripts/bundle-rust-beta.sh [--features femtovg|skia] [OUT_DIR]
 # Output: OUT_DIR/TokenMon (Rust beta).app   (default OUT_DIR: target/rust-beta)
 # Signing identity: set CODESIGN_IDENTITY (default "-" = ad hoc).
 set -eu

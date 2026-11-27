@@ -16,7 +16,7 @@ sleep 4
 grep -E "panel (shown|hidden|focus)" "$OUT/focus.log" | sed 's/\x1b\[[0-9;]*m//g' | cut -c28-140
 
 echo "== over a full-screen app: teal full-screen window, panel opened at 7s =="
-swift "$ROOT/macos/scripts/bench/fullscreen_host.swift" >/dev/null 2>&1 &
+swift "$ROOT/macos-rust/scripts/bench/fullscreen_host.swift" >/dev/null 2>&1 &
 sleep 2
 TOKENMON_LOG=debug "$APP" --mock-openrouter --open-panel-after 6 --quit-after 11 >"$OUT/fullscreen.log" 2>&1 &
 sleep 9

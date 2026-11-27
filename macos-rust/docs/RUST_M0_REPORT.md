@@ -1,8 +1,8 @@
 # Rust macOS client, M0 spike report (issue #89)
 
-Branch `macos-rust-m0`. Code: `macos/crates/tokenmon-macos` (bin + safe library),
-`macos/crates/tokenmon-signin-probe` (separate workspace, see 5), scripts in
-`macos/scripts/` (`bundle-rust-beta.sh`, `bench/*`). Artifacts in `macos/docs/m0/`.
+Branch `macos-rust-m0`. Code: `macos-rust/crates/tokenmon-macos` (bin + safe library),
+`macos-rust/crates/tokenmon-signin-probe` (separate workspace, see 5), scripts in
+`macos/scripts/` (`bundle-rust-beta.sh`, `bench/*`). Artifacts in `macos-rust/docs/m0/`.
 Host: macOS 27.0 (26A428), Apple Silicon laptop with a notch display plus an
 external display, rustc 1.99.1, Slint 1.18.1, winit 0.30.13, objc2 0.6.
 
@@ -33,7 +33,7 @@ where it may be launched.
    `#[cfg(target_os = "macos")]`. Pure logic (bundle identity, credential loader,
    placement math, status layout, tiny-skia renderer, option parsing, loopback mock)
    is in the library with tests in `tests/` (31 tests; the gate below passes).
-   `macos/scripts/bundle-rust-beta.sh [--features femtovg|skia]` builds
+   `macos-rust/scripts/bundle-rust-beta.sh [--features femtovg|skia]` builds
    `target/rust-beta/TokenMon (Rust beta).app`: bundle id `com.modelmonitor.app.rust`,
    display name "TokenMon (Rust beta)", `LSUIElement`, ad-hoc signed and verified
    with `codesign --verify --strict`. The Info.plist comes from the binary
@@ -65,9 +65,9 @@ where it may be launched.
 Screenshots (menu bar strip, cropped; the "light" and "dark" runs toggled the system
 appearance and restored it):
 
-- `macos/docs/m0/screens/menubar-skia-{light,dark}.png`, `menubar-appkit-{light,dark}.png`
+- `macos-rust/docs/m0/screens/menubar-skia-{light,dark}.png`, `menubar-appkit-{light,dark}.png`
 - Offscreen side-by-side (top tiny-skia, bottom AppKit, 1x and 2x, light and dark
-  backdrops, enlarged): `macos/docs/m0/status/compare-{light,dark}-{1x,2x}.png`
+  backdrops, enlarged): `macos-rust/docs/m0/status/compare-{light,dark}-{1x,2x}.png`
   (raw renders: `status-{skia,appkit}-*.png`).
 
 Findings:
@@ -96,8 +96,8 @@ Findings:
 
 ## 2. Panel (route 1: winit window + objc2, chosen)
 
-Screenshots: `macos/docs/m0/screens/panel-{light,dark}.png`, `fullscreen-over.png`.
-Script: `macos/scripts/bench/panel_behavior.sh`.
+Screenshots: `macos-rust/docs/m0/screens/panel-{light,dark}.png`, `fullscreen-over.png`.
+Script: `macos-rust/scripts/bench/panel_behavior.sh`.
 
 Tuning applied after the window exists: `NSStatusWindowLevel` (25), collection
 behavior `CanJoinAllSpaces | FullScreenAuxiliary | IgnoresCycle`,
@@ -131,7 +131,7 @@ was not observed. The panel has square corners and no vibrancy (decision 1: add 
 native background only if it works; not tried in M0). The `NSPanel` fallback was not
 needed, so it was not built.
 
-## 5. Sign-in probe (`macos/scripts/bench/signin_probe.sh`)
+## 5. Sign-in probe (`macos-rust/scripts/bench/signin_probe.sh`)
 
 Run: a local page sets `tm_session` (HttpOnly) in a non-persistent store; the cookie is
 read back; a second process checks it did not persist; a `--persistent` control proves
@@ -153,7 +153,7 @@ tao window was tested. (3) Persistent-control cookie: the `--persistent` run sto
 throwaway 127.0.0.1 cookie in the probe binary's default WebKit store (1 h Max-Age).
 The probe is ~100 lines per engine plus a 60-line server, not 50.
 
-## 6. Benchmarks (`macos/scripts/bench/bench_rust.sh`)
+## 6. Benchmarks (`macos-rust/scripts/bench/bench_rust.sh`)
 
 Rust numbers: release build, ad-hoc-signed bundle, mock server, 3 runs, `footprint`
 (phys_footprint), CPU = cputime delta over 30 s as percent of one core (10 ms
@@ -209,10 +209,10 @@ windows on this macOS version; it excludes the time until the item is painted.
 ## Reproduce
 
 ```sh
-macos/scripts/bundle-rust-beta.sh --features femtovg
-macos/scripts/bench/bench_rust.sh software 3     # or femtovg
-macos/scripts/bench/menubar_screens.sh macos/docs/m0/screens   # toggles system appearance, restores it
-macos/scripts/bench/panel_behavior.sh macos/docs/m0/screens
-macos/scripts/bench/signin_probe.sh
-target/release/tokenmon-macos --render-status macos/docs/m0/status
+macos-rust/scripts/bundle-rust-beta.sh --features femtovg
+macos-rust/scripts/bench/bench_rust.sh software 3     # or femtovg
+macos-rust/scripts/bench/menubar_screens.sh macos-rust/docs/m0/screens   # toggles system appearance, restores it
+macos-rust/scripts/bench/panel_behavior.sh macos-rust/docs/m0/screens
+macos-rust/scripts/bench/signin_probe.sh
+target/release/tokenmon-macos --render-status macos-rust/docs/m0/status
 ```

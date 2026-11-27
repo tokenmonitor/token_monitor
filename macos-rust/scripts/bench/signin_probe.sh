@@ -6,8 +6,8 @@
 # default WebKit store of the probe binary; run it only on a dev machine.
 set -eu
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
-PROBE="$ROOT/macos/crates/tokenmon-signin-probe/target/release/tokenmon-signin-probe"
-[ -x "$PROBE" ] || cargo build --release --manifest-path "$ROOT/macos/crates/tokenmon-signin-probe/Cargo.toml"
+PROBE="$ROOT/macos-rust/crates/tokenmon-signin-probe/target/release/tokenmon-signin-probe"
+[ -x "$PROBE" ] || cargo build --release --manifest-path "$ROOT/macos-rust/crates/tokenmon-signin-probe/Cargo.toml"
 for engine in wry webkit; do
   echo "=== $engine: non-persistent set ==="
   "$PROBE" "$engine" set

@@ -3,7 +3,7 @@
 # and panel-open memory and CPU, for one renderer.
 #
 # Usage: bench_rust.sh [software|femtovg|skia] [RUNS]
-# Needs a bundle built by macos/scripts/bundle-rust-beta.sh (with --features
+# Needs a bundle built by macos-rust/scripts/bundle-rust-beta.sh (with --features
 # femtovg or skia for those renderers). Uses the loopback mock, never real
 # credentials. Memory is `footprint` (phys_footprint, what Activity Monitor
 # shows); CPU is the cputime delta over a fixed window, in percent of one core.
@@ -14,7 +14,7 @@ RENDERER=${1:-software}
 RUNS=${2:-5}
 IDLE_SECONDS=${IDLE_SECONDS:-30}
 PROBE=${TMPDIR:-/tmp}/tm_launch_probe
-[ -x "$PROBE" ] || swiftc -O "$ROOT/macos/scripts/bench/launch_probe.swift" -o "$PROBE"
+[ -x "$PROBE" ] || swiftc -O "$ROOT/macos-rust/scripts/bench/launch_probe.swift" -o "$PROBE"
 
 footprint_mb() { footprint -p "$1" 2>/dev/null | awk '/Footprint:/ {for (i=1;i<=NF;i++) if ($i=="Footprint:") {v=$(i+1); u=$(i+2)}; if (u ~ /^KB/) v/=1024; else if (u ~ /^GB/) v*=1024; printf "%.1f", v; exit}'; }
 cpu_seconds() { ps -o cputime= -p "$1" | awk -F'[:.]' '{ if (NF==3) print $1*60+$2+$3/100; else print $1*3600+$2*60+$3+$4/100 }'; }
