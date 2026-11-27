@@ -523,3 +523,85 @@ fn test_installed_by_msi_is_false_without_registry() {
     let r = rig(make_zip(&[("TokenMon.exe", &fake_pe("new"))]), false);
     assert!(!r.installer.installed_by_msi());
 }
+
+/// A staging root that does not exist is an install error, never a panic, and
+/// nothing is downloaded or launched (zip and MSI alike).
+#[tokio::test]
+async fn test_unusable_work_root_fails_the_install_before_downloading() {
+    let zip = fake_pe("new");
+    let msi = fake_msi();
+    for (body, kind, url) in [
+        (zip, AssetKind::Zip, URL.to_owned()),
+        (msi, AssetKind::Msi, URL.replace(".zip", ".msi")),
+    ] {
+        let r = rig(body.clone(), false);
+        let installer = WindowsUpdateInstaller::new(
+            ReleaseSource::new("windows-v", "tokenmon-windows-"),
+            r.exe.clone(),
+            4242,
+            r.dir.path().join("no-such-work-root"),
+            r.downloader.clone(),
+            Arc::new(PeHeaderVerifier),
+            r.launcher.clone(),
+        );
+        let err = installer
+            .install(request(&body, kind, &url, "1.5.0", "1.6.0"))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, InstallError::Install(_)), "{err:?}");
+        assert_eq!(r.downloader.calls.load(Ordering::SeqCst), 0);
+        assert!(r.launcher.spawned.lock().unwrap().is_empty());
+    }
+}
+
+/// When msiexec cannot be started the install fails with an install error and
+/// the kept package folder is removed again.
+#[tokio::test]
+async fn test_msi_spawn_failure_is_an_install_error_and_cleans_up() {
+    let body = fake_msi();
+    let r = rig(body.clone(), true);
+    let installer = WindowsUpdateInstaller::new(
+        ReleaseSource::new("windows-v", "tokenmon-windows-"),
+        r.exe.clone(),
+        4242,
+        r.work.clone(),
+        r.downloader.clone(),
+        Arc::new(PeHeaderVerifier),
+        r.launcher.clone(),
+    )
+    .with_version_reader(Arc::new(FixedMsiVersion("1.6.0")));
+    let url = URL.replace(".zip", ".msi");
+    let err = installer
+        .install(request(&body, AssetKind::Msi, &url, "1.5.0", "1.6.0"))
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(&err, InstallError::Install(m) if m.contains("boom")),
+        "{err:?}"
+    );
+    assert_eq!(r.launcher.spawned.lock().unwrap().len(), 1, "it was tried");
+    assert_eq!(fs::read_dir(&r.work).unwrap().count(), 0, "package removed");
+}
+
+/// The streamed digest equals the one-shot digest for an empty file, a short
+/// one and one spanning several read buffers; a missing file or a directory
+/// is an install error.
+#[test]
+fn test_hash_file_matches_the_digest_and_reports_unreadable_paths() {
+    use tokenmon_platform_windows::install::installer::hash_file;
+    let dir = tempfile::tempdir().unwrap();
+    let big: Vec<u8> = (0..40_000u32).map(|i| (i % 251) as u8).collect();
+    for body in [Vec::new(), b"abc".to_vec(), big] {
+        let file = dir.path().join("f.bin");
+        fs::write(&file, &body).unwrap();
+        assert_eq!(hash_file(&file).unwrap(), sha(&body));
+    }
+    assert!(matches!(
+        hash_file(&dir.path().join("missing")),
+        Err(InstallError::Install(_))
+    ));
+    assert!(matches!(
+        hash_file(dir.path()),
+        Err(InstallError::Install(_))
+    ));
+}

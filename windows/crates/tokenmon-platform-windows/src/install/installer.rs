@@ -276,7 +276,26 @@ impl WindowsUpdateInstaller {
 }
 
 /// Lowercase hex SHA-256 of a file, streamed.
-fn hash_file(path: &Path) -> Result<String, InstallError> {
+///
+/// # Errors
+///
+/// [`InstallError::Install`] when the file cannot be opened or read.
+///
+/// # Examples
+///
+/// ```
+/// use tokenmon_platform_windows::install::installer::hash_file;
+///
+/// let dir = std::env::temp_dir().join("tokenmon-hash-doc");
+/// std::fs::create_dir_all(&dir).unwrap();
+/// let file = dir.join("abc.bin");
+/// std::fs::write(&file, b"abc").unwrap();
+/// assert_eq!(
+///     hash_file(&file).unwrap(),
+///     "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+/// );
+/// ```
+pub fn hash_file(path: &Path) -> Result<String, InstallError> {
     use std::io::Read;
     let io = |e: std::io::Error| InstallError::Install(e.to_string());
     let mut file = std::fs::File::open(path).map_err(io)?;
