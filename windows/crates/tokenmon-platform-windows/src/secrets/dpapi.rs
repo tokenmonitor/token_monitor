@@ -18,9 +18,19 @@ const ENTROPY: &[u8] = b"TokenMon.vault.v1";
 #[derive(Debug, Default, Clone, Copy)]
 pub struct DpapiEncryptor;
 
+/// The `cbData` length for a DPAPI blob of `len` bytes: DPAPI blobs are
+/// limited to `u32::MAX` bytes, larger inputs are refused instead of truncated.
+///
+/// # Errors
+///
+/// [`CryptError`] when `len` does not fit in a `u32`.
+pub fn blob_len(len: usize) -> Result<u32, CryptError> {
+    u32::try_from(len).map_err(|_| CryptError("blob too large".into()))
+}
+
 fn blob(data: &[u8]) -> Result<CRYPT_INTEGER_BLOB, CryptError> {
     Ok(CRYPT_INTEGER_BLOB {
-        cbData: u32::try_from(data.len()).map_err(|_| CryptError("blob too large".into()))?,
+        cbData: blob_len(data.len())?,
         pbData: data.as_ptr().cast_mut(),
     })
 }

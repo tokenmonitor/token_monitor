@@ -8,7 +8,7 @@ mod dpapi;
 mod secure_file;
 
 #[cfg(windows)]
-pub use dpapi::DpapiEncryptor;
+pub use dpapi::{DpapiEncryptor, blob_len};
 #[cfg(windows)]
 pub(crate) use secure_file::current_user_sid;
 pub use secure_file::{
